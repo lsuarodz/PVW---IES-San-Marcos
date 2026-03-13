@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application (Admin or Student)",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "student"] },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "name", "createdAt"]
+    },
+    "Ingredient": {
+      "title": "Ingredient",
+      "description": "An ingredient used in recipes",
+      "type": "object",
+      "properties": {
+        "nameES": { "type": "string" },
+        "nameEN": { "type": "string" },
+        "provider": { "type": "string" },
+        "format": { "type": "string" },
+        "allergens": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "unit": { "type": "string", "enum": ["kg", "g", "l", "ml", "ud"] },
+        "purchasePrice": { "type": "number" },
+        "wastePercentage": { "type": "number" },
+        "costPerUnit": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nameES", "unit", "costPerUnit", "createdBy", "createdAt"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "A recipe or escandallo",
+      "type": "object",
+      "properties": {
+        "nameES": { "type": "string" },
+        "nameEN": { "type": "string" },
+        "descriptionES": { "type": "string" },
+        "descriptionEN": { "type": "string" },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ingredientId": { "type": "string" },
+              "quantity": { "type": "number" }
+            },
+            "required": ["ingredientId", "quantity"]
+          }
+        },
+        "totalCost": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nameES", "ingredients", "totalCost", "createdBy", "createdAt"]
+    },
+    "Menu": {
+      "title": "Menu",
+      "description": "A brunch or cocktail menu",
+      "type": "object",
+      "properties": {
+        "nameES": { "type": "string" },
+        "nameEN": { "type": "string" },
+        "type": { "type": "string", "enum": ["brunch", "cocktail"] },
+        "recipes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "totalCost": { "type": "number" },
+        "price": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nameES", "type", "recipes", "totalCost", "price", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Users collection"
+    },
+    "ingredients/{ingredientId}": {
+      "schema": { "$ref": "#/entities/Ingredient" },
+      "description": "Ingredients collection"
+    },
+    "recipes/{recipeId}": {
+      "schema": { "$ref": "#/entities/Recipe" },
+      "description": "Recipes collection"
+    },
+    "menus/{menuId}": {
+      "schema": { "$ref": "#/entities/Menu" },
+      "description": "Menus collection"
+    }
+  }
+}

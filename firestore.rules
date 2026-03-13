@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    //   - email: string (required)
+    //   - role: string (required, 'admin' or 'student')
+    //   - name: string (required)
+    //   - createdAt: string (required)
+    // Collection: ingredients
+    //   - nameES: string (required)
+    //   - nameEN: string (optional)
+    //   - unit: string (required, 'kg', 'g', 'l', 'ml', 'ud')
+    //   - costPerUnit: number (required)
+    //   - createdBy: string (required)
+    //   - createdAt: string (required)
+    // Collection: recipes
+    //   - nameES: string (required)
+    //   - nameEN: string (optional)
+    //   - descriptionES: string (optional)
+    //   - descriptionEN: string (optional)
+    //   - ingredients: list (required)
+    //   - totalCost: number (required)
+    //   - createdBy: string (required)
+    //   - createdAt: string (required)
+    // Collection: menus
+    //   - nameES: string (required)
+    //   - nameEN: string (optional)
+    //   - type: string (required, 'brunch', 'cocktail')
+    //   - recipes: list (required)
+    //   - totalCost: number (required)
+    //   - price: number (required)
+    //   - createdBy: string (required)
+    //   - createdAt: string (required)
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "lsuarodzmail.com@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'docente'])
+      );
+    }
+
+    function isStudentOrAdmin() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'student', 'docente'])
+      );
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !('field' in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['email', 'role', 'name', 'group', 'createdAt']) &&
+             isValidString(data.email, 3, 100) &&
+             data.role in ['admin', 'student', 'docente'] &&
+             isValidString(data.name, 1, 100) &&
+             (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
+             data.createdAt is string;
+    }
+
+    function isValidIngredient() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'unit', 'costPerUnit', 'purchasePrice', 'wastePercentage', 'provider', 'format', 'allergens', 'createdBy', 'createdAt']) &&
+             isValidString(data.nameES, 1, 100) &&
+             (data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
+             data.unit in ['kg', 'L', 'g', 'l', 'ml', 'ud'] &&
+             data.costPerUnit is number && data.costPerUnit >= 0 &&
+             (!('purchasePrice' in data) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
+             (!('wastePercentage' in data) || (data.wastePercentage is number && data.wastePercentage >= 0 && data.wastePercentage <= 99)) &&
+             (!('provider' in data) || data.provider == "" || isValidString(data.provider, 1, 100)) &&
+             (!('format' in data) || data.format == "" || isValidString(data.format, 1, 100)) &&
+             (!('allergens' in data) || data.allergens is list) &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    function isValidRecipe() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'ingredients', 'totalCost', 'createdBy', 'createdAt']) &&
+             isValidString(data.nameES, 1, 100) &&
+             (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
+             (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
+             (!('descriptionEN' in data) || data.descriptionEN == "" || isValidString(data.descriptionEN, 1, 2000)) &&
+             (!('steps' in data) || data.steps is list) &&
+             (!('stepsEN' in data) || data.stepsEN is list) &&
+             data.ingredients is list && data.ingredients.size() <= 100 &&
+             data.totalCost is number && data.totalCost >= 0 &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    function isValidMenu() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'type', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt']) &&
+             isValidString(data.nameES, 1, 100) &&
+             (data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
+             data.type in ['brunch', 'cocktail', 'navidad', 'coffee', 'cafeteria', 'pedagogico'] &&
+             data.recipes is list && data.recipes.size() <= 50 &&
+             data.totalCost is number && data.totalCost >= 0 &&
+             data.price is number && data.price >= 0 &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update, delete: if isAdmin() && isValidUser();
+    }
+
+    match /ingredients/{ingredientId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidIngredient();
+      allow delete: if isAdmin();
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidRecipe();
+      allow delete: if isAdmin();
+    }
+
+    match /menus/{menuId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidMenu();
+      allow delete: if isAdmin();
+    }
+  }
+}
