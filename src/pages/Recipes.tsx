@@ -40,6 +40,7 @@ export default function Recipes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printingRecipe, setPrintingRecipe] = useState<Recipe | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   
   const [formData, setFormData] = useState({
     nameES: '',
@@ -208,21 +209,38 @@ export default function Recipes() {
   };
 
   const exportPDF = (recipe: Recipe) => {
+    if (isPrinting) return;
+    setIsPrinting(true);
     setPrintingRecipe(recipe);
+    
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
           margin: 0.5,
           filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
         };
-        html2pdf().set(opt).from(printRef.current).save().then(() => {
-          setPrintingRecipe(null);
-        });
+        
+        html2pdf()
+          .set(opt)
+          .from(printRef.current)
+          .save()
+          .then(() => {
+            setPrintingRecipe(null);
+            setIsPrinting(false);
+          })
+          .catch((err: any) => {
+            console.error('Error generating PDF:', err);
+            setPrintingRecipe(null);
+            setIsPrinting(false);
+            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+          });
+      } else {
+        setIsPrinting(false);
       }
-    }, 100);
+    }, 500);
   };
 
   const filteredRecipes = recipes.filter(r => 
@@ -257,7 +275,12 @@ export default function Recipes() {
                   <BookOpen size={24} />
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => exportPDF(recipe)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Imprimir">
+                  <button 
+                    onClick={() => exportPDF(recipe)} 
+                    disabled={isPrinting}
+                    className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50" 
+                    title="Imprimir"
+                  >
                     <Printer size={18} />
                   </button>
                   <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Editar">
@@ -494,7 +517,7 @@ export default function Recipes() {
 
       {/* Hidden Print Layout */}
       {printingRecipe && (
-        <div style={{ display: 'none' }}>
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
           <div ref={printRef} className="p-10 bg-white text-stone-900 font-sans" style={{ width: '800px' }}>
             <div className="border-b-2 border-stone-900 pb-6 mb-8">
               <h1 className="text-4xl font-bold mb-2 uppercase tracking-tight">{printingRecipe.nameES}</h1>

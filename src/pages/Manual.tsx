@@ -7,13 +7,13 @@ export default function Manual() {
 
   const exportPDF = () => {
     if (printRef.current) {
-      const opt = {
-        margin: 0.5,
-        filename: 'Manual_Instrucciones_PVW.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
+        const opt = {
+          margin: 0.5,
+          filename: 'Manual_Instrucciones_PVW.pdf',
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
+        };
       html2pdf().set(opt).from(printRef.current).save();
     }
   };

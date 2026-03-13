@@ -16,6 +16,7 @@ export default function Minutas() {
   
   const printRef = useRef<HTMLDivElement>(null);
   const [printingMenu, setPrintingMenu] = useState<{ menu: Menu, language: 'ES' | 'EN' } | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
@@ -77,7 +78,10 @@ export default function Minutas() {
   };
 
   const exportPDF = (menu: Menu, language: 'ES' | 'EN' = 'ES') => {
+    if (isPrinting) return;
+    setIsPrinting(true);
     setPrintingMenu({ menu, language });
+    
     setTimeout(() => {
       if (printRef.current) {
         const langSuffix = language === 'EN' ? '_EN' : '';
@@ -85,14 +89,28 @@ export default function Minutas() {
           margin: 1,
           filename: `Minuta_${menu.nameES.replace(/\s+/g, '_')}${langSuffix}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
           jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
         };
-        html2pdf().set(opt).from(printRef.current).save().then(() => {
-          setPrintingMenu(null);
-        });
+        
+        html2pdf()
+          .set(opt)
+          .from(printRef.current)
+          .save()
+          .then(() => {
+            setPrintingMenu(null);
+            setIsPrinting(false);
+          })
+          .catch((err: any) => {
+            console.error('Error generating PDF:', err);
+            setPrintingMenu(null);
+            setIsPrinting(false);
+            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+          });
+      } else {
+        setIsPrinting(false);
       }
-    }, 100);
+    }, 500);
   };
 
   const filteredMenus = menus.filter(m => 
@@ -133,12 +151,22 @@ export default function Minutas() {
                   <FileText size={24} />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => exportPDF(menu, 'ES')} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Exportar Minuta PDF (Español)">
+                  <button 
+                    onClick={() => exportPDF(menu, 'ES')} 
+                    disabled={isPrinting}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50" 
+                    title="Exportar Minuta PDF (Español)"
+                  >
                     <Download size={16} />
                     ES
                   </button>
                   {menu.nameEN && (
-                    <button onClick={() => exportPDF(menu, 'EN')} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Exportar Minuta PDF (Inglés)">
+                    <button 
+                      onClick={() => exportPDF(menu, 'EN')} 
+                      disabled={isPrinting}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50" 
+                      title="Exportar Minuta PDF (Inglés)"
+                    >
                       <Download size={16} />
                       EN
                     </button>

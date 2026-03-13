@@ -39,6 +39,7 @@ export default function Menus() {
 
   const printRef = useRef<HTMLDivElement>(null);
   const [printingMenu, setPrintingMenu] = useState<Menu | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
@@ -161,21 +162,38 @@ export default function Menus() {
   };
 
   const exportPDF = (menu: Menu) => {
+    if (isPrinting) return;
+    setIsPrinting(true);
     setPrintingMenu(menu);
+    
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
           margin: 1,
           filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
           jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
         };
-        html2pdf().set(opt).from(printRef.current).save().then(() => {
-          setPrintingMenu(null);
-        });
+        
+        html2pdf()
+          .set(opt)
+          .from(printRef.current)
+          .save()
+          .then(() => {
+            setPrintingMenu(null);
+            setIsPrinting(false);
+          })
+          .catch((err: any) => {
+            console.error('Error generating PDF:', err);
+            setPrintingMenu(null);
+            setIsPrinting(false);
+            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+          });
+      } else {
+        setIsPrinting(false);
       }
-    }, 100);
+    }, 500);
   };
 
   const filteredMenus = menus.filter(m => 
@@ -210,7 +228,12 @@ export default function Menus() {
                   <Utensils size={24} />
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => exportPDF(menu)} className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Exportar PDF">
+                  <button 
+                    onClick={() => exportPDF(menu)} 
+                    disabled={isPrinting}
+                    className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50" 
+                    title="Exportar PDF"
+                  >
                     <Download size={18} />
                   </button>
                   <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">

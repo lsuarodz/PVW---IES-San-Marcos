@@ -115,7 +115,7 @@ export default function Ingredients() {
       nameES: ingredient.nameES,
       provider: ingredient.provider || '',
       allergens: ingredient.allergens || [],
-      unit: ingredient.unit === 'l' ? 'L' : (ingredient.unit as 'kg' | 'L' | 'ud') || 'kg',
+      unit: (ingredient.unit as 'kg' | 'L' | 'ud') || 'kg',
       purchasePrice: ingredient.purchasePrice || ingredient.costPerUnit,
       wastePercentage: ingredient.wastePercentage || 0,
     });

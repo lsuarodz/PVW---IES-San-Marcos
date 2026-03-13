@@ -3,7 +3,9 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Recipe } from './Recipes';
 import { Ingredient } from './Ingredients';
-import { Search, ShoppingCart, Plus, Trash2, Calculator } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
+import { useRef } from 'react';
 
 interface OrderItem {
   recipeId: string;
@@ -25,6 +27,8 @@ export default function Orders() {
   const [search, setSearch] = useState('');
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const printRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
@@ -110,6 +114,37 @@ export default function Orders() {
 
   const aggregatedList = getAggregatedIngredients();
   const totalOrderCost = aggregatedList.reduce((sum, item) => sum + item.totalCost, 0);
+
+  const exportPDF = () => {
+    if (aggregatedList.length === 0) return;
+    setIsPrinting(true);
+    setTimeout(() => {
+      if (printRef.current) {
+        const opt = {
+          margin: 0.5,
+          filename: `Pedido_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
+        };
+        
+        html2pdf()
+          .set(opt)
+          .from(printRef.current)
+          .save()
+          .then(() => {
+            setIsPrinting(false);
+          })
+          .catch((err: any) => {
+            console.error('Error generating PDF:', err);
+            setIsPrinting(false);
+            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+          });
+      } else {
+        setIsPrinting(false);
+      }
+    }, 500);
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -205,9 +240,19 @@ export default function Orders() {
                 <Calculator size={20} className="text-blue-600" />
                 Lista de la Compra
               </h2>
-              <div className="text-right">
-                <div className="text-xs text-stone-500 uppercase font-bold tracking-wider">Coste Total Estimado</div>
-                <div className="text-xl font-bold text-emerald-700">{totalOrderCost.toFixed(2)} €</div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={exportPDF}
+                  disabled={isPrinting || aggregatedList.length === 0}
+                  className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                  title="Imprimir Lista"
+                >
+                  <Printer size={20} />
+                </button>
+                <div className="text-right">
+                  <div className="text-xs text-stone-500 uppercase font-bold tracking-wider">Coste Total Estimado</div>
+                  <div className="text-xl font-bold text-emerald-700">{totalOrderCost.toFixed(2)} €</div>
+                </div>
               </div>
             </div>
             
@@ -251,6 +296,65 @@ export default function Orders() {
           </div>
         </div>
       </div>
+
+      {/* Hidden Print Layout */}
+      {isPrinting && (
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+          <div ref={printRef} className="p-10 bg-white text-stone-900 font-sans" style={{ width: '800px' }}>
+            <div className="border-b-2 border-stone-900 pb-6 mb-8 flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-bold uppercase tracking-tight">Lista de Pedido / Compra</h1>
+                <p className="text-stone-500 mt-1">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
+                <div className="text-2xl font-bold text-stone-900">{totalOrderCost.toFixed(2)} €</div>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Recetas Incluidas</h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                {orderItems.filter(item => item.quantity > 0).map(item => {
+                  const recipe = recipes.find(r => r.id === item.recipeId);
+                  return (
+                    <div key={item.recipeId} className="flex justify-between text-sm border-b border-stone-100 pb-1">
+                      <span>{recipe?.nameES}</span>
+                      <span className="font-bold">x{item.quantity}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Desglose de Ingredientes</h3>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-stone-300">
+                    <th className="py-2 font-bold text-sm">Ingrediente</th>
+                    <th className="py-2 font-bold text-sm text-right">Cantidad</th>
+                    <th className="py-2 font-bold text-sm text-right">Coste Est.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200">
+                  {aggregatedList.map((item) => (
+                    <tr key={item.ingredientId}>
+                      <td className="py-2 text-sm">{item.name}</td>
+                      <td className="py-2 text-sm text-right font-medium">{item.totalQuantity.toFixed(3)} {item.unit}</td>
+                      <td className="py-2 text-sm text-right">{item.totalCost.toFixed(2)} €</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="mt-12 pt-8 border-t border-stone-200 text-center text-xs text-stone-400">
+              Documento generado automáticamente por PVW - IES San Marcos
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
