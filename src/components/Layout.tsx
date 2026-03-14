@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logoUrl from '../assets/logo.png';
 import { 
   ChefHat, 
   BookOpen, 
@@ -45,7 +46,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-stone-200 flex flex-col">
         <div className="p-6 border-b border-stone-200 flex items-center gap-3 text-emerald-700">
-          <img src="/logo.png" alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
+          <img src={logoUrl} alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
           <h1 className="text-xl font-bold tracking-tight">Proyecto Intermodular</h1>
         </div>
         

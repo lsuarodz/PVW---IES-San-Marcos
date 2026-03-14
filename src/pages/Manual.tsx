@@ -45,7 +45,7 @@ export default function Manual() {
           
           <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">1. Introducción</h3>
           <p className="mb-4 leading-relaxed">
-            Esta plataforma está diseñada para la gestión integral de ingredientes, escandallos (recetas), menús, minutas y pedidos en el entorno educativo del IES San Marcos. Permite estandarizar las recetas, calcular costes reales teniendo en cuenta las mermas, y generar listas de la compra precisas.
+            Esta plataforma está diseñada para la gestión integral de ingredientes, escandallos (recetas), menús, minutas y pedidos en el entorno educativo. Permite estandarizar las recetas, calcular costes reales teniendo en cuenta las mermas, y generar listas de la compra precisas.
           </p>
 
           <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">2. Roles y Permisos</h3>

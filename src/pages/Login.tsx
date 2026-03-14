@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ChefHat } from 'lucide-react';
+import logoUrl from '../assets/logo.png';
 
 export default function Login() {
   const { login, user, appUser, loading } = useAuth();
@@ -16,10 +16,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-stone-100 text-center">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <ChefHat size={32} />
+        <div className="flex justify-center mb-6">
+          <img src={logoUrl} alt="Logo Proyecto Intermodular" className="h-20 w-auto object-contain" />
         </div>
-        <h1 className="text-3xl font-bold text-stone-900 mb-2 tracking-tight">GastroEdu</h1>
+        <h1 className="text-3xl font-bold text-stone-900 mb-2 tracking-tight">Proyecto Intermodular</h1>
         <p className="text-stone-500 mb-8">
           Plataforma colaborativa para la gestión de escandallos y menús.
         </p>
