@@ -45,6 +45,22 @@
         "nameEN": { "type": "string" },
         "descriptionES": { "type": "string" },
         "descriptionEN": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "stepsEN": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "equipment": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "sustainabilityTips": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "ingredients": {
           "type": "array",
           "items": {

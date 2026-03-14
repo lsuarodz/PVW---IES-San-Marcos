@@ -24,6 +24,10 @@ service cloud.firestore {
     //   - nameEN: string (optional)
     //   - descriptionES: string (optional)
     //   - descriptionEN: string (optional)
+    //   - steps: list (optional)
+    //   - stepsEN: list (optional)
+    //   - equipment: list (optional)
+    //   - sustainabilityTips: list (optional)
     //   - ingredients: list (required)
     //   - totalCost: number (required)
     //   - createdBy: string (required)
@@ -108,13 +112,15 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'ingredients', 'totalCost', 'createdBy', 'createdAt']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
              (!('descriptionEN' in data) || data.descriptionEN == "" || isValidString(data.descriptionEN, 1, 2000)) &&
              (!('steps' in data) || data.steps is list) &&
              (!('stepsEN' in data) || data.stepsEN is list) &&
+             (!('equipment' in data) || data.equipment is list) &&
+             (!('sustainabilityTips' in data) || data.sustainabilityTips is list) &&
              data.ingredients is list && data.ingredients.size() <= 100 &&
              data.totalCost is number && data.totalCost >= 0 &&
              isValidString(data.createdBy, 1, 100) &&
