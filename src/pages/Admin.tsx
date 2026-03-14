@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trash2, UserPlus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface User {
   uid: string;
@@ -14,10 +15,11 @@ interface User {
 }
 
 export default function Admin() {
+  const { appUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<'student' | 'docente'>('student');
+  const [newRole, setNewRole] = useState<'admin' | 'student' | 'docente'>('student');
   const [newCourse, setNewCourse] = useState('2ºCOCINA');
   const [newGroup, setNewGroup] = useState('1');
   const [loading, setLoading] = useState(false);
@@ -79,7 +81,7 @@ export default function Admin() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar a este alumno?')) {
+    if (window.confirm('¿Estás seguro de que quieres eliminar a este usuario?')) {
       try {
         await deleteDoc(doc(db, 'users', id));
       } catch (error) {
@@ -127,11 +129,12 @@ export default function Admin() {
             <label className="block text-sm font-medium text-stone-700 mb-1">Rol</label>
             <select
               value={newRole}
-              onChange={(e) => setNewRole(e.target.value as 'student' | 'docente')}
+              onChange={(e) => setNewRole(e.target.value as 'admin' | 'student' | 'docente')}
               className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="student">Alumno</option>
               <option value="docente">Docente</option>
+              <option value="admin">Administrador (Tutor)</option>
             </select>
           </div>
           {newRole === 'student' && (
@@ -202,7 +205,7 @@ export default function Admin() {
                 <td className="px-6 py-4 text-sm text-stone-600">{user.course || '-'}</td>
                 <td className="px-6 py-4 text-sm text-stone-600">{user.group ? `Grupo ${user.group}` : '-'}</td>
                 <td className="px-6 py-4 text-sm text-right">
-                  {user.role !== 'admin' && (
+                  {user.email !== appUser?.email && (
                     <button
                       onClick={() => handleDelete(user.uid)}
                       className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"

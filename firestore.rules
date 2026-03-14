@@ -151,7 +151,8 @@ service cloud.firestore {
     // ===============================================================
     match /users/{userId} {
       allow read: if isStudentOrAdmin() || request.auth.token.email == userId;
-      allow create, update, delete: if isAdmin() && isValidUser();
+      allow create, update: if isAdmin() && isValidUser();
+      allow delete: if isAdmin();
     }
 
     match /ingredients/{ingredientId} {
