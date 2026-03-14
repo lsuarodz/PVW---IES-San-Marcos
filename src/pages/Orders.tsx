@@ -354,7 +354,7 @@ export default function Orders() {
             </div>
             
             <div className="mt-12 pt-8 border-t border-stone-200 text-center text-xs text-stone-400">
-              Documento generado automáticamente por PVW - IES San Marcos
+              Documento generado automáticamente por Proyecto Intermodular
             </div>
           </div>
         </div>

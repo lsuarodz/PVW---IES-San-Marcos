@@ -8,7 +8,6 @@ import {
   Languages, 
   Users, 
   LogOut,
-  Menu as MenuIcon,
   FileText,
   ShoppingCart,
   BookOpen as ManualIcon,
@@ -46,8 +45,8 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-stone-200 flex flex-col">
         <div className="p-6 border-b border-stone-200 flex items-center gap-3 text-emerald-700">
-          <MenuIcon size={28} />
-          <h1 className="text-xl font-bold tracking-tight">PVW - IES San Marcos</h1>
+          <img src="/logo.png" alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
+          <h1 className="text-xl font-bold tracking-tight">Proyecto Intermodular</h1>
         </div>
         
         <nav className="flex-1 p-4 space-y-6 overflow-y-auto">

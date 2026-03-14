@@ -9,7 +9,7 @@ export default function Manual() {
     if (printRef.current) {
         const opt = {
           margin: 0.5,
-          filename: 'Manual_Instrucciones_PVW.pdf',
+          filename: 'Manual_Instrucciones_Proyecto_Intermodular.pdf',
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2 },
           jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
@@ -23,7 +23,7 @@ export default function Manual() {
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Manual de Instrucciones</h1>
-          <p className="text-stone-500 mt-2">Guía de uso de la plataforma PVW - IES San Marcos.</p>
+          <p className="text-stone-500 mt-2">Guía de uso de la plataforma Proyecto Intermodular.</p>
         </div>
         <button
           onClick={exportPDF}
@@ -40,7 +40,7 @@ export default function Manual() {
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
               <BookOpen size={24} />
             </div>
-            <h2 className="text-2xl font-bold text-stone-900">Manual de Usuario: PVW - IES San Marcos</h2>
+            <h2 className="text-2xl font-bold text-stone-900">Manual de Usuario: Proyecto Intermodular</h2>
           </div>
           
           <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">1. Introducción</h3>
