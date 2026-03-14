@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, Edit2, Search, BookOpen, Printer } from 'lucide-react';
 import { Ingredient } from './Ingredients';
 import { ALLERGENS } from '../constants/allergens';
+import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
 import html2pdf from 'html2pdf.js';
 import { useRef } from 'react';
@@ -354,8 +355,11 @@ export default function Recipes() {
                 </div>
               </div>
               
-              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4">
-                Creado por {recipe.createdBy}
+              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex items-center justify-between">
+                <span>Creado por</span>
+                <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(recipe.createdBy)}`}>
+                  {recipe.createdBy}
+                </span>
               </div>
             </div>
           </div>
@@ -638,28 +642,28 @@ export default function Recipes() {
       {printingRecipe && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
           <div ref={printRef} className="p-10 bg-white text-stone-900 font-sans" style={{ width: '800px' }}>
-            <div className="border-b-2 border-stone-900 pb-6 mb-8">
-              <h1 className="text-4xl font-bold mb-2 uppercase tracking-tight">{printingRecipe.nameES}</h1>
-              {printingRecipe.nameEN && <h2 className="text-2xl text-stone-500 italic mb-4">{printingRecipe.nameEN}</h2>}
+            <div className="border-b-2 border-stone-900 pb-4 mb-6">
+              <h1 className="text-2xl font-bold mb-1 uppercase tracking-tight">{printingRecipe.nameES}</h1>
+              {printingRecipe.nameEN && <h2 className="text-lg text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
               <div className="flex justify-between items-end">
-                <div className="text-sm text-stone-500">
+                <div className="text-xs text-stone-500">
                   <strong>Coste total:</strong> {printingRecipe.totalCost.toFixed(2)} €
                 </div>
-                <div className="text-sm text-stone-500">
+                <div className="text-xs text-stone-500">
                   <strong>Creado por:</strong> {printingRecipe.createdBy}
                 </div>
               </div>
             </div>
 
-            <div className="mb-8">
-              <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Escandallo Detallado</h3>
-              <table className="w-full text-sm text-left mb-6">
-                <thead className="bg-stone-50 text-stone-600 uppercase text-xs border-b border-stone-200">
+            <div className="mb-6">
+              <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Escandallo Detallado</h3>
+              <table className="w-full text-xs text-left mb-4">
+                <thead className="bg-stone-50 text-stone-600 uppercase text-[10px] border-b border-stone-200">
                   <tr>
-                    <th className="px-4 py-2">Ingrediente</th>
-                    <th className="px-4 py-2 text-right">Cantidad</th>
-                    <th className="px-4 py-2 text-right">Coste Real/Ud</th>
-                    <th className="px-4 py-2 text-right">Coste Total</th>
+                    <th className="px-2 py-1">Ingrediente</th>
+                    <th className="px-2 py-1 text-right">Cantidad</th>
+                    <th className="px-2 py-1 text-right">Coste Real/Ud</th>
+                    <th className="px-2 py-1 text-right">Coste Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -680,42 +684,42 @@ export default function Recipes() {
 
                     return (
                       <tr key={idx} className="border-b border-stone-100">
-                        <td className="px-4 py-2 font-medium">{name}</td>
-                        <td className="px-4 py-2 text-right">{ri.quantity} {unit}</td>
-                        <td className="px-4 py-2 text-right">{realCostPerUnit.toFixed(2)} €</td>
-                        <td className="px-4 py-2 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
+                        <td className="px-2 py-1 font-medium">{name}</td>
+                        <td className="px-2 py-1 text-right">{ri.quantity} {unit}</td>
+                        <td className="px-2 py-1 text-right">{realCostPerUnit.toFixed(2)} €</td>
+                        <td className="px-2 py-1 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-stone-50 font-bold text-stone-900">
-                    <td colSpan={3} className="px-4 py-3 text-right">Coste Total de la Receta:</td>
-                    <td className="px-4 py-3 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
+                    <td colSpan={3} className="px-2 py-2 text-right">Coste Total de la Receta:</td>
+                    <td className="px-2 py-2 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div className="grid grid-cols-1 gap-8">
+            <div className="grid grid-cols-1 gap-6">
               <div>
-                <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Elaboración</h3>
+                <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Elaboración</h3>
                 {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                  <ol className="space-y-4 list-decimal pl-5 mb-8">
+                  <ol className="space-y-2 list-decimal pl-4 mb-6 text-xs">
                     {printingRecipe.steps.map((step, idx) => (
-                      <li key={idx} className="text-stone-800 leading-relaxed pl-2">{step}</li>
+                      <li key={idx} className="text-stone-800 leading-relaxed pl-1">{step}</li>
                     ))}
                   </ol>
                 ) : (
-                  <p className="text-stone-500 italic mb-8">No hay pasos de elaboración definidos.</p>
+                  <p className="text-stone-500 italic mb-6 text-xs">No hay pasos de elaboración definidos.</p>
                 )}
 
                 {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
                   <>
-                    <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Material y Equipamiento</h3>
-                    <ul className="space-y-2 list-disc pl-5 mb-8">
+                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Material y Equipamiento</h3>
+                    <ul className="space-y-1 list-disc pl-4 mb-6 text-xs">
                       {printingRecipe.equipment.map((eq, idx) => (
-                        <li key={idx} className="text-stone-800 leading-relaxed pl-2">{eq}</li>
+                        <li key={idx} className="text-stone-800 leading-relaxed pl-1">{eq}</li>
                       ))}
                     </ul>
                   </>
@@ -723,10 +727,10 @@ export default function Recipes() {
 
                 {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
                   <>
-                    <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-1 flex items-center gap-2">
                       <span>🌱</span> Tips de Sostenibilidad
                     </h3>
-                    <ul className="space-y-2 list-none pl-1">
+                    <ul className="space-y-1 list-none pl-1 text-xs">
                       {printingRecipe.sustainabilityTips.map((tip, idx) => (
                         <li key={idx} className="text-stone-800 leading-relaxed flex gap-2">
                           <span className="text-emerald-600 font-bold">•</span>

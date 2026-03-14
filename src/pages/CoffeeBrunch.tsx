@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Coffee, Croissant, HeartHandshake } from 'lucide-react';
+import { Plus, Coffee, Croissant, HeartHandshake, Trash2 } from 'lucide-react';
+import { getGroupColor } from '../utils/groupColors';
 
 interface Idea {
   id: string;
@@ -88,6 +89,26 @@ export default function CoffeeBrunch() {
     }
   };
 
+  const handleDeleteIdea = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar esta respuesta?')) {
+      try {
+        await deleteDoc(doc(db, 'jornada1_ideas', id));
+      } catch (error) {
+        console.error('Error deleting idea:', error);
+      }
+    }
+  };
+
+  const handleDeleteCharacteristic = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar esta característica?')) {
+      try {
+        await deleteDoc(doc(db, 'jornada1_characteristics', id));
+      } catch (error) {
+        console.error('Error deleting characteristic:', error);
+      }
+    }
+  };
+
   const coffeeIdeas = ideas.filter(i => i.type === 'coffee');
   const brunchIdeas = ideas.filter(i => i.type === 'brunch');
   const solidarioIdeas = ideas.filter(i => i.type === 'solidario');
@@ -99,7 +120,7 @@ export default function CoffeeBrunch() {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Coffee Break / Brunch</h1>
+        <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Coffee Break / Brunch / Menú Solidario</h1>
         <p className="text-stone-500 mt-2">Definición y características de cada tipo de servicio.</p>
       </div>
 
@@ -118,11 +139,19 @@ export default function CoffeeBrunch() {
               <p className="text-stone-400 text-center italic mt-4">Aún no hay ideas. ¡Añade la primera!</p>
             ) : (
               coffeeIdeas.map(idea => (
-                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
-                  <p className="text-stone-800">{idea.text}</p>
-                  <div className="text-xs text-amber-600 font-medium mt-2 text-right">
+                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm relative group">
+                  <p className="text-stone-800 pr-6">{idea.text}</p>
+                  <div className={`text-sm font-bold mt-2 text-right ${getGroupColor(idea.group)}`}>
                     — {idea.group}
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteIdea(idea.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -161,11 +190,19 @@ export default function CoffeeBrunch() {
               <p className="text-stone-400 text-center italic mt-4">Aún no hay ideas. ¡Añade la primera!</p>
             ) : (
               brunchIdeas.map(idea => (
-                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
-                  <p className="text-stone-800">{idea.text}</p>
-                  <div className="text-xs text-orange-600 font-medium mt-2 text-right">
+                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm relative group">
+                  <p className="text-stone-800 pr-6">{idea.text}</p>
+                  <div className={`text-sm font-bold mt-2 text-right ${getGroupColor(idea.group)}`}>
                     — {idea.group}
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteIdea(idea.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -204,11 +241,19 @@ export default function CoffeeBrunch() {
               <p className="text-stone-400 text-center italic mt-4">Aún no hay ideas. ¡Añade la primera!</p>
             ) : (
               solidarioIdeas.map(idea => (
-                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
-                  <p className="text-stone-800">{idea.text}</p>
-                  <div className="text-xs text-rose-600 font-medium mt-2 text-right">
+                <div key={idea.id} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm relative group">
+                  <p className="text-stone-800 pr-6">{idea.text}</p>
+                  <div className={`text-sm font-bold mt-2 text-right ${getGroupColor(idea.group)}`}>
                     — {idea.group}
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteIdea(idea.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -247,12 +292,20 @@ export default function CoffeeBrunch() {
               <p className="text-sm text-stone-400 italic">Sin características definidas.</p>
             ) : (
               coffeeChars.map(char => (
-                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
+                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100 relative group">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
-                  <div className="flex-1">
+                  <div className="flex-1 pr-6">
                     <p className="text-sm text-stone-800">{char.text}</p>
-                    <p className="text-xs text-stone-400 mt-1">Aportado por: <span className="font-medium text-amber-700">{char.group}</span></p>
+                    <p className="text-sm mt-1">Aportado por: <span className={`font-bold ${getGroupColor(char.group)}`}>{char.group}</span></p>
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteCharacteristic(char.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -290,12 +343,20 @@ export default function CoffeeBrunch() {
               <p className="text-sm text-stone-400 italic">Sin características definidas.</p>
             ) : (
               brunchChars.map(char => (
-                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
+                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100 relative group">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0"></div>
-                  <div className="flex-1">
+                  <div className="flex-1 pr-6">
                     <p className="text-sm text-stone-800">{char.text}</p>
-                    <p className="text-xs text-stone-400 mt-1">Aportado por: <span className="font-medium text-orange-700">{char.group}</span></p>
+                    <p className="text-sm mt-1">Aportado por: <span className={`font-bold ${getGroupColor(char.group)}`}>{char.group}</span></p>
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteCharacteristic(char.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -333,12 +394,20 @@ export default function CoffeeBrunch() {
               <p className="text-sm text-stone-400 italic">Sin características definidas.</p>
             ) : (
               solidarioChars.map(char => (
-                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
+                <div key={char.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100 relative group">
                   <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-2 flex-shrink-0"></div>
-                  <div className="flex-1">
+                  <div className="flex-1 pr-6">
                     <p className="text-sm text-stone-800">{char.text}</p>
-                    <p className="text-xs text-stone-400 mt-1">Aportado por: <span className="font-medium text-rose-700">{char.group}</span></p>
+                    <p className="text-sm mt-1">Aportado por: <span className={`font-bold ${getGroupColor(char.group)}`}>{char.group}</span></p>
                   </div>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteCharacteristic(char.id)}
+                      className="absolute top-2 right-2 p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}

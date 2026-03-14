@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, setDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Save, CheckCircle2, FileText } from 'lucide-react';
+import { Save, CheckCircle2, FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { getGroupColor } from '../utils/groupColors';
 
 interface StandardizationAnswer {
   id: string;
@@ -31,6 +32,9 @@ export default function Standardization() {
     q5: ''
   });
 
+  const [allAnswers, setAllAnswers] = useState<StandardizationAnswer[]>([]);
+  const [expandedAdminView, setExpandedAdminView] = useState<string | null>(null);
+
   useEffect(() => {
     if (!appUser) return;
 
@@ -46,11 +50,37 @@ export default function Standardization() {
           q4: docData.q4 || '',
           q5: docData.q5 || ''
         });
+      } else {
+        setAnswer(null);
+        setFormData({ q1: '', q2: '', q3: '', q4: '', q5: '' });
       }
     });
 
-    return () => unsub();
+    let unsubAll: () => void;
+    if (appUser.role === 'admin') {
+      const qAll = query(collection(db, 'jornada1_standardization'));
+      unsubAll = onSnapshot(qAll, (snapshot) => {
+        const data: StandardizationAnswer[] = [];
+        snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as StandardizationAnswer));
+        setAllAnswers(data.sort((a, b) => a.userGroup.localeCompare(b.userGroup) || a.userName.localeCompare(b.userName)));
+      });
+    }
+
+    return () => {
+      unsub();
+      if (unsubAll) unsubAll();
+    };
   }, [appUser]);
+
+  const handleDeleteAnswer = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar las respuestas de este alumno?')) {
+      try {
+        await deleteDoc(doc(db, 'jornada1_standardization', id));
+      } catch (error) {
+        console.error('Error deleting answer:', error);
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!appUser) return;
@@ -86,6 +116,76 @@ export default function Standardization() {
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Estandarización de la oferta</h1>
         <p className="text-stone-500 mt-2">Cuestionario individual sobre la importancia y métodos de estandarización.</p>
       </div>
+
+      {appUser?.role === 'admin' && (
+        <div className="mb-12 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+          <div className="p-6 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-emerald-900">Respuestas de los Alumnos (Vista Admin)</h2>
+            <span className="bg-emerald-200 text-emerald-800 py-1 px-3 rounded-full text-sm font-bold">
+              {allAnswers.length} respuestas
+            </span>
+          </div>
+          <div className="divide-y divide-stone-200">
+            {allAnswers.length === 0 ? (
+              <p className="p-8 text-center text-stone-500 italic">No hay respuestas guardadas aún.</p>
+            ) : (
+              allAnswers.map(ans => (
+                <div key={ans.id} className="p-6 bg-white hover:bg-stone-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer flex-1"
+                      onClick={() => setExpandedAdminView(expandedAdminView === ans.id ? null : ans.id)}
+                    >
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-stone-900">{ans.userName}</h3>
+                        <p className={`text-sm font-bold mt-1 ${getGroupColor(ans.userGroup)}`}>
+                          Grupo: {ans.userGroup || 'Sin grupo'}
+                        </p>
+                      </div>
+                      <div className="text-sm text-stone-500 flex items-center gap-4">
+                        <span>{new Date(ans.updatedAt).toLocaleDateString()}</span>
+                        {expandedAdminView === ans.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteAnswer(ans.id)}
+                      className="ml-4 p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                      title="Eliminar respuesta"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                  
+                  {expandedAdminView === ans.id && (
+                    <div className="mt-6 space-y-6 pt-6 border-t border-stone-100">
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-500 mb-2">1. ¿Por qué es necesaria una estandarización de la oferta?</h4>
+                        <p className="text-stone-800 bg-stone-100 p-4 rounded-xl whitespace-pre-wrap">{ans.q1 || <span className="text-stone-400 italic">Sin respuesta</span>}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-500 mb-2">2. ¿Cómo se estandariza la oferta?</h4>
+                        <p className="text-stone-800 bg-stone-100 p-4 rounded-xl whitespace-pre-wrap">{ans.q2 || <span className="text-stone-400 italic">Sin respuesta</span>}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-500 mb-2">3. Estandarización del Brunch propuesto</h4>
+                        <p className="text-stone-800 bg-stone-100 p-4 rounded-xl whitespace-pre-wrap">{ans.q3 || <span className="text-stone-400 italic">Sin respuesta</span>}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-500 mb-2">4. Estandarización del Coffee Break propuesto</h4>
+                        <p className="text-stone-800 bg-stone-100 p-4 rounded-xl whitespace-pre-wrap">{ans.q4 || <span className="text-stone-400 italic">Sin respuesta</span>}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-500 mb-2">5. Estandarización del Menú Solidario propuesto</h4>
+                        <p className="text-stone-800 bg-stone-100 p-4 rounded-xl whitespace-pre-wrap">{ans.q5 || <span className="text-stone-400 italic">Sin respuesta</span>}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
         <div className="p-6 bg-stone-50 border-b border-stone-200 flex items-center justify-between">

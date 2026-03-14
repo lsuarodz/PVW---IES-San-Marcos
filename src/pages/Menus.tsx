@@ -6,6 +6,7 @@ import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot } from 'luc
 import { Recipe } from './Recipes';
 import { Ingredient } from './Ingredients';
 import { ALLERGENS } from '../constants/allergens';
+import { getGroupColor } from '../utils/groupColors';
 import html2pdf from 'html2pdf.js';
 
 export interface Menu {
@@ -396,8 +397,11 @@ export default function Menus() {
                 </div>
               </div>
               
-              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4">
-                Creado por {menu.createdBy}
+              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex items-center justify-between">
+                <span>Creado por</span>
+                <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(menu.createdBy)}`}>
+                  {menu.createdBy}
+                </span>
               </div>
             </div>
           </div>
@@ -408,11 +412,11 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="p-10 bg-white text-stone-900 font-serif w-[800px]">
-            <div className="text-center mb-12 border-b-2 border-stone-200 pb-8">
-              <h1 className="text-4xl font-bold mb-2 uppercase tracking-widest">{printingMenu.nameES}</h1>
-              {printingMenu.nameEN && <h2 className="text-xl text-stone-500 italic">{printingMenu.nameEN}</h2>}
-              <div className="mt-4 text-sm tracking-widest uppercase text-stone-400">
+          <div ref={printRef} className="p-10 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col items-center justify-center min-h-[1122px]">
+            <div className="text-center mb-10 w-full border-b border-stone-200 pb-6">
+              <h1 className="text-3xl font-bold mb-2 uppercase tracking-widest">{printingMenu.nameES}</h1>
+              {printingMenu.nameEN && <h2 className="text-lg text-stone-500 italic">{printingMenu.nameEN}</h2>}
+              <div className="mt-3 text-xs tracking-widest uppercase text-stone-400">
                 {printingMenu.type === 'brunch' ? 'Menú Brunch' : 
                  printingMenu.type === 'cocktail' ? 'Menú Cóctel' :
                  printingMenu.type === 'navidad' ? 'Menú Navidad Solidario' :
@@ -422,20 +426,20 @@ export default function Menus() {
               </div>
             </div>
 
-            <div className="space-y-8 mb-12">
+            <div className="space-y-6 mb-10 w-full flex flex-col items-center">
               {printingMenu.recipes.map(recipeId => {
                 const recipe = recipes.find(r => r.id === recipeId);
                 if (!recipe) return null;
                 const recipeAllergens = getMenuAllergens([recipe.id]);
                 return (
-                  <div key={recipe.id} className="text-center">
-                    <h3 className="text-xl font-bold mb-1">{recipe.nameES}</h3>
+                  <div key={recipe.id} className="text-center max-w-md">
+                    <h3 className="text-lg font-bold mb-1">{recipe.nameES}</h3>
                     {recipeAllergens.length > 0 && (
-                      <div className="flex justify-center gap-1 mt-2">
+                      <div className="flex justify-center gap-1 mt-1">
                         {recipeAllergens.map(a => {
                           const allergen = ALLERGENS.find(al => al.id === a);
                           return allergen ? (
-                            <span key={a} title={allergen.name} className="text-sm">{allergen.icon}</span>
+                            <span key={a} title={allergen.name} className="text-xs">{allergen.icon}</span>
                           ) : null;
                         })}
                       </div>
@@ -445,13 +449,13 @@ export default function Menus() {
               })}
             </div>
 
-            <div className="text-center pt-8 border-t-2 border-stone-200">
-              <div className="text-2xl font-bold">{printingMenu.price.toFixed(2)} €</div>
-              <div className="text-xs text-stone-400 mt-2 uppercase tracking-widest">IVA Incluido</div>
+            <div className="text-center pt-6 border-t border-stone-200 w-full max-w-xs">
+              <div className="text-xl font-bold">{printingMenu.price.toFixed(2)} €</div>
+              <div className="text-[10px] text-stone-400 mt-1 uppercase tracking-widest">IVA Incluido</div>
             </div>
 
-            <div className="mt-16 pt-8 border-t border-stone-200 text-center">
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider">
+            <div className="mt-12 pt-6 border-t border-stone-200 text-center w-full">
+              <p className="text-[9px] text-stone-500 uppercase tracking-wider max-w-lg mx-auto">
                 Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
               </p>
             </div>
@@ -462,30 +466,30 @@ export default function Menus() {
       {/* Hidden PDF Template for Equipment */}
       {printingEquipmentMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printEquipmentRef} className="p-10 bg-white text-stone-900 font-sans w-[800px]">
-            <div className="border-b-2 border-stone-900 pb-6 mb-8">
-              <h1 className="text-4xl font-bold mb-2 uppercase tracking-tight">Material - {printingEquipmentMenu.nameES}</h1>
-              <div className="flex justify-between items-end mt-4">
-                <div className="text-sm text-stone-500">
+          <div ref={printEquipmentRef} className="p-10 bg-white text-stone-900 font-sans w-[794px] mx-auto">
+            <div className="border-b-2 border-stone-900 pb-4 mb-6 text-center">
+              <h1 className="text-2xl font-bold mb-2 uppercase tracking-tight">Material - {printingEquipmentMenu.nameES}</h1>
+              <div className="flex justify-center gap-8 mt-3">
+                <div className="text-xs text-stone-500">
                   <strong>Tipo:</strong> {printingEquipmentMenu.type}
                 </div>
-                <div className="text-sm text-stone-500">
+                <div className="text-xs text-stone-500">
                   <strong>Lugar:</strong> {printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-6 max-w-2xl mx-auto">
               {printingEquipmentMenu.recipes.map(recipeId => {
                 const recipe = recipes.find(r => r.id === recipeId);
                 if (!recipe || !recipe.equipment || recipe.equipment.length === 0) return null;
                 
                 return (
-                  <div key={recipe.id} className="mb-6">
-                    <h3 className="text-xl font-bold mb-3 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">{recipe.nameES}</h3>
-                    <ul className="space-y-2 list-disc pl-5">
+                  <div key={recipe.id} className="mb-4">
+                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1 text-center">{recipe.nameES}</h3>
+                    <ul className="space-y-1 list-disc pl-5 text-xs">
                       {recipe.equipment.map((eq, idx) => (
-                        <li key={idx} className="text-stone-800 leading-relaxed pl-2">{eq}</li>
+                        <li key={idx} className="text-stone-800 leading-relaxed pl-1">{eq}</li>
                       ))}
                     </ul>
                   </div>
@@ -496,7 +500,7 @@ export default function Menus() {
                 const recipe = recipes.find(r => r.id === recipeId);
                 return !recipe || !recipe.equipment || recipe.equipment.length === 0;
               }) && (
-                <p className="text-stone-500 italic">No hay material ni equipamiento definido en las recetas de este menú.</p>
+                <p className="text-stone-500 italic text-xs text-center">No hay material ni equipamiento definido en las recetas de este menú.</p>
               )}
             </div>
           </div>

@@ -19,6 +19,7 @@ interface AggregatedIngredient {
   unit: string;
   costPerUnit: number;
   totalCost: number;
+  provider?: string;
 }
 
 export default function Orders() {
@@ -85,7 +86,8 @@ export default function Orders() {
                 totalQuantity: requiredQty,
                 unit: ing.unit,
                 costPerUnit: ing.costPerUnit,
-                totalCost: requiredQty * ing.costPerUnit
+                totalCost: requiredQty * ing.costPerUnit,
+                provider: ing.provider
               };
             }
           } else {
@@ -312,13 +314,13 @@ export default function Orders() {
               </div>
             </div>
 
-            <div className="mb-8">
-              <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Recetas Incluidas</h3>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+            <div className="mb-6">
+              <h3 className="text-base font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Recetas Incluidas</h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1">
                 {orderItems.filter(item => item.quantity > 0).map(item => {
                   const recipe = recipes.find(r => r.id === item.recipeId);
                   return (
-                    <div key={item.recipeId} className="flex justify-between text-sm border-b border-stone-100 pb-1">
+                    <div key={item.recipeId} className="flex justify-between text-xs border-b border-stone-100 pb-1">
                       <span>{recipe?.nameES}</span>
                       <span className="font-bold">x{item.quantity}</span>
                     </div>
@@ -328,21 +330,23 @@ export default function Orders() {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Desglose de Ingredientes</h3>
+              <h3 className="text-base font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Desglose de Ingredientes</h3>
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b-2 border-stone-300">
-                    <th className="py-2 font-bold text-sm">Ingrediente</th>
-                    <th className="py-2 font-bold text-sm text-right">Cantidad</th>
-                    <th className="py-2 font-bold text-sm text-right">Coste Est.</th>
+                    <th className="py-1 font-bold text-xs">Ingrediente</th>
+                    <th className="py-1 font-bold text-xs">Proveedor</th>
+                    <th className="py-1 font-bold text-xs text-right">Cantidad</th>
+                    <th className="py-1 font-bold text-xs text-right">Coste Est.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200">
                   {aggregatedList.map((item) => (
                     <tr key={item.ingredientId}>
-                      <td className="py-2 text-sm">{item.name}</td>
-                      <td className="py-2 text-sm text-right font-medium">{item.totalQuantity.toFixed(3)} {item.unit}</td>
-                      <td className="py-2 text-sm text-right">{item.totalCost.toFixed(2)} €</td>
+                      <td className="py-1 text-xs">{item.name}</td>
+                      <td className="py-1 text-xs text-stone-600">{item.provider || '-'}</td>
+                      <td className="py-1 text-xs text-right font-medium">{item.totalQuantity.toFixed(3)} {item.unit}</td>
+                      <td className="py-1 text-xs text-right">{item.totalCost.toFixed(2)} €</td>
                     </tr>
                   ))}
                 </tbody>

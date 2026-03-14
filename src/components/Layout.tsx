@@ -21,7 +21,7 @@ export default function Layout() {
   const location = useLocation();
 
   const jornada1Items = [
-    { name: 'Coffee Break / Brunch', path: '/coffee-brunch', icon: <Coffee size={20} /> },
+    { name: 'Coffee Break / Brunch / Menú Solidario', path: '/coffee-brunch', icon: <Coffee size={20} /> },
     { name: 'Estandarización', path: '/standardization', icon: <ClipboardList size={20} /> },
   ];
 
