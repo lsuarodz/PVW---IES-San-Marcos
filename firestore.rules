@@ -9,6 +9,8 @@ service cloud.firestore {
     //   - email: string (required)
     //   - role: string (required, 'admin' or 'student')
     //   - name: string (required)
+    //   - course: string (optional)
+    //   - group: string (optional)
     //   - createdAt: string (required)
     // Collection: ingredients
     //   - nameES: string (required)
@@ -79,10 +81,11 @@ service cloud.firestore {
     // ===============================================================
     function isValidUser() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['email', 'role', 'name', 'group', 'createdAt']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'createdAt']) &&
              isValidString(data.email, 3, 100) &&
              data.role in ['admin', 'student', 'docente'] &&
              isValidString(data.name, 1, 100) &&
+             (!('course' in data) || data.course == "" || isValidString(data.course, 1, 50)) &&
              (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
              data.createdAt is string;
     }
