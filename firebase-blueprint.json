@@ -86,6 +86,9 @@
         "nameES": { "type": "string" },
         "nameEN": { "type": "string" },
         "type": { "type": "string", "enum": ["brunch", "cocktail"] },
+        "targetClient": { "type": "string" },
+        "location": { "type": "string", "enum": ["centro", "fuera"] },
+        "occasion": { "type": "string" },
         "recipes": {
           "type": "array",
           "items": { "type": "string" }

@@ -36,6 +36,9 @@ service cloud.firestore {
     //   - nameES: string (required)
     //   - nameEN: string (optional)
     //   - type: string (required, 'brunch', 'cocktail')
+    //   - targetClient: string (optional)
+    //   - location: string (optional)
+    //   - occasion: string (optional)
     //   - recipes: list (required)
     //   - totalCost: number (required)
     //   - price: number (required)
@@ -129,10 +132,13 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'type', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'type', 'targetClient', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt']) &&
              isValidString(data.nameES, 1, 100) &&
              (data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              data.type in ['brunch', 'cocktail', 'navidad', 'coffee', 'cafeteria', 'pedagogico'] &&
+             (!('targetClient' in data) || data.targetClient == "" || isValidString(data.targetClient, 1, 100)) &&
+             (!('location' in data) || data.location in ['centro', 'fuera']) &&
+             (!('occasion' in data) || data.occasion == "" || isValidString(data.occasion, 1, 100)) &&
              data.recipes is list && data.recipes.size() <= 50 &&
              data.totalCost is number && data.totalCost >= 0 &&
              data.price is number && data.price >= 0 &&
