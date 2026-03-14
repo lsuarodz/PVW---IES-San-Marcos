@@ -156,5 +156,23 @@ service cloud.firestore {
       allow create, update: if isStudentOrAdmin() && isValidMenu();
       allow delete: if isAdmin();
     }
+
+    match /jornada1_ideas/{ideaId} {
+      allow read: if isStudentOrAdmin();
+      allow create: if isStudentOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /jornada1_characteristics/{charId} {
+      allow read: if isStudentOrAdmin();
+      allow create: if isStudentOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /jornada1_standardization/{userId} {
+      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
+      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
+      allow delete: if isAdmin();
+    }
   }
 }

@@ -8,6 +8,7 @@ interface User {
   email: string;
   role: 'admin' | 'student' | 'docente';
   name: string;
+  course?: string;
   group?: string;
   createdAt: string;
 }
@@ -17,7 +18,8 @@ export default function Admin() {
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<'student' | 'docente'>('student');
-  const [newGroup, setNewGroup] = useState('');
+  const [newCourse, setNewCourse] = useState('2ºCOCINA');
+  const [newGroup, setNewGroup] = useState('1');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,14 +60,16 @@ export default function Admin() {
         createdAt: new Date().toISOString()
       };
       
-      if (newRole === 'student' && newGroup) {
+      if (newRole === 'student') {
+        userData.course = newCourse;
         userData.group = newGroup;
       }
 
       await setDoc(newUserRef, userData);
       setNewEmail('');
       setNewName('');
-      setNewGroup('');
+      setNewGroup('1');
+      setNewCourse('2ºCOCINA');
     } catch (error) {
       console.error('Error adding user:', error);
       alert('Error al añadir usuario');
@@ -131,16 +135,33 @@ export default function Admin() {
             </select>
           </div>
           {newRole === 'student' && (
-            <div className="w-32">
-              <label className="block text-sm font-medium text-stone-700 mb-1">Grupo</label>
-              <input
-                type="text"
-                value={newGroup}
-                onChange={(e) => setNewGroup(e.target.value)}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Ej. 1A"
-              />
-            </div>
+            <>
+              <div className="w-40">
+                <label className="block text-sm font-medium text-stone-700 mb-1">Curso</label>
+                <select
+                  value={newCourse}
+                  onChange={(e) => setNewCourse(e.target.value)}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="2ºCOCINA">2º COCINA</option>
+                  <option value="2ºPANADERÍA">2º PANADERÍA</option>
+                </select>
+              </div>
+              <div className="w-32">
+                <label className="block text-sm font-medium text-stone-700 mb-1">Grupo</label>
+                <select
+                  value={newGroup}
+                  onChange={(e) => setNewGroup(e.target.value)}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={String(i + 1)}>
+                      Grupo {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
           <button
             type="submit"
@@ -159,6 +180,7 @@ export default function Admin() {
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Correo</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Rol</th>
+              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Curso</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Grupo</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900 text-right">Acciones</th>
             </tr>
@@ -177,7 +199,8 @@ export default function Admin() {
                     {user.role === 'admin' ? 'Tutor' : user.role === 'docente' ? 'Docente' : 'Alumno'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-stone-600">{user.group || '-'}</td>
+                <td className="px-6 py-4 text-sm text-stone-600">{user.course || '-'}</td>
+                <td className="px-6 py-4 text-sm text-stone-600">{user.group ? `Grupo ${user.group}` : '-'}</td>
                 <td className="px-6 py-4 text-sm text-right">
                   {user.role !== 'admin' && (
                     <button

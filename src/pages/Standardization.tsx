@@ -1,0 +1,214 @@
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, setDoc, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../context/AuthContext';
+import { Save, CheckCircle2, FileText } from 'lucide-react';
+
+interface StandardizationAnswer {
+  id: string;
+  userId: string;
+  userName: string;
+  userGroup: string;
+  q1: string;
+  q2: string;
+  q3: string;
+  q4: string;
+  q5: string;
+  updatedAt: string;
+}
+
+export default function Standardization() {
+  const { appUser } = useAuth();
+  const [answer, setAnswer] = useState<StandardizationAnswer | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const [formData, setFormData] = useState({
+    q1: '',
+    q2: '',
+    q3: '',
+    q4: '',
+    q5: ''
+  });
+
+  useEffect(() => {
+    if (!appUser) return;
+
+    const q = query(collection(db, 'jornada1_standardization'), where('userId', '==', appUser.email));
+    const unsub = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const docData = snapshot.docs[0].data() as StandardizationAnswer;
+        setAnswer({ id: snapshot.docs[0].id, ...docData });
+        setFormData({
+          q1: docData.q1 || '',
+          q2: docData.q2 || '',
+          q3: docData.q3 || '',
+          q4: docData.q4 || '',
+          q5: docData.q5 || ''
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [appUser]);
+
+  const handleSave = async () => {
+    if (!appUser) return;
+    setIsSaving(true);
+
+    try {
+      const docRef = doc(db, 'jornada1_standardization', appUser.email);
+      await setDoc(docRef, {
+        userId: appUser.email,
+        userName: appUser.name,
+        userGroup: appUser.group || '',
+        q1: formData.q1,
+        q2: formData.q2,
+        q3: formData.q3,
+        q4: formData.q4,
+        q5: formData.q5,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error saving answers:', error);
+      alert('Error al guardar las respuestas');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-8 max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Estandarización de la oferta</h1>
+        <p className="text-stone-500 mt-2">Cuestionario individual sobre la importancia y métodos de estandarización.</p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+        <div className="p-6 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center">
+              <FileText size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-stone-900">Cuestionario del Alumno</h2>
+              <p className="text-sm text-stone-500">{appUser?.name} {appUser?.group ? `(${appUser.group})` : ''}</p>
+            </div>
+          </div>
+          {answer && (
+            <div className="text-xs text-stone-500 flex items-center gap-1">
+              <CheckCircle2 size={14} className="text-emerald-600" />
+              Última actualización: {new Date(answer.updatedAt).toLocaleString()}
+            </div>
+          )}
+        </div>
+
+        <div className="p-8 space-y-8">
+          {/* Pregunta 1 */}
+          <div>
+            <label className="block text-lg font-bold text-stone-800 mb-2">
+              1. ¿Por qué es necesaria una estandarización de la oferta?
+            </label>
+            <p className="text-sm text-stone-500 mb-3">
+              Explica con tus propias palabras la importancia de estandarizar recetas y procesos en una cocina profesional.
+            </p>
+            <textarea
+              value={formData.q1}
+              onChange={(e) => setFormData({ ...formData, q1: e.target.value })}
+              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+              placeholder="Escribe tu respuesta aquí..."
+            />
+          </div>
+
+          {/* Pregunta 2 */}
+          <div>
+            <label className="block text-lg font-bold text-stone-800 mb-2">
+              2. ¿Cómo se estandariza la oferta?
+            </label>
+            <p className="text-sm text-stone-500 mb-3">
+              Detalla los pasos o herramientas necesarias para llevar a cabo una correcta estandarización.
+            </p>
+            <textarea
+              value={formData.q2}
+              onChange={(e) => setFormData({ ...formData, q2: e.target.value })}
+              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+              placeholder="Escribe tu respuesta aquí..."
+            />
+          </div>
+
+          <div className="border-t border-stone-200 pt-8">
+            <h3 className="text-xl font-bold text-stone-900 mb-6">Casos Prácticos</h3>
+            
+            {/* Pregunta 3 */}
+            <div className="mb-8">
+              <label className="block text-lg font-bold text-stone-800 mb-2">
+                3. Estandarización del Brunch propuesto
+              </label>
+              <p className="text-sm text-stone-500 mb-3">
+                Basándote en el menú Brunch propuesto en clase, ¿cómo aplicarías la estandarización a su oferta?
+              </p>
+              <textarea
+                value={formData.q3}
+                onChange={(e) => setFormData({ ...formData, q3: e.target.value })}
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                placeholder="Escribe tu propuesta de estandarización para el Brunch..."
+              />
+            </div>
+
+            {/* Pregunta 4 */}
+            <div className="mb-8">
+              <label className="block text-lg font-bold text-stone-800 mb-2">
+                4. Estandarización del Coffee Break propuesto
+              </label>
+              <p className="text-sm text-stone-500 mb-3">
+                Basándote en el menú Coffee Break propuesto en clase, ¿cómo aplicarías la estandarización a su oferta?
+              </p>
+              <textarea
+                value={formData.q4}
+                onChange={(e) => setFormData({ ...formData, q4: e.target.value })}
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                placeholder="Escribe tu propuesta de estandarización para el Coffee Break..."
+              />
+            </div>
+
+            {/* Pregunta 5 */}
+            <div>
+              <label className="block text-lg font-bold text-stone-800 mb-2">
+                5. Estandarización del Menú Solidario propuesto
+              </label>
+              <p className="text-sm text-stone-500 mb-3">
+                Basándote en el Menú Solidario propuesto en clase, ¿cómo aplicarías la estandarización a su oferta?
+              </p>
+              <textarea
+                value={formData.q5}
+                onChange={(e) => setFormData({ ...formData, q5: e.target.value })}
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                placeholder="Escribe tu propuesta de estandarización para el Menú Solidario..."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 bg-stone-50 border-t border-stone-200 flex justify-end items-center gap-4">
+          {showSuccess && (
+            <span className="text-emerald-600 font-medium flex items-center gap-2">
+              <CheckCircle2 size={18} />
+              Guardado correctamente
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <Save size={20} />
+            {isSaving ? 'Guardando...' : 'Guardar Respuestas'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

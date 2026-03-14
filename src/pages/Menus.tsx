@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Search, Utensils, Download } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot } from 'lucide-react';
 import { Recipe } from './Recipes';
 import { Ingredient } from './Ingredients';
 import { ALLERGENS } from '../constants/allergens';
@@ -13,6 +13,9 @@ export interface Menu {
   nameES: string;
   nameEN: string;
   type: 'brunch' | 'cocktail' | 'navidad' | 'coffee' | 'cafeteria' | 'pedagogico';
+  targetClient?: string;
+  location?: 'centro' | 'fuera';
+  occasion?: string;
   recipes: string[]; // array of recipe IDs
   totalCost: number;
   price: number;
@@ -33,13 +36,20 @@ export default function Menus() {
   const [formData, setFormData] = useState({
     nameES: '',
     type: 'brunch' as Menu['type'],
+    targetClient: '',
+    location: 'centro' as 'centro' | 'fuera',
+    occasion: '',
     recipes: [] as string[],
     price: 0,
   });
 
   const printRef = useRef<HTMLDivElement>(null);
+  const printEquipmentRef = useRef<HTMLDivElement>(null);
   const [printingMenu, setPrintingMenu] = useState<Menu | null>(null);
+  const [printingEquipmentMenu, setPrintingEquipmentMenu] = useState<Menu | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [showNewRecipeInput, setShowNewRecipeInput] = useState(false);
+  const [newRecipeName, setNewRecipeName] = useState('');
 
   useEffect(() => {
     const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
@@ -140,6 +150,9 @@ export default function Menus() {
     setFormData({
       nameES: menu.nameES,
       type: menu.type,
+      targetClient: menu.targetClient || '',
+      location: menu.location || 'centro',
+      occasion: menu.occasion || '',
       recipes: menu.recipes,
       price: menu.price,
     });
@@ -148,8 +161,40 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', type: 'brunch', recipes: [], price: 0 });
+    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', recipes: [], price: 0 });
     setEditingId(null);
+  };
+
+  const handleCreatePlaceholderRecipe = async () => {
+    if (!newRecipeName || !newRecipeName.trim()) return;
+
+    if (!appUser) return;
+
+    const newRecipeRef = doc(collection(db, 'recipes'));
+    const newRecipeData = {
+      nameES: newRecipeName.trim(),
+      nameEN: '',
+      descriptionES: '',
+      descriptionEN: '',
+      steps: [],
+      ingredients: [],
+      totalCost: 0,
+      createdBy: appUser.group || appUser.name,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(newRecipeRef, newRecipeData);
+      setFormData(prev => ({
+        ...prev,
+        recipes: [...prev.recipes, newRecipeRef.id]
+      }));
+      setNewRecipeName('');
+      setShowNewRecipeInput(false);
+    } catch (error) {
+      console.error('Error creating placeholder recipe:', error);
+      alert('Error al crear la receta');
+    }
   };
 
   const toggleRecipe = (recipeId: string) => {
@@ -196,6 +241,41 @@ export default function Menus() {
     }, 500);
   };
 
+  const exportEquipmentPDF = (menu: Menu) => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    setPrintingEquipmentMenu(menu);
+    
+    setTimeout(() => {
+      if (printEquipmentRef.current) {
+        const opt = {
+          margin: 1,
+          filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+        };
+        
+        html2pdf()
+          .set(opt)
+          .from(printEquipmentRef.current)
+          .save()
+          .then(() => {
+            setPrintingEquipmentMenu(null);
+            setIsPrinting(false);
+          })
+          .catch((err: any) => {
+            console.error('Error generating PDF:', err);
+            setPrintingEquipmentMenu(null);
+            setIsPrinting(false);
+            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+          });
+      } else {
+        setIsPrinting(false);
+      }
+    }, 500);
+  };
+
   const filteredMenus = menus.filter(m => 
     m.nameES.toLowerCase().includes(search.toLowerCase()) || 
     m.nameEN?.toLowerCase().includes(search.toLowerCase())
@@ -229,10 +309,18 @@ export default function Menus() {
                 </div>
                 <div className="flex gap-1">
                   <button 
+                    onClick={() => exportEquipmentPDF(menu)} 
+                    disabled={isPrinting}
+                    className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50" 
+                    title="Imprimir material"
+                  >
+                    <CookingPot size={18} />
+                  </button>
+                  <button 
                     onClick={() => exportPDF(menu)} 
                     disabled={isPrinting}
                     className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50" 
-                    title="Exportar PDF"
+                    title="Exportar Minuta"
                   >
                     <Download size={18} />
                   </button>
@@ -342,15 +430,6 @@ export default function Menus() {
                 return (
                   <div key={recipe.id} className="text-center">
                     <h3 className="text-xl font-bold mb-1">{recipe.nameES}</h3>
-                    {recipe.steps && recipe.steps.length > 0 ? (
-                      <div className="text-sm text-stone-600 max-w-md mx-auto mb-2 text-left space-y-1">
-                        {recipe.steps.map((step, i) => (
-                          <p key={i}><span className="font-bold mr-1">{i + 1}.</span> {step}</p>
-                        ))}
-                      </div>
-                    ) : (
-                      recipe.descriptionES && <p className="text-sm text-stone-600 max-w-md mx-auto mb-2">{recipe.descriptionES}</p>
-                    )}
                     {recipeAllergens.length > 0 && (
                       <div className="flex justify-center gap-1 mt-2">
                         {recipeAllergens.map(a => {
@@ -371,16 +450,54 @@ export default function Menus() {
               <div className="text-xs text-stone-400 mt-2 uppercase tracking-widest">IVA Incluido</div>
             </div>
 
-            <div className="mt-16 pt-8 border-t border-stone-200">
-              <h4 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-4 text-center">Leyenda de Alérgenos</h4>
-              <div className="flex flex-wrap justify-center gap-4">
-                {ALLERGENS.map(allergen => (
-                  <div key={allergen.id} className="flex items-center gap-2 text-xs text-stone-600">
-                    <span className="text-lg">{allergen.icon}</span>
-                    <span>{allergen.name}</span>
-                  </div>
-                ))}
+            <div className="mt-16 pt-8 border-t border-stone-200 text-center">
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider">
+                Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden PDF Template for Equipment */}
+      {printingEquipmentMenu && (
+        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+          <div ref={printEquipmentRef} className="p-10 bg-white text-stone-900 font-sans w-[800px]">
+            <div className="border-b-2 border-stone-900 pb-6 mb-8">
+              <h1 className="text-4xl font-bold mb-2 uppercase tracking-tight">Material - {printingEquipmentMenu.nameES}</h1>
+              <div className="flex justify-between items-end mt-4">
+                <div className="text-sm text-stone-500">
+                  <strong>Tipo:</strong> {printingEquipmentMenu.type}
+                </div>
+                <div className="text-sm text-stone-500">
+                  <strong>Lugar:</strong> {printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}
+                </div>
               </div>
+            </div>
+
+            <div className="space-y-8">
+              {printingEquipmentMenu.recipes.map(recipeId => {
+                const recipe = recipes.find(r => r.id === recipeId);
+                if (!recipe || !recipe.equipment || recipe.equipment.length === 0) return null;
+                
+                return (
+                  <div key={recipe.id} className="mb-6">
+                    <h3 className="text-xl font-bold mb-3 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">{recipe.nameES}</h3>
+                    <ul className="space-y-2 list-disc pl-5">
+                      {recipe.equipment.map((eq, idx) => (
+                        <li key={idx} className="text-stone-800 leading-relaxed pl-2">{eq}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+              
+              {printingEquipmentMenu.recipes.every(recipeId => {
+                const recipe = recipes.find(r => r.id === recipeId);
+                return !recipe || !recipe.equipment || recipe.equipment.length === 0;
+              }) && (
+                <p className="text-stone-500 italic">No hay material ni equipamiento definido en las recetas de este menú.</p>
+              )}
             </div>
           </div>
         </div>
@@ -410,6 +527,40 @@ export default function Menus() {
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Tipo de Cliente</label>
+                    <input
+                      type="text"
+                      value={formData.targetClient}
+                      onChange={e => setFormData({...formData, targetClient: e.target.value})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Ej. Alumnos, Profesores..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Ocasión</label>
+                    <input
+                      type="text"
+                      value={formData.occasion}
+                      onChange={e => setFormData({...formData, occasion: e.target.value})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Ej. Graduación, Reunión..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Lugar</label>
+                    <select
+                      value={formData.location}
+                      onChange={e => setFormData({...formData, location: e.target.value as 'centro' | 'fuera'})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="centro">En el centro</option>
+                      <option value="fuera">Fuera del centro</option>
+                    </select>
                   </div>
                 </div>
 
@@ -444,7 +595,41 @@ export default function Menus() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-stone-900 mb-3">Recetas / Elaboraciones</label>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-stone-900">Recetas / Elaboraciones</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewRecipeInput(!showNewRecipeInput)}
+                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                    >
+                      <Plus size={16} /> Crear receta en blanco
+                    </button>
+                  </div>
+                  {showNewRecipeInput && (
+                    <div className="mb-4 flex gap-2">
+                      <input
+                        type="text"
+                        value={newRecipeName}
+                        onChange={(e) => setNewRecipeName(e.target.value)}
+                        placeholder="Nombre de la nueva receta..."
+                        className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreatePlaceholderRecipe();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreatePlaceholderRecipe}
+                        disabled={!newRecipeName.trim()}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                      >
+                        Añadir
+                      </button>
+                    </div>
+                  )}
                   <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 max-h-64 overflow-y-auto">
                     {recipes.length === 0 ? (
                       <p className="text-sm text-stone-500 text-center py-4">No hay recetas disponibles. Crea una primero.</p>

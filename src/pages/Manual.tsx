@@ -84,16 +84,7 @@ export default function Manual() {
             <li><strong>Exportar:</strong> Puedes descargar el menú en formato PDF para compartirlo o imprimirlo.</li>
           </ul>
 
-          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">6. Minutas</h3>
-          <p className="mb-4 leading-relaxed">
-            Diseña la carta o minuta que se presentará a los comensales.
-          </p>
-          <ul className="list-disc pl-6 mb-4 space-y-2 leading-relaxed">
-            <li><strong>Diseño:</strong> Selecciona un menú previamente creado y personaliza el diseño de la minuta (clásico, moderno, elegante).</li>
-            <li><strong>Impresión:</strong> Genera un PDF listo para imprimir y entregar a los clientes o invitados.</li>
-          </ul>
-
-          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">7. Pedidos (Lista de la compra)</h3>
+          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">6. Pedidos (Lista de la compra)</h3>
           <p className="mb-4 leading-relaxed">
             Calculadora de necesidades para eventos o servicios.
           </p>
@@ -102,12 +93,12 @@ export default function Manual() {
             <li><strong>Lista agregada:</strong> El sistema desglosa todas las recetas, suma las cantidades de ingredientes idénticos y genera una lista de la compra unificada con el coste total estimado.</li>
           </ul>
 
-          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">8. Traducciones</h3>
+          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">7. Traducciones</h3>
           <p className="mb-4 leading-relaxed">
             Herramienta integrada para traducir automáticamente los nombres de los ingredientes, recetas y pasos de elaboración al inglés, facilitando la creación de menús bilingües.
           </p>
 
-          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">9. Gestión de Usuarios (Solo Docentes/Tutores)</h3>
+          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">8. Gestión de Usuarios (Solo Docentes/Tutores)</h3>
           <p className="mb-4 leading-relaxed">
             Control de acceso a la plataforma.
           </p>

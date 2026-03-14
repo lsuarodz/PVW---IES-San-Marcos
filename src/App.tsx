@@ -12,10 +12,11 @@ import Admin from './pages/Admin';
 import Ingredients from './pages/Ingredients';
 import Recipes from './pages/Recipes';
 import Menus from './pages/Menus';
-import Minutas from './pages/Minutas';
 import Orders from './pages/Orders';
 import Translations from './pages/Translations';
 import Manual from './pages/Manual';
+import CoffeeBrunch from './pages/CoffeeBrunch';
+import Standardization from './pages/Standardization';
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) {
   const { appUser, loading } = useAuth();
@@ -51,8 +52,9 @@ function AppRoutes() {
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="recipes" element={<Recipes />} />
         <Route path="menus" element={<Menus />} />
-        <Route path="minutas" element={<Minutas />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="coffee-brunch" element={<CoffeeBrunch />} />
+        <Route path="standardization" element={<Standardization />} />
         <Route path="translations" element={<Translations />} />
         <Route path="manual" element={<Manual />} />
         <Route path="admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />

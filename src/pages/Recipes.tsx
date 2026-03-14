@@ -22,6 +22,8 @@ export interface Recipe {
   descriptionEN: string; // Kept for backward compatibility
   steps: string[];
   stepsEN?: string[];
+  equipment?: string[];
+  sustainabilityTips?: string[];
   ingredients: RecipeIngredient[];
   totalCost: number;
   createdBy: string;
@@ -45,6 +47,8 @@ export default function Recipes() {
   const [formData, setFormData] = useState({
     nameES: '',
     steps: [] as string[],
+    equipment: [] as string[],
+    sustainabilityTips: [] as string[],
     ingredients: [] as RecipeIngredient[],
   });
 
@@ -162,6 +166,8 @@ export default function Recipes() {
     setFormData({
       nameES: recipe.nameES,
       steps: recipe.steps || (recipe.descriptionES ? [recipe.descriptionES] : []),
+      equipment: recipe.equipment || [],
+      sustainabilityTips: recipe.sustainabilityTips || [],
       ingredients: recipe.ingredients,
     });
     setEditingId(recipe.id);
@@ -169,7 +175,7 @@ export default function Recipes() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', steps: [], ingredients: [] });
+    setFormData({ nameES: '', steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
     setEditingId(null);
   };
 
@@ -190,6 +196,37 @@ export default function Recipes() {
     const newSteps = formData.steps.filter((_, i) => i !== index);
     setFormData({ ...formData, steps: newSteps });
   };
+
+  const addEquipment = () => {
+    setFormData({ ...formData, equipment: [...formData.equipment, ''] });
+  };
+
+  const updateEquipment = (index: number, value: string) => {
+    const newEq = [...formData.equipment];
+    newEq[index] = value;
+    setFormData({ ...formData, equipment: newEq });
+  };
+
+  const removeEquipment = (index: number) => {
+    const newEq = formData.equipment.filter((_, i) => i !== index);
+    setFormData({ ...formData, equipment: newEq });
+  };
+
+  const addTip = () => {
+    setFormData({ ...formData, sustainabilityTips: [...formData.sustainabilityTips, ''] });
+  };
+
+  const updateTip = (index: number, value: string) => {
+    const newTips = [...formData.sustainabilityTips];
+    newTips[index] = value;
+    setFormData({ ...formData, sustainabilityTips: newTips });
+  };
+
+  const removeTip = (index: number) => {
+    const newTips = formData.sustainabilityTips.filter((_, i) => i !== index);
+    setFormData({ ...formData, sustainabilityTips: newTips });
+  };
+
   const addIngredientToRecipe = () => {
     setFormData({
       ...formData,
@@ -481,6 +518,88 @@ export default function Recipes() {
                     )}
                   </div>
                 </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-stone-900">Material y Equipamiento</label>
+                    <button
+                      type="button"
+                      onClick={addEquipment}
+                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                    >
+                      <Plus size={16} /> Añadir material
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {formData.equipment.map((eq, index) => (
+                      <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                        <div className="pt-2 font-bold text-stone-400 w-6 text-center">•</div>
+                        <input
+                          type="text"
+                          required
+                          value={eq}
+                          onChange={e => updateEquipment(index, e.target.value)}
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="Ej: 1 sartén, 1 batidora..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeEquipment(index)}
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    {formData.equipment.length === 0 && (
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                        No hay material añadido.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-stone-900">Tips de Sostenibilidad</label>
+                    <button
+                      type="button"
+                      onClick={addTip}
+                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                    >
+                      <Plus size={16} /> Añadir tip
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {formData.sustainabilityTips.map((tip, index) => (
+                      <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                        <div className="pt-2 font-bold text-stone-400 w-6 text-center">🌱</div>
+                        <textarea
+                          required
+                          rows={2}
+                          value={tip}
+                          onChange={e => updateTip(index, e.target.value)}
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="Ej: Encender los hornos solo 5 minutos antes..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTip(index)}
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    {formData.sustainabilityTips.length === 0 && (
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                        No hay tips de sostenibilidad añadidos.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </form>
             </div>
             
@@ -532,35 +651,90 @@ export default function Recipes() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-8">
-              <div className="col-span-1">
-                <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Ingredientes</h3>
-                <ul className="space-y-3">
+            <div className="mb-8">
+              <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Escandallo Detallado</h3>
+              <table className="w-full text-sm text-left mb-6">
+                <thead className="bg-stone-50 text-stone-600 uppercase text-xs border-b border-stone-200">
+                  <tr>
+                    <th className="px-4 py-2">Ingrediente</th>
+                    <th className="px-4 py-2 text-right">Cantidad</th>
+                    <th className="px-4 py-2 text-right">Coste Real/Ud</th>
+                    <th className="px-4 py-2 text-right">Coste Total</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {printingRecipe.ingredients.map((ri, idx) => {
                     const ing = ingredients.find(i => i.id === ri.ingredientId);
                     const subRecipe = recipes.find(r => r.id === ri.ingredientId);
                     const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
                     const unit = ing ? ing.unit : 'ud';
+                    
+                    let realCostPerUnit = 0;
+                    if (ing) {
+                      realCostPerUnit = ing.price / (1 - (ing.wastePercentage / 100));
+                    } else if (subRecipe) {
+                      realCostPerUnit = subRecipe.totalCost;
+                    }
+                    
+                    const itemTotalCost = realCostPerUnit * ri.quantity;
+
                     return (
-                      <li key={idx} className="flex justify-between text-sm border-b border-stone-100 pb-1">
-                        <span className="font-medium pr-2">{name}</span>
-                        <span className="text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</span>
-                      </li>
+                      <tr key={idx} className="border-b border-stone-100">
+                        <td className="px-4 py-2 font-medium">{name}</td>
+                        <td className="px-4 py-2 text-right">{ri.quantity} {unit}</td>
+                        <td className="px-4 py-2 text-right">{realCostPerUnit.toFixed(2)} €</td>
+                        <td className="px-4 py-2 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
+                      </tr>
                     );
                   })}
-                </ul>
-              </div>
+                </tbody>
+                <tfoot>
+                  <tr className="bg-stone-50 font-bold text-stone-900">
+                    <td colSpan={3} className="px-4 py-3 text-right">Coste Total de la Receta:</td>
+                    <td className="px-4 py-3 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-8">
+              <div>
                 <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Elaboración</h3>
                 {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                  <ol className="space-y-4 list-decimal pl-5">
+                  <ol className="space-y-4 list-decimal pl-5 mb-8">
                     {printingRecipe.steps.map((step, idx) => (
                       <li key={idx} className="text-stone-800 leading-relaxed pl-2">{step}</li>
                     ))}
                   </ol>
                 ) : (
-                  <p className="text-stone-500 italic">No hay pasos de elaboración definidos.</p>
+                  <p className="text-stone-500 italic mb-8">No hay pasos de elaboración definidos.</p>
+                )}
+
+                {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                  <>
+                    <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-2">Material y Equipamiento</h3>
+                    <ul className="space-y-2 list-disc pl-5 mb-8">
+                      {printingRecipe.equipment.map((eq, idx) => (
+                        <li key={idx} className="text-stone-800 leading-relaxed pl-2">{eq}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                  <>
+                    <h3 className="text-xl font-bold mb-4 uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-2 flex items-center gap-2">
+                      <span>🌱</span> Tips de Sostenibilidad
+                    </h3>
+                    <ul className="space-y-2 list-none pl-1">
+                      {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                        <li key={idx} className="text-stone-800 leading-relaxed flex gap-2">
+                          <span className="text-emerald-600 font-bold">•</span>
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </div>
             </div>

@@ -11,25 +11,34 @@ import {
   Menu as MenuIcon,
   FileText,
   ShoppingCart,
-  BookOpen as ManualIcon
+  BookOpen as ManualIcon,
+  Coffee,
+  ClipboardList
 } from 'lucide-react';
 
 export default function Layout() {
   const { appUser, logout } = useAuth();
   const location = useLocation();
 
-  const navItems = [
+  const jornada1Items = [
+    { name: 'Coffee Break / Brunch', path: '/coffee-brunch', icon: <Coffee size={20} /> },
+    { name: 'Estandarización', path: '/standardization', icon: <ClipboardList size={20} /> },
+  ];
+
+  const productionItems = [
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
     { name: 'Escandallos', path: '/recipes', icon: <BookOpen size={20} /> },
     { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
-    { name: 'Minutas', path: '/minutas', icon: <FileText size={20} /> },
     { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
+  ];
+
+  const otherItems = [
     { name: 'Traducciones', path: '/translations', icon: <Languages size={20} /> },
     { name: 'Manual', path: '/manual', icon: <ManualIcon size={20} /> },
   ];
 
   if (appUser?.role === 'admin' || appUser?.role === 'docente') {
-    navItems.push({ name: 'Usuarios', path: '/admin', icon: <Users size={20} /> });
+    otherItems.push({ name: 'Usuarios', path: '/admin', icon: <Users size={20} /> });
   }
 
   return (
@@ -41,24 +50,81 @@ export default function Layout() {
           <h1 className="text-xl font-bold tracking-tight">PVW - IES San Marcos</h1>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                  isActive 
-                    ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                }`}
-              >
-                {item.icon}
-                {item.name}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+          <div>
+            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+              Jornada 1: Definición del Proyecto
+            </h2>
+            <div className="space-y-1">
+              {jornada1Items.map((item) => {
+                const isActive = location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                      isActive 
+                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+              Gestión de Producción
+            </h2>
+            <div className="space-y-1">
+              {productionItems.map((item) => {
+                const isActive = location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                      isActive 
+                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+              Otros
+            </h2>
+            <div className="space-y-1">
+              {otherItems.map((item) => {
+                const isActive = location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                      isActive 
+                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
         <div className="p-4 border-t border-stone-200">
