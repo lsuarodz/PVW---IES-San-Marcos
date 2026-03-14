@@ -38,22 +38,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const userDocRef = doc(db, 'users', userEmail);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          setAppUser({ uid: firebaseUser.uid, ...userDoc.data() } as AppUser);
-        } else if (userEmail === 'lsuarodzmail.com@gmail.com') {
-          // Auto-create admin if it's the specific email
-          const newAdmin: Omit<AppUser, 'uid'> = {
-            email: userEmail,
-            role: 'admin',
-            name: firebaseUser.displayName || 'Admin',
-          };
-          await setDoc(userDocRef, { ...newAdmin, createdAt: new Date().toISOString() });
-          setAppUser({ uid: firebaseUser.uid, ...newAdmin } as AppUser);
-        } else {
-          // Not registered
+        try {
+          const userDocRef = doc(db, 'users', userEmail);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setAppUser({ uid: firebaseUser.uid, ...userDoc.data() } as AppUser);
+          } else if (userEmail === 'lsuarodzmail.com@gmail.com') {
+            // Auto-create admin if it's the specific email
+            const newAdmin: Omit<AppUser, 'uid'> = {
+              email: userEmail,
+              role: 'admin',
+              name: firebaseUser.displayName || 'Admin',
+            };
+            await setDoc(userDocRef, { ...newAdmin, createdAt: new Date().toISOString() });
+            setAppUser({ uid: firebaseUser.uid, ...newAdmin } as AppUser);
+          } else {
+            // Not registered
+            setAppUser(null);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
           setAppUser(null);
         }
       } else {
