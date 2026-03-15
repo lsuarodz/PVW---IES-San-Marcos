@@ -41,7 +41,7 @@ export default function WorkTeam() {
   const loadSubmission = async () => {
     if (!appUser) return;
     try {
-      const docRef = doc(db, 'work_team_submissions', appUser.id);
+      const docRef = doc(db, 'work_team_submissions', appUser.email);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -72,8 +72,9 @@ export default function WorkTeam() {
     if (!appUser || !draft.trim()) return;
     setSaving(true);
     try {
-      await setDoc(doc(db, 'work_team_submissions', appUser.id), {
-        userId: appUser.id,
+      await setDoc(doc(db, 'work_team_submissions', appUser.email), {
+        userId: appUser.uid,
+        userEmail: appUser.email,
         userName: appUser.name,
         group: appUser.group || 'Sin grupo',
         draft,
@@ -82,6 +83,7 @@ export default function WorkTeam() {
       setDraftSubmitted(true);
     } catch (error) {
       console.error("Error saving draft:", error);
+      alert("Error al guardar el borrador. Revisa la consola para más detalles.");
     } finally {
       setSaving(false);
     }
@@ -91,7 +93,7 @@ export default function WorkTeam() {
     if (!appUser) return;
     setSaving(true);
     try {
-      await setDoc(doc(db, 'work_team_submissions', appUser.id), {
+      await setDoc(doc(db, 'work_team_submissions', appUser.email), {
         answers,
         finalSubmitted: true,
         updatedAt: serverTimestamp()
@@ -99,6 +101,7 @@ export default function WorkTeam() {
       setFinalSubmitted(true);
     } catch (error) {
       console.error("Error saving final answers:", error);
+      alert("Error al guardar las respuestas. Revisa la consola para más detalles.");
     } finally {
       setSaving(false);
     }
@@ -224,11 +227,14 @@ export default function WorkTeam() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex items-start gap-4">
-            <CheckCircle className="text-emerald-600 shrink-0 mt-1" size={24} />
-            <div>
-              <h3 className="text-lg font-semibold text-emerald-800 mb-2">Borrador Enviado</h3>
-              <p className="text-emerald-700 whitespace-pre-wrap">{draft}</p>
+          <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col gap-4">
+            <div className="flex items-center gap-3 text-emerald-700">
+              <CheckCircle className="shrink-0" size={28} />
+              <h3 className="text-xl font-bold">¡Borrador enviado con éxito!</h3>
+            </div>
+            <div className="pl-10">
+              <h4 className="text-sm font-semibold text-emerald-800 uppercase tracking-wider mb-2">Vuestra propuesta:</h4>
+              <p className="text-emerald-900 whitespace-pre-wrap bg-white/60 p-4 rounded-xl border border-emerald-200/60">{draft}</p>
             </div>
           </div>
 
