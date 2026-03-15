@@ -162,6 +162,18 @@ export default function WorkTeam() {
     }
   };
 
+  const handleDeleteSubmission = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar este borrador?')) {
+      try {
+        await deleteDoc(doc(db, 'work_team_submissions', id));
+        setAllSubmissions(prev => prev.filter(sub => sub.id !== id));
+      } catch (error) {
+        console.error("Error deleting submission:", error);
+        alert("Error al eliminar el borrador.");
+      }
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-stone-500">Cargando...</div>;
   }
@@ -326,9 +338,18 @@ export default function WorkTeam() {
           ) : (
             allSubmissions.map((sub) => (
               <div key={sub.id} className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200 print:shadow-none print:border-none print:p-0 print:mb-12 break-inside-avoid">
-                <div className="border-b border-stone-200 pb-4 mb-6">
-                  <h2 className="text-2xl font-bold text-stone-900">{sub.userName}</h2>
-                  <p className="text-emerald-600 font-medium">Grupo: {sub.group}</p>
+                <div className="border-b border-stone-200 pb-4 mb-6 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-2xl font-bold text-stone-900">{sub.userName}</h2>
+                    <p className="text-emerald-600 font-medium">Grupo: {sub.group}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSubmission(sub.id)}
+                    className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors print:hidden"
+                    title="Eliminar borrador"
+                  >
+                    <Trash2 size={20} />
+                  </button>
                 </div>
 
                 <div className="mb-8">

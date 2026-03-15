@@ -33,6 +33,7 @@ export interface Recipe {
 
 export default function Recipes() {
   const { appUser } = useAuth();
+  const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [menus, setMenus] = useState<any[]>([]);
@@ -324,7 +325,7 @@ export default function Recipes() {
                   <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Editar">
                     <Edit2 size={18} />
                   </button>
-                  {appUser?.role === 'admin' && (
+                  {isAdmin && (
                     <button onClick={() => handleDelete(recipe.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
                       <Trash2 size={18} />
                     </button>

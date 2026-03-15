@@ -57,7 +57,7 @@ export default function Standardization() {
     });
 
     let unsubAll: () => void;
-    if (appUser.role === 'admin') {
+    if (appUser.role === 'admin' || appUser.role === 'docente') {
       const qAll = query(collection(db, 'jornada1_standardization'));
       unsubAll = onSnapshot(qAll, (snapshot) => {
         const data: StandardizationAnswer[] = [];
@@ -117,10 +117,12 @@ export default function Standardization() {
         <p className="text-stone-500 mt-2">Cuestionario individual sobre la importancia y métodos de estandarización.</p>
       </div>
 
-      {appUser?.role === 'admin' && (
+      {(appUser?.role === 'admin' || appUser?.role === 'docente') && (
         <div className="mb-12 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
           <div className="p-6 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-emerald-900">Respuestas de los Alumnos (Vista Admin)</h2>
+            <h2 className="text-xl font-bold text-emerald-900">
+              Respuestas de los Alumnos (Vista {appUser?.role === 'admin' ? 'Tutor' : 'Docente'})
+            </h2>
             <span className="bg-emerald-200 text-emerald-800 py-1 px-3 rounded-full text-sm font-bold">
               {allAnswers.length} respuestas
             </span>

@@ -26,6 +26,7 @@ export interface Menu {
 
 export default function Menus() {
   const { appUser } = useAuth();
+  const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const [menus, setMenus] = useState<Menu[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -328,7 +329,7 @@ export default function Menus() {
                   <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                     <Edit2 size={18} />
                   </button>
-                  {appUser?.role === 'admin' && (
+                  {isAdmin && (
                     <button onClick={() => handleDelete(menu.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
