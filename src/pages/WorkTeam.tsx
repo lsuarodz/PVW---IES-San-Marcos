@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, getDocs, query, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Users, Send, CheckCircle, Printer, AlertCircle, Dices } from 'lucide-react';
+import { collection, getDocs, query, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { Users, Send, CheckCircle, Printer, AlertCircle, Dices, Trash2 } from 'lucide-react';
 
 const questions = [
   { id: 1, category: "Costes", text: "Si el presupuesto total es de 12€ por persona, detallad el porcentaje de gasto para: Materia prima (alimentos), Bebidas y Menaje desechable. ¿Cuánto sobra para margen de imprevistos?" },
@@ -33,6 +33,8 @@ export default function WorkTeam() {
   const [numGroups, setNumGroups] = useState(4);
   const [randomGroups, setRandomGroups] = useState<any[][]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
@@ -143,6 +145,23 @@ export default function WorkTeam() {
     window.print();
   };
 
+  const handleDeleteAllSubmissions = async () => {
+    setIsDeleting(true);
+    try {
+      const q = query(collection(db, 'work_team_submissions'));
+      const snapshot = await getDocs(q);
+      const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, 'work_team_submissions', d.id)));
+      await Promise.all(deletePromises);
+      setAllSubmissions([]);
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Error deleting submissions:", error);
+      alert("Error al borrar las respuestas. Revisa la consola.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-stone-500">Cargando...</div>;
   }
@@ -161,14 +180,55 @@ export default function WorkTeam() {
               <p className="text-stone-500 mt-1">Caso Práctico: Coffee Break</p>
             </div>
           </div>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors"
-          >
-            <Printer size={20} />
-            Imprimir / PDF
-          </button>
+          <div className="flex items-center gap-3">
+            {allSubmissions.length > 0 && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors border border-red-200"
+              >
+                <Trash2 size={20} />
+                Borrar Todo
+              </button>
+            )}
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors"
+            >
+              <Printer size={20} />
+              Imprimir / PDF
+            </button>
+          </div>
         </div>
+
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4 print:hidden">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <AlertCircle size={28} />
+                <h3 className="text-xl font-bold">¿Borrar todas las respuestas?</h3>
+              </div>
+              <p className="text-stone-600 mb-6">
+                Esta acción eliminará permanentemente todas las respuestas y borradores de los alumnos. <strong>No se puede deshacer.</strong>
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-xl transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteAllSubmissions}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-xl transition-colors font-medium flex items-center gap-2"
+                >
+                  {isDeleting ? 'Borrando...' : 'Sí, borrar todo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-12">
           {/* Generador de Equipos */}
