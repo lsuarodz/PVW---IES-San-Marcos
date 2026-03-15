@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, getDocs, query, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Users, Send, CheckCircle, Printer, AlertCircle } from 'lucide-react';
+import { Users, Send, CheckCircle, Printer, AlertCircle, Dices } from 'lucide-react';
 
 const questions = [
   { id: 1, category: "Costes", text: "Si el presupuesto total es de 12€ por persona, detallad el porcentaje de gasto para: Materia prima (alimentos), Bebidas y Menaje desechable. ¿Cuánto sobra para margen de imprevistos?" },
@@ -24,19 +24,49 @@ export default function WorkTeam() {
   const [draft, setDraft] = useState('');
   const [draftSubmitted, setDraftSubmitted] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [leaders, setLeaders] = useState<Record<number, string>>({});
   const [finalSubmitted, setFinalSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allSubmissions, setAllSubmissions] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [numGroups, setNumGroups] = useState(4);
+  const [randomGroups, setRandomGroups] = useState<any[][]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
   useEffect(() => {
     loadSubmission();
+    loadStudents();
     if (isAdmin) {
       loadAllSubmissions();
     }
   }, [appUser]);
+
+  const generateRandomGroups = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      const shuffled = [...students].sort(() => 0.5 - Math.random());
+      const groups: any[][] = Array.from({ length: numGroups }, () => []);
+      shuffled.forEach((student, index) => {
+        groups[index % numGroups].push(student);
+      });
+      setRandomGroups(groups);
+      setIsGenerating(false);
+    }, 600);
+  };
+
+  const loadStudents = async () => {
+    try {
+      const q = query(collection(db, 'users'));
+      const snapshot = await getDocs(q);
+      const users = snapshot.docs.map(doc => doc.data()).filter(u => u.role === 'student');
+      setStudents(users);
+    } catch (error) {
+      console.error("Error loading students:", error);
+    }
+  };
 
   const loadSubmission = async () => {
     if (!appUser) return;
@@ -48,6 +78,7 @@ export default function WorkTeam() {
         setDraft(data.draft || '');
         setDraftSubmitted(!!data.draft);
         setAnswers(data.answers || {});
+        setLeaders(data.leaders || {});
         setFinalSubmitted(data.finalSubmitted || false);
       }
     } catch (error) {
@@ -95,6 +126,7 @@ export default function WorkTeam() {
     try {
       await setDoc(doc(db, 'work_team_submissions', appUser.email), {
         answers,
+        leaders,
         finalSubmitted: true,
         updatedAt: serverTimestamp()
       }, { merge: true });
@@ -139,6 +171,88 @@ export default function WorkTeam() {
         </div>
 
         <div className="space-y-12">
+          {/* Generador de Equipos */}
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200 print:hidden break-inside-avoid">
+            <div className="flex items-center gap-3 mb-4 text-emerald-700">
+              <Dices size={28} />
+              <h2 className="text-2xl font-bold text-stone-900">Sorteo de Equipos</h2>
+            </div>
+            <p className="text-stone-600 mb-6 text-lg">Agrupa a los alumnos aleatoriamente para que se sienten juntos y comiencen el caso práctico.</p>
+            
+            <div className="flex items-center gap-4 mb-8 bg-stone-50 p-4 rounded-xl border border-stone-100">
+              <label className="font-medium text-stone-700 text-lg">Número de equipos a formar:</label>
+              <input 
+                type="number" 
+                min="2" 
+                max="10" 
+                value={numGroups} 
+                onChange={(e) => setNumGroups(Number(e.target.value))}
+                className="w-24 p-2 border border-stone-200 rounded-lg text-center text-lg font-bold focus:ring-2 focus:ring-emerald-500"
+              />
+              <button 
+                onClick={generateRandomGroups}
+                disabled={isGenerating || students.length === 0}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 font-medium text-lg ml-auto"
+              >
+                <Dices size={24} className={isGenerating ? "animate-spin" : ""} />
+                {isGenerating ? 'Sorteando...' : '¡Sortear Equipos!'}
+              </button>
+            </div>
+
+            {randomGroups.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                {randomGroups.map((group, i) => (
+                  <div key={i} className="bg-white border-2 border-emerald-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                    <h3 className="font-bold text-xl text-emerald-800 mb-4 flex items-center gap-2">
+                      <Users size={20} />
+                      Equipo {i + 1}
+                    </h3>
+                    <ul className="space-y-3">
+                      {group.map(student => (
+                        <li key={student.email} className="text-stone-700 flex items-center gap-3 font-medium">
+                          <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                          {student.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Global Leadership Table */}
+          {allSubmissions.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 print:shadow-none print:border-none print:p-0 break-inside-avoid">
+              <h2 className="text-xl font-bold text-stone-900 mb-4">Tabla Global de Respuestas</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-stone-500 uppercase bg-stone-50">
+                    <tr>
+                      <th className="px-4 py-3 rounded-tl-lg">Grupo / Equipo</th>
+                      {questions.map(q => (
+                        <th key={q.id} className="px-4 py-3 whitespace-nowrap" title={q.category}>Q{q.id} ({q.category})</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allSubmissions.map(sub => (
+                      <tr key={sub.id} className="border-b border-stone-100 last:border-0">
+                        <td className="px-4 py-3 font-medium text-stone-900 whitespace-nowrap">{sub.userName} ({sub.group})</td>
+                        {questions.map(q => (
+                          <td key={q.id} className="px-4 py-3 text-stone-600 whitespace-nowrap">
+                            {sub.leaders?.[q.id] || '-'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {allSubmissions.length === 0 ? (
             <p className="text-stone-500 text-center py-12 bg-white rounded-2xl border border-stone-200 print:hidden">
               No hay respuestas enviadas todavía.
@@ -255,6 +369,20 @@ export default function WorkTeam() {
                     placeholder="Escribe tu respuesta aquí..."
                     className="w-full h-32 p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none disabled:bg-stone-100 disabled:text-stone-600"
                   />
+                  <div className="flex items-center gap-3 mt-2">
+                    <label className="text-sm font-medium text-stone-700">Líder de esta respuesta:</label>
+                    <select
+                      value={leaders[q.id] || ''}
+                      onChange={(e) => setLeaders({ ...leaders, [q.id]: e.target.value })}
+                      disabled={finalSubmitted}
+                      className="p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 disabled:bg-stone-100 disabled:text-stone-600"
+                    >
+                      <option value="">-- Seleccionar alumno --</option>
+                      {students.map(s => (
+                        <option key={s.email} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               ))}
             </div>

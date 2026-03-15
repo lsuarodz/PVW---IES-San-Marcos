@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import logoUrl from '../assets/logo.png';
 import { 
   ChefHat, 
   BookOpen, 
@@ -35,9 +34,9 @@ export default function Layout() {
 
   const jornada1Items = [
     { name: 'Presentación del proyecto', path: '/presentation', icon: <Presentation size={20} /> },
-    { name: 'Equipo de Trabajo', path: '/work-team', icon: <Users size={20} /> },
     { name: 'Coffee Break / Brunch / Menú Solidario', path: '/coffee-brunch', icon: <Coffee size={20} /> },
     { name: 'Estandarización', path: '/standardization', icon: <ClipboardList size={20} /> },
+    { name: 'Equipo de Trabajo', path: '/work-team', icon: <Users size={20} /> },
   ];
 
   const productionItems = [
@@ -61,7 +60,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-stone-200 flex flex-col print:hidden">
         <div className="p-6 border-b border-stone-200 flex items-center gap-3 text-emerald-700">
-          <img src={logoUrl} alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
+          <img src="/logo.png" alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
           <h1 className="text-xl font-bold tracking-tight">Proyecto Intermodular</h1>
         </div>
         
