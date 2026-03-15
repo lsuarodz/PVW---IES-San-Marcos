@@ -23,6 +23,7 @@ export interface Ingredient {
 export default function Ingredients() {
   const { appUser } = useAuth();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
+  const isSuperAdmin = appUser?.role === 'admin';
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -224,7 +225,7 @@ export default function Ingredients() {
                     >
                       <Edit2 size={18} />
                     </button>
-                    {isAdmin && (
+                    {isSuperAdmin && (
                       <button
                         onClick={() => handleDelete(ing.id)}
                         className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

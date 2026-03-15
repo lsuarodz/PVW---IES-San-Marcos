@@ -52,6 +52,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "lsuarodzmail.com@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin')
+      );
+    }
+
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.email == "lsuarodzmail.com@gmail.com" ||
@@ -152,49 +160,51 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isStudentOrAdmin() || request.auth.token.email == userId;
       allow create, update: if isAdmin() && isValidUser();
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /ingredients/{ingredientId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidIngredient();
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /recipes/{recipeId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidRecipe();
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /menus/{menuId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidMenu();
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /jornada1_ideas/{ideaId} {
       allow read: if isStudentOrAdmin();
       allow create: if isStudentOrAdmin();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /jornada1_characteristics/{charId} {
       allow read: if isStudentOrAdmin();
       allow create: if isStudentOrAdmin();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /jornada1_standardization/{userId} {
       allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
       allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /work_team_submissions/{userId} {
       allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
       allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
   }
 }

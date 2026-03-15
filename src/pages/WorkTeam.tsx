@@ -163,13 +163,13 @@ export default function WorkTeam() {
   };
 
   const handleDeleteSubmission = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este borrador?')) {
+    if (window.confirm('¿Estás seguro de eliminar esta respuesta completa?')) {
       try {
         await deleteDoc(doc(db, 'work_team_submissions', id));
         setAllSubmissions(prev => prev.filter(sub => sub.id !== id));
       } catch (error) {
         console.error("Error deleting submission:", error);
-        alert("Error al eliminar el borrador.");
+        alert("Error al eliminar la respuesta.");
       }
     }
   };
@@ -193,7 +193,7 @@ export default function WorkTeam() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {allSubmissions.length > 0 && (
+            {allSubmissions.length > 0 && appUser?.role === 'admin' && (
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors border border-red-200"
@@ -309,11 +309,14 @@ export default function WorkTeam() {
                           <div className="text-[10px] font-normal text-stone-400 lowercase">({q.category})</div>
                         </th>
                       ))}
+                      {appUser?.role === 'admin' && (
+                        <th className="px-2 py-2 text-center rounded-tr-lg w-16 print:hidden">Acciones</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {allSubmissions.map(sub => (
-                      <tr key={sub.id} className="border-b border-stone-100 last:border-0">
+                      <tr key={sub.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50 transition-colors">
                         <td className="px-2 py-2 font-medium text-stone-900 text-xs leading-tight min-w-[120px]">
                           <div>{sub.userName}</div>
                           <div className="text-stone-500 font-normal">{sub.group}</div>
@@ -323,6 +326,17 @@ export default function WorkTeam() {
                             {sub.leaders?.[q.id] || '-'}
                           </td>
                         ))}
+                        {appUser?.role === 'admin' && (
+                          <td className="px-2 py-2 text-center print:hidden">
+                            <button
+                              onClick={() => handleDeleteSubmission(sub.id)}
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar respuesta"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -343,13 +357,15 @@ export default function WorkTeam() {
                     <h2 className="text-2xl font-bold text-stone-900">{sub.userName}</h2>
                     <p className="text-emerald-600 font-medium">Grupo: {sub.group}</p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteSubmission(sub.id)}
-                    className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors print:hidden"
-                    title="Eliminar borrador"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                  {appUser?.role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteSubmission(sub.id)}
+                      className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors print:hidden"
+                      title="Eliminar respuesta"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="mb-8">

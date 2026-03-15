@@ -34,7 +34,8 @@ export default function CoffeeBrunch() {
   const [newBrunchChar, setNewBrunchChar] = useState('');
   const [newSolidarioChar, setNewSolidarioChar] = useState('');
 
-  const isAdmin = isAdmin || appUser?.role === 'docente';
+  const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
+  const isSuperAdmin = appUser?.role === 'admin';
 
   useEffect(() => {
     const qIdeas = query(collection(db, 'jornada1_ideas'), orderBy('createdAt', 'asc'));

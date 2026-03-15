@@ -149,13 +149,15 @@ export default function Standardization() {
                         {expandedAdminView === ans.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteAnswer(ans.id)}
-                      className="ml-4 p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                      title="Eliminar respuesta"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    {appUser?.role === 'admin' && (
+                      <button
+                        onClick={() => handleDeleteAnswer(ans.id)}
+                        className="ml-4 p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Eliminar respuesta"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
                   </div>
                   
                   {expandedAdminView === ans.id && (
