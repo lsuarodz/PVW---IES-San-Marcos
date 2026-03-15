@@ -17,6 +17,8 @@ import Translations from './pages/Translations';
 import Manual from './pages/Manual';
 import CoffeeBrunch from './pages/CoffeeBrunch';
 import Standardization from './pages/Standardization';
+import ProjectPresentation from './pages/ProjectPresentation';
+import WorkTeam from './pages/WorkTeam';
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) {
   const { appUser, loading } = useAuth();
@@ -49,6 +51,8 @@ function AppRoutes() {
       
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/ingredients" replace />} />
+        <Route path="presentation" element={<ProjectPresentation />} />
+        <Route path="work-team" element={<WorkTeam />} />
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="recipes" element={<Recipes />} />
         <Route path="menus" element={<Menus />} />

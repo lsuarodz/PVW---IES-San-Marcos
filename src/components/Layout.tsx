@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoUrl from '../assets/logo.png';
@@ -13,14 +13,29 @@ import {
   ShoppingCart,
   BookOpen as ManualIcon,
   Coffee,
-  ClipboardList
+  ClipboardList,
+  Presentation,
+  ChevronDown,
+  ChevronRight,
+  UserCog
 } from 'lucide-react';
 
 export default function Layout() {
   const { appUser, logout } = useAuth();
   const location = useLocation();
+  const [openSections, setOpenSections] = useState({
+    jornada1: true,
+    produccion: true,
+    otros: true
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const jornada1Items = [
+    { name: 'Presentación del proyecto', path: '/presentation', icon: <Presentation size={20} /> },
+    { name: 'Equipo de Trabajo', path: '/work-team', icon: <Users size={20} /> },
     { name: 'Coffee Break / Brunch / Menú Solidario', path: '/coffee-brunch', icon: <Coffee size={20} /> },
     { name: 'Estandarización', path: '/standardization', icon: <ClipboardList size={20} /> },
   ];
@@ -38,92 +53,113 @@ export default function Layout() {
   ];
 
   if (appUser?.role === 'admin' || appUser?.role === 'docente') {
-    otherItems.push({ name: 'Usuarios', path: '/admin', icon: <Users size={20} /> });
+    otherItems.push({ name: 'Usuarios', path: '/admin', icon: <UserCog size={20} /> });
   }
 
   return (
     <div className="flex h-screen bg-stone-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-stone-200 flex flex-col">
+      <aside className="w-64 bg-white border-r border-stone-200 flex flex-col print:hidden">
         <div className="p-6 border-b border-stone-200 flex items-center gap-3 text-emerald-700">
           <img src={logoUrl} alt="Logo Proyecto Intermodular" className="h-10 w-auto object-contain" />
           <h1 className="text-xl font-bold tracking-tight">Proyecto Intermodular</h1>
         </div>
         
-        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+          {/* Jornada 1 */}
           <div>
-            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-              Jornada 1: Definición del Proyecto
-            </h2>
-            <div className="space-y-1">
-              {jornada1Items.map((item) => {
-                const isActive = location.pathname.startsWith(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                      isActive 
-                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                    }`}
-                  >
-                    {item.icon}
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
+            <button 
+              onClick={() => toggleSection('jornada1')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+            >
+              <span>Jornada 1: Definición del Proyecto</span>
+              {openSections.jornada1 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.jornada1 && (
+              <div className="space-y-1 mt-2">
+                {jornada1Items.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
+          {/* Gestión de Producción */}
           <div>
-            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-              Gestión de Producción
-            </h2>
-            <div className="space-y-1">
-              {productionItems.map((item) => {
-                const isActive = location.pathname.startsWith(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                      isActive 
-                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                    }`}
-                  >
-                    {item.icon}
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
+            <button 
+              onClick={() => toggleSection('produccion')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+            >
+              <span>Gestión de Producción</span>
+              {openSections.produccion ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.produccion && (
+              <div className="space-y-1 mt-2">
+                {productionItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
+          {/* Otros */}
           <div>
-            <h2 className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-              Otros
-            </h2>
-            <div className="space-y-1">
-              {otherItems.map((item) => {
-                const isActive = location.pathname.startsWith(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                      isActive 
-                        ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                    }`}
-                  >
-                    {item.icon}
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
+            <button 
+              onClick={() => toggleSection('otros')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+            >
+              <span>Otros</span>
+              {openSections.otros ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.otros && (
+              <div className="space-y-1 mt-2">
+                {otherItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </nav>
 
@@ -151,7 +187,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto print:overflow-visible">
         <Outlet />
       </main>
     </div>

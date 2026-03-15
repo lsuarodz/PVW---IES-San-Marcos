@@ -190,5 +190,11 @@ service cloud.firestore {
       allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
       allow delete: if isAdmin();
     }
+
+    match /work_team_submissions/{userId} {
+      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
+      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
+      allow delete: if isAdmin();
+    }
   }
 }
