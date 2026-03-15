@@ -150,7 +150,7 @@ export default function WorkTeam() {
   // Admin View
   if (isAdmin) {
     return (
-      <div className="p-8 max-w-5xl mx-auto print:p-0 print:max-w-none">
+      <div className="p-8 max-w-[1400px] mx-auto print:p-0 print:max-w-none">
         <div className="flex justify-between items-center mb-8 print:hidden">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">
@@ -230,18 +230,24 @@ export default function WorkTeam() {
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-stone-500 uppercase bg-stone-50">
                     <tr>
-                      <th className="px-4 py-3 rounded-tl-lg">Grupo / Equipo</th>
+                      <th className="px-2 py-2 rounded-tl-lg w-48">Grupo / Equipo</th>
                       {questions.map(q => (
-                        <th key={q.id} className="px-4 py-3 whitespace-nowrap" title={q.category}>Q{q.id} ({q.category})</th>
+                        <th key={q.id} className="px-2 py-2 text-center leading-tight" title={q.category}>
+                          <div>Q{q.id}</div>
+                          <div className="text-[10px] font-normal text-stone-400 lowercase">({q.category})</div>
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {allSubmissions.map(sub => (
                       <tr key={sub.id} className="border-b border-stone-100 last:border-0">
-                        <td className="px-4 py-3 font-medium text-stone-900 whitespace-nowrap">{sub.userName} ({sub.group})</td>
+                        <td className="px-2 py-2 font-medium text-stone-900 text-xs leading-tight min-w-[120px]">
+                          <div>{sub.userName}</div>
+                          <div className="text-stone-500 font-normal">{sub.group}</div>
+                        </td>
                         {questions.map(q => (
-                          <td key={q.id} className="px-4 py-3 text-stone-600 whitespace-nowrap">
+                          <td key={q.id} className="px-2 py-2 text-stone-600 text-xs text-center">
                             {sub.leaders?.[q.id] || '-'}
                           </td>
                         ))}
