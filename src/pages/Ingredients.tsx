@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Search, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, AlertCircle, Download } from 'lucide-react';
+import { MERCADONA_PRODUCTS, WASTE_TABLE } from '../utils/bulkIngredients';
 import { ALLERGENS } from '../constants/allergens';
 
 export interface Ingredient {
@@ -29,7 +30,106 @@ export default function Ingredients() {
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleBulkImport = async () => {
+    if (!appUser || !window.confirm('¿Estás seguro de que quieres importar todos los ingredientes de los documentos?')) return;
+    setIsImporting(true);
+
+    const parseUnitAndPrice = (name: string, priceStr: string, unitStr: string) => {
+      const price = parseFloat(priceStr.replace(',', '.')) || 0;
+      let unit: Ingredient['unit'] = 'kg';
+      let purchasePrice = price;
+
+      if (unitStr.includes('kg')) {
+        const match = unitStr.match(/(\d+\.?\d*)\s*kg/);
+        const qty = match ? parseFloat(match[1]) : 1;
+        unit = 'kg';
+        purchasePrice = price / qty;
+      } else if (unitStr.includes(' g')) {
+        const match = unitStr.match(/(\d+\.?\d*)\s*g/);
+        const qty = match ? parseFloat(match[1]) : 1;
+        unit = 'kg';
+        purchasePrice = (price / qty) * 1000;
+      } else if (unitStr.includes(' ml')) {
+        const match = unitStr.match(/(\d+\.?\d*)\s*ml/);
+        const qty = match ? parseFloat(match[1]) : 1;
+        unit = 'L';
+        purchasePrice = (price / qty) * 1000;
+      } else if (unitStr.includes(' L')) {
+        const match = unitStr.match(/(\d+\.?\d*)\s*L/);
+        const qty = match ? parseFloat(match[1]) : 1;
+        unit = 'L';
+        purchasePrice = price / qty;
+      } else if (unitStr.includes(' ud') || unitStr.includes(' pastillas') || unitStr.includes(' chicles') || unitStr.includes(' sobres') || unitStr.includes(' Bote') || unitStr.includes(' Caja') || unitStr.includes(' Paquete')) {
+        const match = unitStr.match(/(\d+)\s*(ud|pastillas|chicles|sobres)/);
+        const qty = match ? parseFloat(match[1]) : 1;
+        unit = 'ud';
+        purchasePrice = price / qty;
+      }
+
+      return { unit, purchasePrice };
+    };
+
+    try {
+      // Get existing ingredients to avoid duplicates
+      const existingNames = new Set(ingredients.map(i => i.nameES.toLowerCase()));
+
+      // Import Mercadona Products
+      for (const product of MERCADONA_PRODUCTS) {
+        if (existingNames.has(product["Nombre del Producto"].toLowerCase())) continue;
+
+        const { unit, purchasePrice } = parseUnitAndPrice(product["Nombre del Producto"], product["Precio (EUR)"], product["Unidad de Medida"]);
+        const id = doc(collection(db, 'ingredients')).id;
+        const wastePercentage = 0;
+        const costPerUnit = purchasePrice / (1 - (wastePercentage / 100));
+
+        await setDoc(doc(db, 'ingredients', id), {
+          nameES: product["Nombre del Producto"],
+          nameEN: '',
+          provider: 'Mercadona',
+          unit,
+          purchasePrice,
+          wastePercentage,
+          costPerUnit,
+          createdBy: appUser.name,
+          createdAt: new Date().toISOString(),
+        });
+        existingNames.add(product["Nombre del Producto"].toLowerCase());
+      }
+
+      // Import Waste Table
+      for (const item of WASTE_TABLE) {
+        if (existingNames.has(item.name.toLowerCase())) continue;
+
+        const id = doc(collection(db, 'ingredients')).id;
+        const wastePercentage = item.waste;
+        const purchasePrice = 0;
+        const costPerUnit = 0;
+
+        await setDoc(doc(db, 'ingredients', id), {
+          nameES: item.name,
+          nameEN: '',
+          provider: 'Tabla de Mermas',
+          unit: item.unit as Ingredient['unit'],
+          purchasePrice,
+          wastePercentage,
+          costPerUnit,
+          createdBy: appUser.name,
+          createdAt: new Date().toISOString(),
+        });
+        existingNames.add(item.name.toLowerCase());
+      }
+
+      alert('Importación completada con éxito');
+    } catch (error) {
+      console.error('Error importing ingredients:', error);
+      alert('Error durante la importación');
+    } finally {
+      setIsImporting(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     nameES: '',
@@ -154,13 +254,25 @@ export default function Ingredients() {
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Ingredientes</h1>
           <p className="text-stone-500 mt-2">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Nuevo Ingrediente
-        </button>
+        <div className="flex gap-3">
+          {isAdmin && (
+            <button
+              onClick={handleBulkImport}
+              disabled={isImporting}
+              className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <Download size={20} />
+              {isImporting ? 'Importando...' : 'Importar Documentos'}
+            </button>
+          )}
+          <button
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Nuevo Ingrediente
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
