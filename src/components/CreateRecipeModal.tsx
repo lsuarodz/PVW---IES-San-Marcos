@@ -116,6 +116,27 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Elaboración (Pasos)</label>
+                <textarea
+                  value={formData.steps.join('\n')}
+                  onChange={e => setFormData({...formData, steps: e.target.value.split('\n').filter(s => s.trim())})}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px]"
+                  placeholder="Un paso por línea..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Material / Equipamiento</label>
+                <textarea
+                  value={formData.equipment.join('\n')}
+                  onChange={e => setFormData({...formData, equipment: e.target.value.split('\n').filter(s => s.trim())})}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px]"
+                  placeholder="Un material por línea..."
+                />
+              </div>
+            </div>
+
             <div>
               <div className="flex justify-between items-center mb-3">
                 <label className="block text-sm font-medium text-stone-900">Ingredientes</label>

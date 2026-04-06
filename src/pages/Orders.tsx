@@ -62,7 +62,13 @@ export default function Orders() {
     const aggregation: Record<string, AggregatedIngredient> = {};
 
     // Función recursiva para procesar una receta y sus posibles sub-recetas
-    const processRecipe = (recipeId: string, multiplier: number) => {
+    const processRecipe = (recipeId: string, multiplier: number, visited = new Set<string>()) => {
+      if (visited.has(recipeId)) {
+        console.warn(`Circular dependency detected for recipe: ${recipeId}`);
+        return;
+      }
+      visited.add(recipeId);
+
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe) {
         recipe.ingredients.forEach(ri => {
@@ -92,7 +98,7 @@ export default function Orders() {
             const subRecipe = recipes.find(r => r.id === ri.ingredientId);
             if (subRecipe) {
               // Llamada recursiva multiplicando por la cantidad necesaria de la sub-receta
-              processRecipe(subRecipe.id, ri.quantity * multiplier);
+              processRecipe(subRecipe.id, ri.quantity * multiplier, new Set(visited));
             }
           }
         });

@@ -27,6 +27,7 @@ export default function Menus() {
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
+  const [recipeSearch, setRecipeSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
@@ -69,10 +70,6 @@ export default function Menus() {
   const [printingMenu, setPrintingMenu] = useState<Menu | null>(null);
   const [printingEquipmentMenu, setPrintingEquipmentMenu] = useState<Menu | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  
-  // Estados para la creación rápida de escandallos desde el menú
-  const [showNewRecipeInput, setShowNewRecipeInput] = useState(false);
-  const [newRecipeName, setNewRecipeName] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,39 +132,7 @@ export default function Menus() {
   const resetForm = () => {
     setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: undefined, recipes: [], price: 0 });
     setEditingId(null);
-  };
-
-  const handleCreatePlaceholderRecipe = async () => {
-    if (!newRecipeName || !newRecipeName.trim()) return;
-
-    if (!appUser) return;
-
-    const newRecipeRef = doc(collection(db, 'recipes'));
-    const newRecipeData = {
-      nameES: newRecipeName.trim(),
-      nameEN: '',
-      descriptionES: '',
-      descriptionEN: '',
-      steps: [],
-      ingredients: [],
-      totalCost: 0,
-      createdBy: appUser.group || appUser.name,
-      createdAt: new Date().toISOString()
-    };
-
-    try {
-      await setDoc(newRecipeRef, newRecipeData);
-      setFormData(prev => ({
-        ...prev,
-        recipes: [...prev.recipes, newRecipeRef.id]
-      }));
-      setNewRecipeName('');
-      setShowNewRecipeInput(false);
-      showToast('Receta creada correctamente', 'success');
-    } catch (error) {
-      console.error('Error creating placeholder recipe:', error);
-      showToast('Error al crear la receta', 'error');
-    }
+    setRecipeSearch('');
   };
 
   const toggleRecipe = (recipeId: string) => {
@@ -669,12 +634,24 @@ export default function Menus() {
                       <Plus size={16} /> Crear receta
                     </button>
                   </div>
+                  
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Buscar receta..."
+                      value={recipeSearch}
+                      onChange={(e) => setRecipeSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    />
+                  </div>
+
                   <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 max-h-64 overflow-y-auto">
                     {recipes.length === 0 ? (
                       <p className="text-sm text-stone-500 text-center py-4">No hay recetas disponibles. Crea una primero.</p>
                     ) : (
                       <div className="space-y-2">
-                        {recipes.map(recipe => (
+                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase())).map(recipe => (
                           <label key={recipe.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
@@ -688,6 +665,9 @@ export default function Menus() {
                             </div>
                           </label>
                         ))}
+                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase())).length === 0 && recipeSearch && (
+                          <p className="text-sm text-stone-500 text-center py-4">No se encontraron recetas con "{recipeSearch}".</p>
+                        )}
                       </div>
                     )}
                   </div>
