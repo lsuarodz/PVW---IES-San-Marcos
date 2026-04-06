@@ -1,124 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import React, { useState, useRef } from 'react';
+import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot } from 'lucide-react';
-import { Recipe } from './Recipes';
-import { Ingredient } from './Ingredients';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
+import ConfirmModal from '../components/ConfirmModal';
+import CreateRecipeModal from '../components/CreateRecipeModal';
 import html2pdf from 'html2pdf.js';
-
-export interface Menu {
-  id: string;
-  nameES: string;
-  nameEN: string;
-  type: 'brunch' | 'cocktail' | 'navidad' | 'coffee' | 'cafeteria' | 'pedagogico';
-  targetClient?: string;
-  location?: 'centro' | 'fuera';
-  occasion?: string;
-  recipes: string[]; // array of recipe IDs
-  totalCost: number;
-  price: number;
-  createdBy: string;
-  createdAt: string;
-}
+import { calculateMenuTotalCost, getMenuAllergens } from '../utils/calculations';
+import { Menu, Recipe, Ingredient } from '../types';
 
 export default function Menus() {
+  // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
+  // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
+  // Verificamos si el usuario es el administrador principal
   const isSuperAdmin = appUser?.role === 'admin';
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const { showToast } = useToast();
+  
+  // Estados para almacenar los datos de la base de datos
+  const { menus, recipes, ingredients } = useData();
+  
+  // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
+  // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   
+  // Estado para saber si estamos editando un menú existente
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+  
+  // Estado para almacenar los datos del formulario del menú
   const [formData, setFormData] = useState({
     nameES: '',
     type: 'brunch' as Menu['type'],
     targetClient: '',
     location: 'centro' as 'centro' | 'fuera',
     occasion: '',
+    diners: undefined as number | undefined,
     recipes: [] as string[],
     price: 0,
   });
 
+  // Referencias y estados para la funcionalidad de impresión a PDF
   const printRef = useRef<HTMLDivElement>(null);
   const printEquipmentRef = useRef<HTMLDivElement>(null);
   const [printingMenu, setPrintingMenu] = useState<Menu | null>(null);
   const [printingEquipmentMenu, setPrintingEquipmentMenu] = useState<Menu | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  
+  // Estados para la creación rápida de escandallos desde el menú
   const [showNewRecipeInput, setShowNewRecipeInput] = useState(false);
   const [newRecipeName, setNewRecipeName] = useState('');
-
-  useEffect(() => {
-    const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
-      const data: Menu[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Menu));
-      setMenus(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
-    });
-
-    const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
-      const data: Recipe[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Recipe));
-      setRecipes(data);
-    });
-
-    const unsubIngredients = onSnapshot(collection(db, 'ingredients'), (snapshot) => {
-      const data: Ingredient[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Ingredient));
-      setIngredients(data);
-    });
-
-    return () => {
-      unsubMenus();
-      unsubRecipes();
-      unsubIngredients();
-    };
-  }, []);
-
-  const calculateTotalCost = (recipeIds: string[]) => {
-    return recipeIds.reduce((total, id) => {
-      const recipe = recipes.find(r => r.id === id);
-      return total + (recipe ? recipe.totalCost : 0);
-    }, 0);
-  };
-
-  const getMenuAllergens = (recipeIds: string[]) => {
-    const allergenSet = new Set<string>();
-    
-    const extractAllergens = (rId: string) => {
-      const recipe = recipes.find(r => r.id === rId);
-      if (recipe) {
-        recipe.ingredients.forEach(ri => {
-          const ing = ingredients.find(i => i.id === ri.ingredientId);
-          if (ing && ing.allergens) {
-            ing.allergens.forEach(a => allergenSet.add(a));
-          } else {
-            const subRecipe = recipes.find(r => r.id === ri.ingredientId);
-            if (subRecipe) {
-              extractAllergens(subRecipe.id);
-            }
-          }
-        });
-      }
-    };
-
-    recipeIds.forEach(id => {
-      extractAllergens(id);
-    });
-    return Array.from(allergenSet);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
 
     const id = editingId || doc(collection(db, 'menus')).id;
-    const totalCost = calculateTotalCost(formData.recipes);
+    const totalCost = calculateMenuTotalCost(formData.recipes, recipes);
 
     const menuData = {
       ...formData,
@@ -132,21 +93,28 @@ export default function Menus() {
       await setDoc(doc(db, 'menus', id), menuData);
       setIsModalOpen(false);
       resetForm();
+      showToast('Menú guardado correctamente', 'success');
     } catch (error) {
       console.error('Error saving menu:', error);
-      alert('Error al guardar el menú');
+      showToast('Error al guardar el menú', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este menú?')) {
-      try {
-        await deleteDoc(doc(db, 'menus', id));
-      } catch (error) {
-        console.error('Error deleting menu:', error);
-        alert('Error al eliminar. Solo el tutor puede eliminar.');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Menú',
+      message: '¿Estás seguro de eliminar este menú? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'menus', id));
+          showToast('Menú eliminado', 'success');
+        } catch (error) {
+          console.error('Error deleting menu:', error);
+          showToast('Error al eliminar. Solo el tutor puede eliminar.', 'error');
+        }
       }
-    }
+    });
   };
 
   const openEdit = (menu: Menu) => {
@@ -156,6 +124,7 @@ export default function Menus() {
       targetClient: menu.targetClient || '',
       location: menu.location || 'centro',
       occasion: menu.occasion || '',
+      diners: menu.diners,
       recipes: menu.recipes,
       price: menu.price,
     });
@@ -164,7 +133,7 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', recipes: [], price: 0 });
+    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: undefined, recipes: [], price: 0 });
     setEditingId(null);
   };
 
@@ -194,9 +163,10 @@ export default function Menus() {
       }));
       setNewRecipeName('');
       setShowNewRecipeInput(false);
+      showToast('Receta creada correctamente', 'success');
     } catch (error) {
       console.error('Error creating placeholder recipe:', error);
-      alert('Error al crear la receta');
+      showToast('Error al crear la receta', 'error');
     }
   };
 
@@ -217,11 +187,11 @@ export default function Menus() {
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
-          margin: 1,
+          margin: 0,
           filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait' as const }
         };
         
         html2pdf()
@@ -236,7 +206,7 @@ export default function Menus() {
             console.error('Error generating PDF:', err);
             setPrintingMenu(null);
             setIsPrinting(false);
-            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
@@ -252,11 +222,11 @@ export default function Menus() {
     setTimeout(() => {
       if (printEquipmentRef.current) {
         const opt = {
-          margin: 1,
+          margin: 0,
           filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait' as const }
         };
         
         html2pdf()
@@ -271,7 +241,7 @@ export default function Menus() {
             console.error('Error generating PDF:', err);
             setPrintingEquipmentMenu(null);
             setIsPrinting(false);
-            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
@@ -284,8 +254,26 @@ export default function Menus() {
     m.nameEN?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredMenus.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedMenus = filteredMenus.slice(startIndex, startIndex + itemsPerPage);
+
+  // Resetear a la página 1 cuando se busca
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Menús</h1>
@@ -301,8 +289,8 @@ export default function Menus() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredMenus.map((menu) => {
-          const menuAllergens = getMenuAllergens(menu.recipes);
+        {paginatedMenus.map((menu) => {
+          const menuAllergens = getMenuAllergens(menu.recipes, ingredients, recipes);
           return (
           <div key={menu.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
             <div className="p-6 flex-1">
@@ -409,12 +397,69 @@ export default function Menus() {
           </div>
           );
         })}
+        {paginatedMenus.length === 0 && (
+          <div className="col-span-full bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-500">
+            No se encontraron menús.
+          </div>
+        )}
       </div>
+
+      {/* Controles de paginación */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+          <div className="text-sm text-stone-500">
+            Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredMenus.length)}</span> de <span className="font-medium">{filteredMenus.length}</span> menús
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum = i + 1;
+                if (totalPages > 5) {
+                  if (currentPage > 3) {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  if (currentPage > totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  }
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-emerald-600 text-white border border-emerald-600'
+                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="p-10 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col items-center justify-center min-h-[1122px]">
+          <div ref={printRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center justify-center">
             <div className="text-center mb-10 w-full border-b border-stone-200 pb-6">
               <h1 className="text-3xl font-bold mb-2 uppercase tracking-widest">{printingMenu.nameES}</h1>
               {printingMenu.nameEN && <h2 className="text-lg text-stone-500 italic">{printingMenu.nameEN}</h2>}
@@ -432,7 +477,7 @@ export default function Menus() {
               {printingMenu.recipes.map(recipeId => {
                 const recipe = recipes.find(r => r.id === recipeId);
                 if (!recipe) return null;
-                const recipeAllergens = getMenuAllergens([recipe.id]);
+                const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
                 return (
                   <div key={recipe.id} className="text-center max-w-md">
                     <h3 className="text-lg font-bold mb-1">{recipe.nameES}</h3>
@@ -468,7 +513,7 @@ export default function Menus() {
       {/* Hidden PDF Template for Equipment */}
       {printingEquipmentMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printEquipmentRef} className="p-10 bg-white text-stone-900 font-sans w-[794px] mx-auto">
+          <div ref={printEquipmentRef} className="px-16 py-20 bg-white text-stone-900 font-sans w-[794px] min-h-[1122px] mx-auto">
             <div className="border-b-2 border-stone-900 pb-4 mb-6 text-center">
               <h1 className="text-2xl font-bold mb-2 uppercase tracking-tight">Material - {printingEquipmentMenu.nameES}</h1>
               <div className="flex justify-center gap-8 mt-3">
@@ -511,14 +556,14 @@ export default function Menus() {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-stone-100 flex justify-between items-center">
               <h2 className="text-xl font-bold text-stone-900">
                 {editingId ? 'Editar Menú' : 'Nuevo Menú'}
               </h2>
               <div className="text-lg font-bold text-emerald-700">
-                Coste: {calculateTotalCost(formData.recipes).toFixed(2)} €
+                Coste: {calculateMenuTotalCost(formData.recipes, recipes).toFixed(2)} €
               </div>
             </div>
             
@@ -599,43 +644,31 @@ export default function Menus() {
                     />
                   </div>
                 </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Número de Comensales</label>
+                    <input
+                      type="number" min="1" step="1"
+                      value={formData.diners || ''}
+                      onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || undefined})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Recetas / Elaboraciones</label>
                     <button
                       type="button"
-                      onClick={() => setShowNewRecipeInput(!showNewRecipeInput)}
+                      onClick={() => setIsRecipeModalOpen(true)}
                       className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
                     >
-                      <Plus size={16} /> Crear receta en blanco
+                      <Plus size={16} /> Crear receta
                     </button>
                   </div>
-                  {showNewRecipeInput && (
-                    <div className="mb-4 flex gap-2">
-                      <input
-                        type="text"
-                        value={newRecipeName}
-                        onChange={(e) => setNewRecipeName(e.target.value)}
-                        placeholder="Nombre de la nueva receta..."
-                        className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleCreatePlaceholderRecipe();
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCreatePlaceholderRecipe}
-                        disabled={!newRecipeName.trim()}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                      >
-                        Añadir
-                      </button>
-                    </div>
-                  )}
                   <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 max-h-64 overflow-y-auto">
                     {recipes.length === 0 ? (
                       <p className="text-sm text-stone-500 text-center py-4">No hay recetas disponibles. Crea una primero.</p>
@@ -681,6 +714,17 @@ export default function Menus() {
           </div>
         </div>
       )}
+
+      <CreateRecipeModal
+        isOpen={isRecipeModalOpen}
+        onClose={() => setIsRecipeModalOpen(false)}
+        onSuccess={(newId) => {
+          setFormData(prev => ({
+            ...prev,
+            recipes: [...prev.recipes, newId]
+          }));
+        }}
+      />
     </div>
   );
 }

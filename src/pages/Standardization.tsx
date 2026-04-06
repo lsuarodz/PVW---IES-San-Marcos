@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Save, CheckCircle2, FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { getGroupColor } from '../utils/groupColors';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface StandardizationAnswer {
   id: string;
@@ -19,11 +21,18 @@ interface StandardizationAnswer {
 }
 
 export default function Standardization() {
+  // Obtenemos el usuario actual
   const { appUser } = useAuth();
+  const { showToast } = useToast();
+  
+  // Estado para almacenar la respuesta del usuario actual
   const [answer, setAnswer] = useState<StandardizationAnswer | null>(null);
+  
+  // Estados para controlar la interfaz de usuario durante el guardado
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Estado para almacenar los datos del formulario (las 5 preguntas)
   const [formData, setFormData] = useState({
     q1: '',
     q2: '',
@@ -32,15 +41,35 @@ export default function Standardization() {
     q5: ''
   });
 
+  // Estado para almacenar todas las respuestas (solo visible para admin/docente)
   const [allAnswers, setAllAnswers] = useState<StandardizationAnswer[]>([]);
+  
+  // Estado para controlar qué respuesta está expandida en la vista de administrador
   const [expandedAdminView, setExpandedAdminView] = useState<string | null>(null);
 
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  // Efecto para cargar los datos desde Firestore
   useEffect(() => {
     if (!appUser) return;
 
+    // Consulta para obtener la respuesta del usuario actual
     const q = query(collection(db, 'jornada1_standardization'), where('userId', '==', appUser.email));
     const unsub = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
+        // Si ya ha respondido, cargamos sus datos en el estado y en el formulario
         const docData = snapshot.docs[0].data() as StandardizationAnswer;
         setAnswer({ id: snapshot.docs[0].id, ...docData });
         setFormData({
@@ -51,42 +80,56 @@ export default function Standardization() {
           q5: docData.q5 || ''
         });
       } else {
+        // Si no ha respondido, reseteamos
         setAnswer(null);
         setFormData({ q1: '', q2: '', q3: '', q4: '', q5: '' });
       }
     });
 
     let unsubAll: () => void;
+    // Si es administrador o docente, cargamos TODAS las respuestas de todos los usuarios
     if (appUser.role === 'admin' || appUser.role === 'docente') {
       const qAll = query(collection(db, 'jornada1_standardization'));
       unsubAll = onSnapshot(qAll, (snapshot) => {
         const data: StandardizationAnswer[] = [];
         snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as StandardizationAnswer));
+        // Ordenamos primero por grupo y luego por nombre
         setAllAnswers(data.sort((a, b) => a.userGroup.localeCompare(b.userGroup) || a.userName.localeCompare(b.userName)));
       });
     }
 
+    // Limpiamos los listeners al desmontar
     return () => {
       unsub();
       if (unsubAll) unsubAll();
     };
   }, [appUser]);
 
+  // Función para eliminar una respuesta (solo admin)
   const handleDeleteAnswer = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar las respuestas de este alumno?')) {
-      try {
-        await deleteDoc(doc(db, 'jornada1_standardization', id));
-      } catch (error) {
-        console.error('Error deleting answer:', error);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Respuestas',
+      message: '¿Estás seguro de eliminar las respuestas de este alumno? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'jornada1_standardization', id));
+          showToast('Respuestas eliminadas', 'success');
+        } catch (error) {
+          console.error('Error deleting answer:', error);
+          showToast('Error al eliminar las respuestas', 'error');
+        }
       }
-    }
+    });
   };
 
+  // Función para guardar las respuestas del usuario actual
   const handleSave = async () => {
     if (!appUser) return;
     setIsSaving(true);
 
     try {
+      // Usamos el email como ID del documento para asegurar que solo haya una respuesta por usuario
       const docRef = doc(db, 'jornada1_standardization', appUser.email);
       await setDoc(docRef, {
         userId: appUser.email,
@@ -102,9 +145,10 @@ export default function Standardization() {
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
+      showToast('Respuestas guardadas correctamente', 'success');
     } catch (error) {
       console.error('Error saving answers:', error);
-      alert('Error al guardar las respuestas');
+      showToast('Error al guardar las respuestas', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -112,6 +156,14 @@ export default function Standardization() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Estandarización de la oferta</h1>
         <p className="text-stone-500 mt-2">Cuestionario individual sobre la importancia y métodos de estandarización.</p>

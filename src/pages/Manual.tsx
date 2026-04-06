@@ -3,17 +3,20 @@ import html2pdf from 'html2pdf.js';
 import { Download, BookOpen } from 'lucide-react';
 
 export default function Manual() {
+  // Referencia al contenedor que queremos imprimir en PDF
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Función para exportar el contenido a PDF usando html2pdf.js
   const exportPDF = () => {
     if (printRef.current) {
         const opt = {
           margin: 0.5,
           filename: 'Manual_Instrucciones_Proyecto_Intermodular.pdf',
           image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2 },
+          html2canvas: { scale: 2 }, // Mayor escala para mejor calidad de texto
           jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
         };
+      // Ejecutamos la conversión
       html2pdf().set(opt).from(printRef.current).save();
     }
   };

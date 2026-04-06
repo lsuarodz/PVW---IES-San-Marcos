@@ -1,70 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import React, { useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Languages, Save, ChevronDown, ChevronUp } from 'lucide-react';
-import { Menu } from './Menus';
-import { Recipe } from './Recipes';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { Menu, Recipe } from '../types';
 
 export default function Translations() {
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Obtenemos menús y recetas desde el contexto global
+  const { menus, recipes, loading } = useData();
+  const { showToast } = useToast();
+  
+  // Estado para indicar qué menú se está guardando actualmente
   const [savingId, setSavingId] = useState<string | null>(null);
+  
+  // Estado para controlar qué menú está desplegado en la interfaz
   const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
 
-  // State to hold all edits before saving
+  // Estados para mantener las ediciones de traducción antes de guardarlas en la base de datos
+  // Esto evita guardar en cada pulsación de tecla
   const [menuEdits, setMenuEdits] = useState<{ [id: string]: string }>({});
   const [recipeEdits, setRecipeEdits] = useState<{ [id: string]: { nameEN: string, stepsEN: string[] } }>({});
 
-  useEffect(() => {
-    let loadedCount = 0;
-    const checkLoading = () => {
-      loadedCount++;
-      if (loadedCount === 2) setLoading(false);
-    };
-
-    const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
-      const data: Menu[] = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Menu));
-      setMenus(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
-      checkLoading();
-    });
-
-    const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
-      const data: Recipe[] = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Recipe));
-      setRecipes(data);
-      checkLoading();
-    });
-
-    return () => {
-      unsubMenus();
-      unsubRecipes();
-    };
-  }, []);
-
-  // Initialize edits when expanding a menu
+  // Función para abrir/cerrar un menú e inicializar sus estados de edición
   const toggleMenu = (menu: Menu) => {
+    // Si ya está abierto, lo cerramos
     if (expandedMenuId === menu.id) {
       setExpandedMenuId(null);
       return;
     }
     
+    // Lo abrimos
     setExpandedMenuId(menu.id);
     
-    // Initialize menu edit state
+    // Inicializamos el estado de edición para el nombre del menú
     setMenuEdits(prev => ({
       ...prev,
       [menu.id]: prev[menu.id] !== undefined ? prev[menu.id] : (menu.nameEN || '')
     }));
 
-    // Initialize recipe edit states for this menu
+    // Inicializamos los estados de edición para las recetas de este menú
     const newRecipeEdits = { ...recipeEdits };
     menu.recipes.forEach(recipeId => {
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe && !newRecipeEdits[recipe.id]) {
         newRecipeEdits[recipe.id] = {
           nameEN: recipe.nameEN || '',
+          // Si no hay pasos en inglés, creamos un array vacío del mismo tamaño que los pasos en español
           stepsEN: recipe.stepsEN || Array(recipe.steps?.length || 0).fill('')
         };
       }
@@ -72,10 +54,12 @@ export default function Translations() {
     setRecipeEdits(newRecipeEdits);
   };
 
+  // Manejador para cambios en el nombre del menú en inglés
   const handleMenuNameChange = (menuId: string, value: string) => {
     setMenuEdits(prev => ({ ...prev, [menuId]: value }));
   };
 
+  // Manejador para cambios en el nombre de la receta en inglés
   const handleRecipeNameChange = (recipeId: string, value: string) => {
     setRecipeEdits(prev => ({
       ...prev,
@@ -83,6 +67,7 @@ export default function Translations() {
     }));
   };
 
+  // Manejador para cambios en un paso específico de la receta en inglés
   const handleRecipeStepChange = (recipeId: string, stepIndex: number, value: string) => {
     setRecipeEdits(prev => {
       const current = prev[recipeId];
@@ -95,6 +80,7 @@ export default function Translations() {
     });
   };
 
+  // Función para guardar las traducciones del menú y sus recetas en Firestore
   const handleSaveMenuTranslation = async (menu: Menu) => {
     setSavingId(menu.id);
     try {
@@ -126,9 +112,10 @@ export default function Translations() {
       
       // Show success feedback
       setTimeout(() => setSavingId(null), 500);
+      showToast('Traducciones guardadas correctamente', 'success');
     } catch (error) {
       console.error('Error saving translations:', error);
-      alert('Error al guardar las traducciones');
+      showToast('Error al guardar las traducciones', 'error');
       setSavingId(null);
     }
   };

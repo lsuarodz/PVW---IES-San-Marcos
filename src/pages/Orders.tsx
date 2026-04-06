@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Recipe } from './Recipes';
-import { Ingredient } from './Ingredients';
+import React, { useState, useRef } from 'react';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
-import { useRef } from 'react';
+import { Recipe, Ingredient } from '../types';
 
 interface OrderItem {
-  recipeId: string;
-  quantity: number;
+  type: 'recipe' | 'menu';
+  id: string;
+  quantity: number; // For recipe: quantity, For menu: diners
 }
 
 interface AggregatedIngredient {
@@ -23,63 +22,61 @@ interface AggregatedIngredient {
 }
 
 export default function Orders() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  // Estados para almacenar recetas e ingredientes desde la base de datos
+  const { recipes, ingredients } = useData();
+  const { showToast } = useToast();
+  
+  // Estado para el buscador de recetas
   const [search, setSearch] = useState('');
   
+  // Estado para almacenar los ítems del pedido (receta y cantidad)
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  
+  // Referencia y estado para la funcionalidad de impresión
   const printRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  useEffect(() => {
-    const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
-      const data: Recipe[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Recipe));
-      setRecipes(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
-    });
-
-    const unsubIngredients = onSnapshot(collection(db, 'ingredients'), (snapshot) => {
-      const data: Ingredient[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Ingredient));
-      setIngredients(data);
-    });
-
-    return () => {
-      unsubRecipes();
-      unsubIngredients();
-    };
-  }, []);
-
-  const addOrderItem = (recipeId: string) => {
-    if (!orderItems.find(item => item.recipeId === recipeId)) {
-      setOrderItems([...orderItems, { recipeId, quantity: 1 }]);
+  // Función para añadir una receta o menú al pedido
+  const addOrderItem = (id: string, type: 'recipe' | 'menu') => {
+    // Solo la añadimos si no está ya en el pedido
+    if (!orderItems.find(item => item.id === id && item.type === type)) {
+      setOrderItems([...orderItems, { id, type, quantity: 1 }]);
     }
   };
 
-  const updateOrderItemQuantity = (recipeId: string, quantity: number) => {
+  // Función para actualizar la cantidad de una receta o menú en el pedido
+  const updateOrderItemQuantity = (id: string, type: 'recipe' | 'menu', quantity: number) => {
     setOrderItems(orderItems.map(item => 
-      item.recipeId === recipeId ? { ...item, quantity: Math.max(0, quantity) } : item
+      item.id === id && item.type === type ? { ...item, quantity: Math.max(0, quantity) } : item
     ));
   };
 
-  const removeOrderItem = (recipeId: string) => {
-    setOrderItems(orderItems.filter(item => item.recipeId !== recipeId));
+  // Función para eliminar una receta o menú del pedido
+  const removeOrderItem = (id: string, type: 'recipe' | 'menu') => {
+    setOrderItems(orderItems.filter(item => !(item.id === id && item.type === type)));
   };
 
+  // Función principal que calcula la lista de la compra agregando todos los ingredientes necesarios
   const getAggregatedIngredients = (): AggregatedIngredient[] => {
+    // Objeto para ir acumulando las cantidades por ID de ingrediente
     const aggregation: Record<string, AggregatedIngredient> = {};
 
+    // Función recursiva para procesar una receta y sus posibles sub-recetas
     const processRecipe = (recipeId: string, multiplier: number) => {
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe) {
         recipe.ingredients.forEach(ri => {
+          // Buscamos si es un ingrediente base
           const ing = ingredients.find(i => i.id === ri.ingredientId);
           if (ing) {
+            // Calculamos la cantidad total necesaria (cantidad en receta * multiplicador del pedido)
             const requiredQty = ri.quantity * multiplier;
             if (aggregation[ing.id]) {
+              // Si ya existe en la agregación, sumamos
               aggregation[ing.id].totalQuantity += requiredQty;
               aggregation[ing.id].totalCost += requiredQty * ing.costPerUnit;
             } else {
+              // Si no existe, lo inicializamos
               aggregation[ing.id] = {
                 ingredientId: ing.id,
                 name: ing.nameES,
@@ -91,8 +88,10 @@ export default function Orders() {
               };
             }
           } else {
+            // Si no es un ingrediente base, podría ser una sub-receta
             const subRecipe = recipes.find(r => r.id === ri.ingredientId);
             if (subRecipe) {
+              // Llamada recursiva multiplicando por la cantidad necesaria de la sub-receta
               processRecipe(subRecipe.id, ri.quantity * multiplier);
             }
           }
@@ -102,16 +101,37 @@ export default function Orders() {
 
     orderItems.forEach(item => {
       if (item.quantity > 0) {
-        processRecipe(item.recipeId, item.quantity);
+        if (item.type === 'recipe') {
+          processRecipe(item.id, item.quantity);
+        } else if (item.type === 'menu') {
+          const menu = menus.find(m => m.id === item.id);
+          if (menu) {
+            menu.recipes.forEach(recipeId => {
+              const recipe = recipes.find(r => r.id === recipeId);
+              if (recipe) {
+                const portions = recipe.portions || 1;
+                const multiplier = item.quantity / portions;
+                processRecipe(recipeId, multiplier);
+              }
+            });
+          }
+        }
       }
     });
 
     return Object.values(aggregation).sort((a, b) => a.name.localeCompare(b.name));
   };
 
+  const { menus } = useData();
+
   const filteredRecipes = recipes.filter(r => 
     r.nameES.toLowerCase().includes(search.toLowerCase()) &&
-    !orderItems.find(item => item.recipeId === r.id)
+    !orderItems.find(item => item.id === r.id && item.type === 'recipe')
+  );
+
+  const filteredMenus = menus.filter(m => 
+    m.nameES.toLowerCase().includes(search.toLowerCase()) &&
+    !orderItems.find(item => item.id === m.id && item.type === 'menu')
   );
 
   const aggregatedList = getAggregatedIngredients();
@@ -140,7 +160,7 @@ export default function Orders() {
           .catch((err: any) => {
             console.error('Error generating PDF:', err);
             setIsPrinting(false);
-            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
@@ -163,29 +183,35 @@ export default function Orders() {
           <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
             <h2 className="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
               <ShoppingCart size={20} className="text-emerald-600" />
-              Recetas a Producir
+              Recetas y Menús a Producir
             </h2>
             
             <div className="space-y-3 mb-6">
               {orderItems.map(item => {
-                const recipe = recipes.find(r => r.id === item.recipeId);
-                if (!recipe) return null;
+                const isRecipe = item.type === 'recipe';
+                const data = isRecipe ? recipes.find(r => r.id === item.id) : menus.find(m => m.id === item.id);
+                if (!data) return null;
                 return (
-                  <div key={item.recipeId} className="flex items-center gap-3 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                    <div className="flex-1 font-medium text-stone-900">{recipe.nameES}</div>
+                  <div key={`${item.type}-${item.id}`} className="flex items-center gap-3 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                    <div className="flex-1 font-medium text-stone-900">
+                      {data.nameES}
+                      <span className="ml-2 text-xs font-normal text-stone-500 bg-stone-200 px-2 py-0.5 rounded-full">
+                        {isRecipe ? 'Receta' : 'Menú'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-stone-500">Cant:</span>
+                      <span className="text-sm text-stone-500">{isRecipe ? 'Cant:' : 'Comensales:'}</span>
                       <input
                         type="number"
                         min="0"
                         step="1"
                         value={item.quantity || ''}
-                        onChange={(e) => updateOrderItemQuantity(item.recipeId, parseInt(e.target.value) || 0)}
+                        onChange={(e) => updateOrderItemQuantity(item.id, item.type, parseInt(e.target.value) || 0)}
                         className="w-20 px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center"
                       />
                     </div>
                     <button
-                      onClick={() => removeOrderItem(item.recipeId)}
+                      onClick={() => removeOrderItem(item.id, item.type)}
                       className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={18} />
@@ -195,38 +221,61 @@ export default function Orders() {
               })}
               {orderItems.length === 0 && (
                 <div className="text-center py-8 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
-                  No has añadido ninguna receta a producir.
+                  No has añadido ninguna receta o menú a producir.
                 </div>
               )}
             </div>
 
             <div className="border-t border-stone-100 pt-6">
-              <h3 className="text-sm font-bold text-stone-900 mb-3">Añadir Receta</h3>
+              <h3 className="text-sm font-bold text-stone-900 mb-3">Añadir Receta o Menú</h3>
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Buscar receta..."
+                  placeholder="Buscar receta o menú..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 />
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                {filteredRecipes.map(recipe => (
-                  <div key={recipe.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100">
-                    <span className="text-sm font-medium text-stone-700">{recipe.nameES}</span>
-                    <button
-                      onClick={() => addOrderItem(recipe.id)}
-                      className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md transition-colors"
-                    >
-                      <Plus size={18} />
-                    </button>
+                {filteredMenus.length > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 px-2">Menús</div>
+                    {filteredMenus.map(menu => (
+                      <div key={menu.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                        <span className="text-sm font-medium text-stone-700">{menu.nameES}</span>
+                        <button
+                          onClick={() => addOrderItem(menu.id, 'menu')}
+                          className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md transition-colors"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {filteredRecipes.length === 0 && search && (
+                )}
+                
+                {filteredRecipes.length > 0 && (
+                  <div>
+                    <div className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 px-2 mt-4">Recetas</div>
+                    {filteredRecipes.map(recipe => (
+                      <div key={recipe.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                        <span className="text-sm font-medium text-stone-700">{recipe.nameES}</span>
+                        <button
+                          onClick={() => addOrderItem(recipe.id, 'recipe')}
+                          className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md transition-colors"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {filteredRecipes.length === 0 && filteredMenus.length === 0 && search && (
                   <div className="text-center py-4 text-stone-500 text-sm">
-                    No se encontraron recetas.
+                    No se encontraron recetas ni menús.
                   </div>
                 )}
               </div>

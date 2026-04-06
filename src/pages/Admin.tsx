@@ -3,6 +3,8 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firesto
 import { db } from '../firebase';
 import { Trash2, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface User {
   uid: string;
@@ -15,7 +17,11 @@ interface User {
 }
 
 export default function Admin() {
+  // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
+  const { showToast } = useToast();
+  
+  // Estados para almacenar la lista de usuarios y los datos del nuevo usuario a crear
   const [users, setUsers] = useState<User[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
@@ -24,6 +30,21 @@ export default function Admin() {
   const [newGroup, setNewGroup] = useState('1');
   const [loading, setLoading] = useState(false);
 
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  // Efecto para cargar la lista de usuarios desde Firestore en tiempo real
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersData: User[] = [];
@@ -36,23 +57,14 @@ export default function Admin() {
     return unsubscribe;
   }, []);
 
+  // Función para añadir un nuevo usuario (alumno, docente o admin)
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail || !newName) return;
     
     setLoading(true);
     try {
-      // We use the email as the document ID for pre-registration, 
-      // but wait, Firebase Auth uses UID. 
-      // If we create a document with a random ID, the user won't be able to log in because the AuthContext checks `doc(db, 'users', firebaseUser.uid)`.
-      // Ah! The AuthContext needs to check if the email is allowed, or we just create the user document with the UID when they first log in IF their email is in an "allowed_emails" list.
-      // Let's adjust the logic: Admin adds allowed emails.
-      // Actually, since we don't know their UID yet, let's store them in `users` with their email as the document ID temporarily, or just let them log in and if they aren't in `users`, they get rejected.
-      // Wait, if we use their email as the doc ID, when they log in, `firebaseUser.uid` won't match.
-      // Let's modify AuthContext to query by email instead of UID, or use a separate `allowed_students` collection.
-      // Let's just use the `users` collection but query by email.
-      
-      // Use email as document ID
+      // Usamos el email como ID del documento para facilitar la validación en el login
       const emailLower = newEmail.toLowerCase();
       const newUserRef = doc(db, 'users', emailLower);
       const userData: any = {
@@ -62,36 +74,57 @@ export default function Admin() {
         createdAt: new Date().toISOString()
       };
       
+      // Solo guardamos curso y grupo si el rol es estudiante
       if (newRole === 'student') {
         userData.course = newCourse;
         userData.group = newGroup;
       }
 
+      // Guardamos el usuario en Firestore
       await setDoc(newUserRef, userData);
+      
+      // Limpiamos el formulario
       setNewEmail('');
       setNewName('');
       setNewGroup('1');
       setNewCourse('2ºCOCINA');
+      showToast('Usuario añadido correctamente', 'success');
     } catch (error) {
       console.error('Error adding user:', error);
-      alert('Error al añadir usuario');
+      showToast('Error al añadir usuario', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  // Función para eliminar el acceso de un usuario
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar a este usuario?')) {
-      try {
-        await deleteDoc(doc(db, 'users', id));
-      } catch (error) {
-        console.error('Error deleting user:', error);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Usuario',
+      message: '¿Estás seguro de que quieres eliminar a este usuario?',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'users', id));
+          showToast('Usuario eliminado', 'success');
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          showToast('Error al eliminar usuario', 'error');
+        }
       }
-    }
+    });
   };
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Gestión de Usuarios</h1>
         <p className="text-stone-500 mt-2">Añade los correos de los alumnos y docentes para darles acceso a la plataforma.</p>

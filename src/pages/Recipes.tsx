@@ -1,127 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import React, { useState, useRef } from 'react';
+import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer } from 'lucide-react';
-import { Ingredient } from './Ingredients';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
+import ConfirmModal from '../components/ConfirmModal';
 import html2pdf from 'html2pdf.js';
-import { useRef } from 'react';
-
-export interface RecipeIngredient {
-  ingredientId: string;
-  quantity: number;
-}
-
-export interface Recipe {
-  id: string;
-  nameES: string;
-  nameEN: string; // Kept for backward compatibility
-  descriptionES: string; // Kept for backward compatibility
-  descriptionEN: string; // Kept for backward compatibility
-  steps: string[];
-  stepsEN?: string[];
-  equipment?: string[];
-  sustainabilityTips?: string[];
-  ingredients: RecipeIngredient[];
-  totalCost: number;
-  createdBy: string;
-  createdAt: string;
-}
+import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
+import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
 export default function Recipes() {
+  // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
+  // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
+  // Verificamos si el usuario es el administrador principal
   const isSuperAdmin = appUser?.role === 'admin';
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [menus, setMenus] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
+  const { showToast } = useToast();
   
+  // Estados para almacenar los datos de la base de datos
+  const { recipes, ingredients, menus } = useData();
+  
+  // Estado para el buscador y paginación
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+  
+  // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
+  
+  // Estado para saber si estamos editando un escandallo existente
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+  
+  // Referencias y estados para la funcionalidad de impresión a PDF
   const printRef = useRef<HTMLDivElement>(null);
   const [printingRecipe, setPrintingRecipe] = useState<Recipe | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   
+  // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
     nameES: '',
+    portions: undefined as number | undefined,
     steps: [] as string[],
     equipment: [] as string[],
     sustainabilityTips: [] as string[],
     ingredients: [] as RecipeIngredient[],
   });
 
-  useEffect(() => {
-    const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
-      const data: Recipe[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Recipe));
-      setRecipes(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
-    });
-
-    const unsubIngredients = onSnapshot(collection(db, 'ingredients'), (snapshot) => {
-      const data: Ingredient[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Ingredient));
-      setIngredients(data);
-    });
-
-    const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
-      const data: any[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
-      setMenus(data);
-    });
-
-    return () => {
-      unsubRecipes();
-      unsubIngredients();
-      unsubMenus();
-    };
-  }, []);
-
-  const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
-    return recipeIngredients.reduce((total, ri) => {
-      const ing = ingredients.find(i => i.id === ri.ingredientId);
-      if (ing) {
-        return total + (ing.costPerUnit * (Number(ri.quantity) || 0));
-      }
-      const subRecipe = recipes.find(r => r.id === ri.ingredientId);
-      if (subRecipe) {
-        return total + (subRecipe.totalCost * (Number(ri.quantity) || 0));
-      }
-      return total;
-    }, 0);
-  };
-
-  const getRecipeAllergens = (recipeIngredients: RecipeIngredient[]) => {
-    const allergenSet = new Set<string>();
-    
-    const extractAllergens = (items: RecipeIngredient[]) => {
-      items.forEach(ri => {
-        const ing = ingredients.find(i => i.id === ri.ingredientId);
-        if (ing && ing.allergens) {
-          ing.allergens.forEach(a => allergenSet.add(a));
-        } else {
-          const subRecipe = recipes.find(r => r.id === ri.ingredientId);
-          if (subRecipe) {
-            extractAllergens(subRecipe.ingredients);
-          }
-        }
-      });
-    };
-    
-    extractAllergens(recipeIngredients);
-    return Array.from(allergenSet);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
 
     const id = editingId || doc(collection(db, 'recipes')).id;
-    const totalCost = calculateTotalCost(formData.ingredients);
+    const totalCost = calculateRecipeTotalCost(formData.ingredients, ingredients, recipes);
 
     const recipeData = {
       ...formData,
@@ -139,9 +90,10 @@ export default function Recipes() {
       await setDoc(doc(db, 'recipes', id), recipeData);
       setIsModalOpen(false);
       resetForm();
+      showToast('Receta guardada correctamente', 'success');
     } catch (error) {
       console.error('Error saving recipe:', error);
-      alert('Error al guardar la receta');
+      showToast('Error al guardar la receta', 'error');
     }
   };
 
@@ -151,23 +103,36 @@ export default function Recipes() {
     );
 
     if (isUsedInMenu) {
-      alert('No se puede eliminar este escandallo porque se está utilizando en uno o más menús.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'No se puede eliminar',
+        message: 'Este escandallo se está utilizando en uno o más menús. Elimínalo primero de los menús para poder borrarlo.',
+        onConfirm: () => {},
+        isDestructive: false
+      });
       return;
     }
 
-    if (window.confirm('¿Estás seguro de eliminar este escandallo?')) {
-      try {
-        await deleteDoc(doc(db, 'recipes', id));
-      } catch (error) {
-        console.error('Error deleting recipe:', error);
-        alert('Error al eliminar. Solo el tutor puede eliminar.');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Escandallo',
+      message: '¿Estás seguro de eliminar este escandallo? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'recipes', id));
+          showToast('Receta eliminada', 'success');
+        } catch (error) {
+          console.error('Error deleting recipe:', error);
+          showToast('Error al eliminar. Solo el tutor puede eliminar.', 'error');
+        }
       }
-    }
+    });
   };
 
   const openEdit = (recipe: Recipe) => {
     setFormData({
       nameES: recipe.nameES,
+      portions: recipe.portions,
       steps: recipe.steps || (recipe.descriptionES ? [recipe.descriptionES] : []),
       equipment: recipe.equipment || [],
       sustainabilityTips: recipe.sustainabilityTips || [],
@@ -178,7 +143,7 @@ export default function Recipes() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
+    setFormData({ nameES: '', portions: undefined, steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
     setEditingId(null);
   };
 
@@ -275,7 +240,7 @@ export default function Recipes() {
             console.error('Error generating PDF:', err);
             setPrintingRecipe(null);
             setIsPrinting(false);
-            alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
@@ -288,8 +253,26 @@ export default function Recipes() {
     r.nameEN?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredRecipes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRecipes = filteredRecipes.slice(startIndex, startIndex + itemsPerPage);
+
+  // Resetear a la página 1 cuando se busca
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Escandallos / Recetas</h1>
@@ -305,8 +288,8 @@ export default function Recipes() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRecipes.map((recipe) => {
-          const recipeAllergens = getRecipeAllergens(recipe.ingredients);
+        {paginatedRecipes.map((recipe) => {
+          const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
           return (
           <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
             <div className="p-6 flex-1">
@@ -367,7 +350,64 @@ export default function Recipes() {
           </div>
           );
         })}
+        {paginatedRecipes.length === 0 && (
+          <div className="col-span-full bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-500">
+            No se encontraron recetas.
+          </div>
+        )}
       </div>
+
+      {/* Controles de paginación */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+          <div className="text-sm text-stone-500">
+            Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredRecipes.length)}</span> de <span className="font-medium">{filteredRecipes.length}</span> recetas
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum = i + 1;
+                if (totalPages > 5) {
+                  if (currentPage > 3) {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  if (currentPage > totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  }
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-emerald-600 text-white border border-emerald-600'
+                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Form */}
       {isModalOpen && (
@@ -378,13 +418,13 @@ export default function Recipes() {
                 {editingId ? 'Editar Receta' : 'Nueva Receta'}
               </h2>
               <div className="text-lg font-bold text-emerald-700">
-                Total: {calculateTotalCost(formData.ingredients).toFixed(2)} €
+                Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
               </div>
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
               <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
                     <input
@@ -392,6 +432,16 @@ export default function Recipes() {
                       value={formData.nameES}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Raciones (para cuántas personas)</label>
+                    <input
+                      type="number" min="1" step="1"
+                      value={formData.portions || ''}
+                      onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || undefined})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Opcional"
                     />
                   </div>
                 </div>
@@ -418,16 +468,17 @@ export default function Recipes() {
                   <div className="space-y-3">
                     {formData.ingredients.map((ri, index) => {
                       const selectedIng = ingredients.find(i => i.id === ri.ingredientId);
+                      const isRecipe = recipes.some(r => r.id === ri.ingredientId);
                       const cost = selectedIng ? (selectedIng.costPerUnit * (Number(ri.quantity) || 0)) : 0;
                       
                       return (
                         <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex-1">
+                          <div className="flex-1 flex gap-2">
                             <select
                               required
                               value={ri.ingredientId}
                               onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                              className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             >
                               <option value="">Selecciona un ingrediente o receta...</option>
                               <optgroup label="Ingredientes">
@@ -445,6 +496,23 @@ export default function Recipes() {
                                 ))}
                               </optgroup>
                             </select>
+                            {selectedIng && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // We need to trigger the edit ingredient modal.
+                                  // We can use a custom event or pass a prop if we had a global state.
+                                  // For now, since we have CreateIngredientModal, we can pass the ID to it.
+                                  // Let's add an editingIngredientId state.
+                                  setEditingIngredientId(selectedIng.id);
+                                  setIsIngredientModalOpen(true);
+                                }}
+                                className="p-2 text-stone-500 hover:text-emerald-600 bg-white border border-stone-200 rounded-lg"
+                                title="Editar ingrediente"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
                           </div>
                           <div className="w-32">
                             <div className="relative">
@@ -631,25 +699,33 @@ export default function Recipes() {
 
       <CreateIngredientModal
         isOpen={isIngredientModalOpen}
-        onClose={() => setIsIngredientModalOpen(false)}
+        onClose={() => {
+          setIsIngredientModalOpen(false);
+          setEditingIngredientId(null);
+        }}
+        editingId={editingIngredientId}
+        initialData={editingIngredientId ? ingredients.find(i => i.id === editingIngredientId) : undefined}
         onSuccess={(newId) => {
-          setFormData(prev => ({
-            ...prev,
-            ingredients: [...prev.ingredients, { ingredientId: newId, quantity: 0 }]
-          }));
+          if (!editingIngredientId) {
+            setFormData(prev => ({
+              ...prev,
+              ingredients: [...prev.ingredients, { ingredientId: newId, quantity: 0 }]
+            }));
+          }
         }}
       />
 
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="p-10 bg-white text-stone-900 font-sans" style={{ width: '800px' }}>
+          <div ref={printRef} className="p-8 bg-white text-stone-900 font-sans" style={{ width: '700px' }}>
             <div className="border-b-2 border-stone-900 pb-4 mb-6">
-              <h1 className="text-2xl font-bold mb-1 uppercase tracking-tight">{printingRecipe.nameES}</h1>
+              <h1 className="text-2xl font-bold mb-1 uppercase tracking-tight" style={{ color: '#A52A2A' }}>{printingRecipe.nameES}</h1>
               {printingRecipe.nameEN && <h2 className="text-lg text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
               <div className="flex justify-between items-end">
                 <div className="text-xs text-stone-500">
                   <strong>Coste total:</strong> {printingRecipe.totalCost.toFixed(2)} €
+                  {printingRecipe.portions && <span className="ml-2">| <strong>Raciones:</strong> {printingRecipe.portions}</span>}
                 </div>
                 <div className="text-xs text-stone-500">
                   <strong>Creado por:</strong> {printingRecipe.createdBy}
@@ -659,13 +735,13 @@ export default function Recipes() {
 
             <div className="mb-6">
               <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Escandallo Detallado</h3>
-              <table className="w-full text-xs text-left mb-4">
-                <thead className="bg-stone-50 text-stone-600 uppercase text-[10px] border-b border-stone-200">
+              <table className="w-full text-[10px] text-left mb-4" style={{ tableLayout: 'fixed' }}>
+                <thead className="bg-stone-50 text-stone-600 uppercase border-b border-stone-200">
                   <tr>
-                    <th className="px-2 py-1">Ingrediente</th>
-                    <th className="px-2 py-1 text-right">Cantidad</th>
-                    <th className="px-2 py-1 text-right">Coste Real/Ud</th>
-                    <th className="px-2 py-1 text-right">Coste Total</th>
+                    <th className="px-1 py-1 w-1/2">Ingrediente</th>
+                    <th className="px-1 py-1 text-right w-1/6">Cantidad</th>
+                    <th className="px-1 py-1 text-right w-1/6">Coste/Ud</th>
+                    <th className="px-1 py-1 text-right w-1/6">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -677,7 +753,7 @@ export default function Recipes() {
                     
                     let realCostPerUnit = 0;
                     if (ing) {
-                      realCostPerUnit = ing.price / (1 - (ing.wastePercentage / 100));
+                      realCostPerUnit = ing.costPerUnit;
                     } else if (subRecipe) {
                       realCostPerUnit = subRecipe.totalCost;
                     }
@@ -686,18 +762,18 @@ export default function Recipes() {
 
                     return (
                       <tr key={idx} className="border-b border-stone-100">
-                        <td className="px-2 py-1 font-medium">{name}</td>
-                        <td className="px-2 py-1 text-right">{ri.quantity} {unit}</td>
-                        <td className="px-2 py-1 text-right">{realCostPerUnit.toFixed(2)} €</td>
-                        <td className="px-2 py-1 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
+                        <td className="px-1 py-1 font-medium truncate">{name}</td>
+                        <td className="px-1 py-1 text-right">{ri.quantity} {unit}</td>
+                        <td className="px-1 py-1 text-right">{realCostPerUnit.toFixed(2)} €</td>
+                        <td className="px-1 py-1 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-stone-50 font-bold text-stone-900">
-                    <td colSpan={3} className="px-2 py-2 text-right">Coste Total de la Receta:</td>
-                    <td className="px-2 py-2 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
+                    <td colSpan={3} className="px-1 py-2 text-right">Coste Total de la Receta:</td>
+                    <td className="px-1 py-2 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
                   </tr>
                 </tfoot>
               </table>

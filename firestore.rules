@@ -109,7 +109,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return hasOnlyAllowedFields(['nameES', 'nameEN', 'unit', 'costPerUnit', 'purchasePrice', 'wastePercentage', 'provider', 'format', 'allergens', 'createdBy', 'createdAt']) &&
              isValidString(data.nameES, 1, 100) &&
-             (data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
+             (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              data.unit in ['kg', 'L', 'g', 'l', 'ml', 'ud'] &&
              data.costPerUnit is number && data.costPerUnit >= 0 &&
              (!('purchasePrice' in data) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
@@ -142,7 +142,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return hasOnlyAllowedFields(['nameES', 'nameEN', 'type', 'targetClient', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt']) &&
              isValidString(data.nameES, 1, 100) &&
-             (data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
+             (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              data.type in ['brunch', 'cocktail', 'navidad', 'coffee', 'cafeteria', 'pedagogico'] &&
              (!('targetClient' in data) || data.targetClient == "" || isValidString(data.targetClient, 1, 100)) &&
              (!('location' in data) || data.location in ['centro', 'fuera']) &&
@@ -205,6 +205,24 @@ service cloud.firestore {
       allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
       allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
       allow delete: if isSuperAdmin();
+    }
+
+    match /benchmarking_companies/{companyId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin();
+      allow delete: if isStudentOrAdmin();
+    }
+
+    match /benchmarking_ideas/{ideaId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin();
+      allow delete: if isStudentOrAdmin();
+    }
+
+    match /benchmarking_sources/{sourceId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin();
+      allow delete: if isStudentOrAdmin();
     }
   }
 }

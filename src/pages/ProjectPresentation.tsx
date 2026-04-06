@@ -2,6 +2,8 @@ import React from 'react';
 import { Info, Target, Package, Presentation } from 'lucide-react';
 
 export default function ProjectPresentation() {
+  // Este componente es puramente estático y muestra la información inicial del proyecto
+  // No requiere estado ni conexión a base de datos
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-8 flex items-center gap-4">

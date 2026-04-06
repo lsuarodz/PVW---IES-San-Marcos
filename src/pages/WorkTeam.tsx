@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { db } from '../firebase';
 import { collection, getDocs, query, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Users, Send, CheckCircle, Printer, AlertCircle, Dices, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const questions = [
   { id: 1, category: "Costes", text: "Si el presupuesto total es de 12€ por persona, detallad el porcentaje de gasto para: Materia prima (alimentos), Bebidas y Menaje desechable. ¿Cuánto sobra para margen de imprevistos?" },
@@ -20,24 +22,54 @@ const questions = [
 ];
 
 export default function WorkTeam() {
+  // Obtenemos el usuario actual
   const { appUser } = useAuth();
+  const { showToast } = useToast();
+  
+  // Estados para la primera parte (borrador de ideas)
   const [draft, setDraft] = useState('');
   const [draftSubmitted, setDraftSubmitted] = useState(false);
+  
+  // Estados para la segunda parte (respuestas a preguntas y líderes)
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [leaders, setLeaders] = useState<Record<number, string>>({});
   const [finalSubmitted, setFinalSubmitted] = useState(false);
+  
+  // Estados de control de la interfaz
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Estados para la vista de administrador
   const [allSubmissions, setAllSubmissions] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  
+  // Estados para la herramienta de generación de grupos aleatorios
   const [numGroups, setNumGroups] = useState(4);
   const [randomGroups, setRandomGroups] = useState<any[][]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Estados para el modal de borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  // Verificamos si el usuario tiene permisos de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
+  // Efecto para cargar los datos iniciales al montar el componente
   useEffect(() => {
     loadSubmission();
     loadStudents();
@@ -46,11 +78,16 @@ export default function WorkTeam() {
     }
   }, [appUser]);
 
+  // Función para generar grupos aleatorios de estudiantes
   const generateRandomGroups = () => {
     setIsGenerating(true);
+    // Simulamos un pequeño retraso para mostrar la animación de carga
     setTimeout(() => {
+      // Barajamos el array de estudiantes aleatoriamente
       const shuffled = [...students].sort(() => 0.5 - Math.random());
+      // Creamos un array de arrays vacío para los grupos
       const groups: any[][] = Array.from({ length: numGroups }, () => []);
+      // Repartimos los estudiantes uno a uno en los grupos
       shuffled.forEach((student, index) => {
         groups[index % numGroups].push(student);
       });
@@ -59,10 +96,12 @@ export default function WorkTeam() {
     }, 600);
   };
 
+  // Función para cargar la lista de estudiantes desde Firestore
   const loadStudents = async () => {
     try {
       const q = query(collection(db, 'users'));
       const snapshot = await getDocs(q);
+      // Filtramos solo los usuarios que tienen el rol 'student'
       const users = snapshot.docs.map(doc => doc.data()).filter(u => u.role === 'student');
       setStudents(users);
     } catch (error) {
@@ -70,13 +109,16 @@ export default function WorkTeam() {
     }
   };
 
+  // Función para cargar las respuestas del usuario actual
   const loadSubmission = async () => {
     if (!appUser) return;
     try {
+      // Buscamos el documento del usuario en la colección 'work_team_submissions'
       const docRef = doc(db, 'work_team_submissions', appUser.email);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
+        // Restauramos los estados con los datos guardados
         setDraft(data.draft || '');
         setDraftSubmitted(!!data.draft);
         setAnswers(data.answers || {});
@@ -90,6 +132,7 @@ export default function WorkTeam() {
     }
   };
 
+  // Función para cargar todas las respuestas (solo para admin/docente)
   const loadAllSubmissions = async () => {
     try {
       const q = query(collection(db, 'work_team_submissions'));
@@ -114,9 +157,10 @@ export default function WorkTeam() {
         updatedAt: serverTimestamp()
       }, { merge: true });
       setDraftSubmitted(true);
+      showToast('Borrador guardado correctamente', 'success');
     } catch (error) {
       console.error("Error saving draft:", error);
-      alert("Error al guardar el borrador. Revisa la consola para más detalles.");
+      showToast('Error al guardar el borrador. Revisa la consola para más detalles.', 'error');
     } finally {
       setSaving(false);
     }
@@ -133,9 +177,10 @@ export default function WorkTeam() {
         updatedAt: serverTimestamp()
       }, { merge: true });
       setFinalSubmitted(true);
+      showToast('Respuestas guardadas correctamente', 'success');
     } catch (error) {
       console.error("Error saving final answers:", error);
-      alert("Error al guardar las respuestas. Revisa la consola para más detalles.");
+      showToast('Error al guardar las respuestas. Revisa la consola para más detalles.', 'error');
     } finally {
       setSaving(false);
     }
@@ -154,24 +199,31 @@ export default function WorkTeam() {
       await Promise.all(deletePromises);
       setAllSubmissions([]);
       setShowDeleteModal(false);
+      showToast('Respuestas borradas correctamente', 'success');
     } catch (error) {
       console.error("Error deleting submissions:", error);
-      alert("Error al borrar las respuestas. Revisa la consola.");
+      showToast('Error al borrar las respuestas. Revisa la consola.', 'error');
     } finally {
       setIsDeleting(false);
     }
   };
 
   const handleDeleteSubmission = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta respuesta completa?')) {
-      try {
-        await deleteDoc(doc(db, 'work_team_submissions', id));
-        setAllSubmissions(prev => prev.filter(sub => sub.id !== id));
-      } catch (error) {
-        console.error("Error deleting submission:", error);
-        alert("Error al eliminar la respuesta.");
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Respuesta',
+      message: '¿Estás seguro de eliminar esta respuesta completa? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'work_team_submissions', id));
+          setAllSubmissions(prev => prev.filter(sub => sub.id !== id));
+          showToast('Respuesta eliminada', 'success');
+        } catch (error) {
+          console.error("Error deleting submission:", error);
+          showToast('Error al eliminar la respuesta.', 'error');
+        }
       }
-    }
+    });
   };
 
   if (loading) {
@@ -182,6 +234,14 @@ export default function WorkTeam() {
   if (isAdmin) {
     return (
       <div className="p-8 max-w-[1400px] mx-auto print:p-0 print:max-w-none">
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          isDestructive={confirmModal.isDestructive}
+        />
         <div className="flex justify-between items-center mb-8 print:hidden">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">

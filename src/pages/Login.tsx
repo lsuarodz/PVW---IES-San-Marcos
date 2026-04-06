@@ -2,8 +2,10 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
+  // Obtenemos las funciones y estados del contexto de autenticación
   const { login, user, appUser, loading } = useAuth();
 
+  // Mientras se comprueba si hay una sesión activa, mostramos un indicador de carga
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
@@ -20,12 +22,14 @@ export default function Login() {
           Plataforma colaborativa para la gestión de escandallos y menús.
         </p>
 
+        {/* Si el usuario se ha logueado con Google pero no está en nuestra base de datos, mostramos un error */}
         {user && !appUser ? (
           <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm mb-6 border border-amber-200">
             Tu cuenta ({user.email}) no está registrada. Por favor, contacta con tu tutor para que te dé acceso.
           </div>
         ) : null}
 
+        {/* Botón para iniciar sesión con Google */}
         <button
           onClick={login}
           className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-medium transition-colors"

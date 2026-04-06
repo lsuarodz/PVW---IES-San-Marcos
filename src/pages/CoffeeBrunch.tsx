@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Coffee, Croissant, HeartHandshake, Trash2 } from 'lucide-react';
 import { getGroupColor } from '../utils/groupColors';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface Idea {
   id: string;
@@ -22,22 +23,44 @@ interface Characteristic {
 }
 
 export default function CoffeeBrunch() {
+  // Obtenemos el usuario actual
   const { appUser } = useAuth();
+  
+  // Estados para almacenar las ideas y características desde Firestore
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   
+  // Estados para los inputs de nuevas ideas
   const [newCoffeeIdea, setNewCoffeeIdea] = useState('');
   const [newBrunchIdea, setNewBrunchIdea] = useState('');
   const [newSolidarioIdea, setNewSolidarioIdea] = useState('');
   
+  // Estados para los inputs de nuevas características
   const [newCoffeeChar, setNewCoffeeChar] = useState('');
   const [newBrunchChar, setNewBrunchChar] = useState('');
   const [newSolidarioChar, setNewSolidarioChar] = useState('');
 
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  // Verificamos permisos
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const isSuperAdmin = appUser?.role === 'admin';
 
+  // Efecto para cargar los datos en tiempo real
   useEffect(() => {
+    // Consulta para obtener las ideas ordenadas por fecha de creación
     const qIdeas = query(collection(db, 'jornada1_ideas'), orderBy('createdAt', 'asc'));
     const unsubIdeas = onSnapshot(qIdeas, (snapshot) => {
       const ideasData: Idea[] = [];
@@ -47,6 +70,7 @@ export default function CoffeeBrunch() {
       setIdeas(ideasData);
     });
 
+    // Consulta para obtener las características ordenadas por fecha de creación
     const qChars = query(collection(db, 'jornada1_characteristics'), orderBy('createdAt', 'asc'));
     const unsubChars = onSnapshot(qChars, (snapshot) => {
       const charsData: Characteristic[] = [];
@@ -56,27 +80,30 @@ export default function CoffeeBrunch() {
       setCharacteristics(charsData);
     });
 
+    // Limpiamos los listeners al desmontar
     return () => {
       unsubIdeas();
       unsubChars();
     };
   }, []);
 
+  // Función genérica para añadir una idea a Firestore
   const handleAddIdea = async (type: 'coffee' | 'brunch' | 'solidario', text: string, setText: (val: string) => void) => {
     if (!text.trim() || !appUser) return;
     try {
       await addDoc(collection(db, 'jornada1_ideas'), {
         type,
         text: text.trim(),
-        group: appUser.group || appUser.name,
+        group: appUser.group || appUser.name, // Guardamos el grupo o el nombre del usuario
         createdAt: new Date().toISOString()
       });
-      setText('');
+      setText(''); // Limpiamos el input
     } catch (error) {
       console.error('Error adding idea:', error);
     }
   };
 
+  // Función genérica para añadir una característica a Firestore
   const handleAddCharacteristic = async (type: 'coffee' | 'brunch' | 'solidario', text: string, setText: (val: string) => void) => {
     if (!text.trim() || !appUser) return;
     try {
@@ -86,30 +113,41 @@ export default function CoffeeBrunch() {
         group: appUser.group || appUser.name,
         createdAt: new Date().toISOString()
       });
-      setText('');
+      setText(''); // Limpiamos el input
     } catch (error) {
       console.error('Error adding characteristic:', error);
     }
   };
 
+  // Función para eliminar una idea (solo admin)
   const handleDeleteIdea = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta respuesta?')) {
-      try {
-        await deleteDoc(doc(db, 'jornada1_ideas', id));
-      } catch (error) {
-        console.error('Error deleting idea:', error);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Respuesta',
+      message: '¿Estás seguro de eliminar esta respuesta? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'jornada1_ideas', id));
+        } catch (error) {
+          console.error('Error deleting idea:', error);
+        }
       }
-    }
+    });
   };
 
   const handleDeleteCharacteristic = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta característica?')) {
-      try {
-        await deleteDoc(doc(db, 'jornada1_characteristics', id));
-      } catch (error) {
-        console.error('Error deleting characteristic:', error);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Característica',
+      message: '¿Estás seguro de eliminar esta característica? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'jornada1_characteristics', id));
+        } catch (error) {
+          console.error('Error deleting characteristic:', error);
+        }
       }
-    }
+    });
   };
 
   const coffeeIdeas = ideas.filter(i => i.type === 'coffee');
@@ -122,6 +160,14 @@ export default function CoffeeBrunch() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Coffee Break / Brunch / Menú Solidario</h1>
         <p className="text-stone-500 mt-2">Definición y características de cada tipo de servicio.</p>

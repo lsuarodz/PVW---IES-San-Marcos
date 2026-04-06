@@ -1,136 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import React, { useState } from 'react';
+import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Search, AlertCircle, Download } from 'lucide-react';
-import { MERCADONA_PRODUCTS, WASTE_TABLE } from '../utils/bulkIngredients';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { Plus, Trash2, Edit2, Search, AlertCircle, ChevronLeft, ChevronRight, CheckSquare, Square } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
-
-export interface Ingredient {
-  id: string;
-  nameES: string;
-  nameEN: string; // Kept for backward compatibility, but not edited here
-  provider?: string;
-  format?: string;
-  allergens?: string[];
-  unit: 'kg' | 'L' | 'ud';
-  purchasePrice?: number;
-  wastePercentage?: number;
-  costPerUnit: number;
-  createdBy: string;
-  createdAt: string;
-}
+import ConfirmModal from '../components/ConfirmModal';
+import { Ingredient } from '../types';
 
 export default function Ingredients() {
+  // Obtenemos el usuario actual y sus permisos desde el contexto de autenticación
   const { appUser } = useAuth();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const isSuperAdmin = appUser?.role === 'admin';
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [recipes, setRecipes] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
+  const { showToast } = useToast();
   
+  // Estados para almacenar los datos de la base de datos
+  const { ingredients, recipes } = useData();
+  
+  // Estado para el buscador y paginación
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
+  // Estados para controlar el modal de creación/edición
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const handleBulkImport = async () => {
-    if (!appUser || !window.confirm('¿Estás seguro de que quieres importar todos los ingredientes de los documentos?')) return;
-    setIsImporting(true);
+  // Estado para selección múltiple
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-    const parseUnitAndPrice = (name: string, priceStr: string, unitStr: string) => {
-      const price = parseFloat(priceStr.replace(',', '.')) || 0;
-      let unit: Ingredient['unit'] = 'kg';
-      let purchasePrice = price;
+  // Estados para el modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
 
-      if (unitStr.includes('kg')) {
-        const match = unitStr.match(/(\d+\.?\d*)\s*kg/);
-        const qty = match ? parseFloat(match[1]) : 1;
-        unit = 'kg';
-        purchasePrice = price / qty;
-      } else if (unitStr.includes(' g')) {
-        const match = unitStr.match(/(\d+\.?\d*)\s*g/);
-        const qty = match ? parseFloat(match[1]) : 1;
-        unit = 'kg';
-        purchasePrice = (price / qty) * 1000;
-      } else if (unitStr.includes(' ml')) {
-        const match = unitStr.match(/(\d+\.?\d*)\s*ml/);
-        const qty = match ? parseFloat(match[1]) : 1;
-        unit = 'L';
-        purchasePrice = (price / qty) * 1000;
-      } else if (unitStr.includes(' L')) {
-        const match = unitStr.match(/(\d+\.?\d*)\s*L/);
-        const qty = match ? parseFloat(match[1]) : 1;
-        unit = 'L';
-        purchasePrice = price / qty;
-      } else if (unitStr.includes(' ud') || unitStr.includes(' pastillas') || unitStr.includes(' chicles') || unitStr.includes(' sobres') || unitStr.includes(' Bote') || unitStr.includes(' Caja') || unitStr.includes(' Paquete')) {
-        const match = unitStr.match(/(\d+)\s*(ud|pastillas|chicles|sobres)/);
-        const qty = match ? parseFloat(match[1]) : 1;
-        unit = 'ud';
-        purchasePrice = price / qty;
-      }
+  // Función para manejar la selección
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
-      return { unit, purchasePrice };
-    };
-
-    try {
-      // Get existing ingredients to avoid duplicates
-      const existingNames = new Set(ingredients.map(i => i.nameES.toLowerCase()));
-
-      // Import Mercadona Products
-      for (const product of MERCADONA_PRODUCTS) {
-        if (existingNames.has(product["Nombre del Producto"].toLowerCase())) continue;
-
-        const { unit, purchasePrice } = parseUnitAndPrice(product["Nombre del Producto"], product["Precio (EUR)"], product["Unidad de Medida"]);
-        const id = doc(collection(db, 'ingredients')).id;
-        const wastePercentage = 0;
-        const costPerUnit = purchasePrice / (1 - (wastePercentage / 100));
-
-        await setDoc(doc(db, 'ingredients', id), {
-          nameES: product["Nombre del Producto"],
-          nameEN: '',
-          provider: 'Mercadona',
-          unit,
-          purchasePrice,
-          wastePercentage,
-          costPerUnit,
-          createdBy: appUser.name,
-          createdAt: new Date().toISOString(),
-        });
-        existingNames.add(product["Nombre del Producto"].toLowerCase());
-      }
-
-      // Import Waste Table
-      for (const item of WASTE_TABLE) {
-        if (existingNames.has(item.name.toLowerCase())) continue;
-
-        const id = doc(collection(db, 'ingredients')).id;
-        const wastePercentage = item.waste;
-        const purchasePrice = 0;
-        const costPerUnit = 0;
-
-        await setDoc(doc(db, 'ingredients', id), {
-          nameES: item.name,
-          nameEN: '',
-          provider: 'Tabla de Mermas',
-          unit: item.unit as Ingredient['unit'],
-          purchasePrice,
-          wastePercentage,
-          costPerUnit,
-          createdBy: appUser.name,
-          createdAt: new Date().toISOString(),
-        });
-        existingNames.add(item.name.toLowerCase());
-      }
-
-      alert('Importación completada con éxito');
-    } catch (error) {
-      console.error('Error importing ingredients:', error);
-      alert('Error durante la importación');
-    } finally {
-      setIsImporting(false);
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedIngredients.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedIngredients.map(i => i.id)));
     }
   };
-  
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const idsToDelete: string[] = Array.from(selectedIds);
+    
+    // Comprobar si alguno está en uso
+    const usedIngredients = idsToDelete.filter(id => 
+      recipes.some(recipe => recipe.ingredients?.some((ing: any) => ing.ingredientId === id))
+    );
+
+    if (usedIngredients.length > 0) {
+      const usedNames = ingredients
+        .filter(i => usedIngredients.includes(i.id))
+        .map(i => i.nameES)
+        .join(', ');
+        
+      showToast(`No se pueden eliminar: ${usedNames}. Están en uso en escandallos.`, 'error');
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Seleccionados',
+      message: `¿Estás seguro de eliminar los ${selectedIds.size} ingredientes seleccionados? Esta acción no se puede deshacer.`,
+      onConfirm: async () => {
+        try {
+          const deletePromises = idsToDelete.map(id => deleteDoc(doc(db, 'ingredients', id)));
+          await Promise.all(deletePromises);
+          setSelectedIds(new Set());
+          showToast(`${idsToDelete.length} ingredientes eliminados correctamente`, 'success');
+        } catch (error) {
+          console.error('Error deleting ingredients:', error);
+          showToast('Error al eliminar. Solo el tutor puede eliminar ingredientes.', 'error');
+        }
+      }
+    });
+  };
+
+  // Estado para el formulario del modal
   const [formData, setFormData] = useState({
     nameES: '',
     provider: '',
@@ -140,37 +112,18 @@ export default function Ingredients() {
     wastePercentage: '' as string | number,
   });
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'ingredients'), (snapshot) => {
-      const data: Ingredient[] = [];
-      snapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() } as Ingredient);
-      });
-      setIngredients(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
-    });
-
-    const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
-      const data: any[] = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
-      setRecipes(data);
-    });
-
-    return () => {
-      unsubscribe();
-      unsubRecipes();
-    };
-  }, []);
-
+  // Función para guardar un ingrediente (crear nuevo o actualizar existente)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
 
-    // Calculate cost per unit based on purchase price and waste
+    // Calculamos el coste real por unidad teniendo en cuenta el porcentaje de merma
     const waste = Number(formData.wastePercentage) || 0;
-    const safeWaste = Math.min(Math.max(waste, 0), 99); // Prevent division by zero
+    const safeWaste = Math.min(Math.max(waste, 0), 99); // Evitamos divisiones por cero (máximo 99%)
     const purchasePrice = Number(formData.purchasePrice) || 0;
     const costPerUnit = purchasePrice / (1 - (safeWaste / 100));
 
+    // Si estamos editando usamos el ID existente, si no, generamos uno nuevo
     const id = editingId || doc(collection(db, 'ingredients')).id;
     const ingredientData = {
       ...formData,
@@ -183,35 +136,53 @@ export default function Ingredients() {
     };
 
     try {
+      // Guardamos en Firestore
       await setDoc(doc(db, 'ingredients', id), ingredientData);
       setIsModalOpen(false);
       resetForm();
+      showToast('Ingrediente guardado correctamente', 'success');
     } catch (error) {
       console.error('Error saving ingredient:', error);
-      alert('Error al guardar el ingrediente');
+      showToast('Error al guardar el ingrediente', 'error');
     }
   };
 
+  // Función para eliminar un ingrediente
   const handleDelete = async (id: string) => {
+    // Primero comprobamos si el ingrediente está siendo usado en alguna receta
     const isUsedInRecipe = recipes.some(recipe => 
       recipe.ingredients?.some((ing: any) => ing.ingredientId === id)
     );
 
     if (isUsedInRecipe) {
-      alert('No se puede eliminar este ingrediente porque se está utilizando en uno o más escandallos (recetas).');
+      setConfirmModal({
+        isOpen: true,
+        title: 'No se puede eliminar',
+        message: 'Este ingrediente está siendo utilizado en uno o más escandallos (recetas). Elimínalo primero de los escandallos para poder borrarlo.',
+        onConfirm: () => {},
+        isDestructive: false
+      });
       return;
     }
 
-    if (window.confirm('¿Estás seguro de eliminar este ingrediente?')) {
-      try {
-        await deleteDoc(doc(db, 'ingredients', id));
-      } catch (error) {
-        console.error('Error deleting ingredient:', error);
-        alert('Error al eliminar. Solo el tutor puede eliminar ingredientes.');
+    // Confirmación antes de borrar
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Ingrediente',
+      message: '¿Estás seguro de eliminar este ingrediente? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'ingredients', id));
+          showToast('Ingrediente eliminado', 'success');
+        } catch (error) {
+          console.error('Error deleting ingredient:', error);
+          showToast('Error al eliminar. Solo el tutor puede eliminar ingredientes.', 'error');
+        }
       }
-    }
+    });
   };
 
+  // Función para abrir el modal en modo edición con los datos del ingrediente
   const openEdit = (ingredient: Ingredient) => {
     setFormData({
       nameES: ingredient.nameES,
@@ -247,22 +218,39 @@ export default function Ingredients() {
     i.nameEN?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredIngredients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedIngredients = filteredIngredients.slice(startIndex, startIndex + itemsPerPage);
+
+  // Resetear a la página 1 cuando se busca
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDestructive={confirmModal.isDestructive}
+      />
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Ingredientes</h1>
           <p className="text-stone-500 mt-2">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
         <div className="flex gap-3">
-          {isAdmin && (
+          {selectedIds.size > 0 && isSuperAdmin && (
             <button
-              onClick={handleBulkImport}
-              disabled={isImporting}
-              className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              onClick={handleBulkDelete}
+              className="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 border border-red-200"
             >
-              <Download size={20} />
-              {isImporting ? 'Importando...' : 'Importar Documentos'}
+              <Trash2 size={20} />
+              Eliminar ({selectedIds.size})
             </button>
           )}
           <button
@@ -292,6 +280,18 @@ export default function Ingredients() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-stone-50 border-b border-stone-200">
+              <th className="px-6 py-4 w-10">
+                <button 
+                  onClick={toggleSelectAll}
+                  className="text-stone-400 hover:text-emerald-600 transition-colors"
+                >
+                  {selectedIds.size === paginatedIngredients.length && paginatedIngredients.length > 0 ? (
+                    <CheckSquare size={20} className="text-emerald-600" />
+                  ) : (
+                    <Square size={20} />
+                  )}
+                </button>
+              </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Proveedor</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Alérgenos</th>
@@ -300,8 +300,20 @@ export default function Ingredients() {
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-200">
-            {filteredIngredients.map((ing) => (
-              <tr key={ing.id} className="hover:bg-stone-50 transition-colors">
+            {paginatedIngredients.map((ing) => (
+              <tr key={ing.id} className={`hover:bg-stone-50 transition-colors ${selectedIds.has(ing.id) ? 'bg-emerald-50/30' : ''}`}>
+                <td className="px-6 py-4">
+                  <button 
+                    onClick={() => toggleSelect(ing.id)}
+                    className="text-stone-400 hover:text-emerald-600 transition-colors"
+                  >
+                    {selectedIds.has(ing.id) ? (
+                      <CheckSquare size={20} className="text-emerald-600" />
+                    ) : (
+                      <Square size={20} />
+                    )}
+                  </button>
+                </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-stone-900 font-medium">{ing.nameES}</div>
                 </td>
@@ -350,7 +362,7 @@ export default function Ingredients() {
                 </td>
               </tr>
             ))}
-            {filteredIngredients.length === 0 && (
+            {paginatedIngredients.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-stone-500">
                   No se encontraron ingredientes.
@@ -359,13 +371,66 @@ export default function Ingredients() {
             )}
           </tbody>
         </table>
+
+        {/* Controles de paginación */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between">
+            <div className="text-sm text-stone-500">
+              Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredIngredients.length)}</span> de <span className="font-medium">{filteredIngredients.length}</span> ingredientes
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Lógica para mostrar páginas cercanas a la actual
+                  let pageNum = i + 1;
+                  if (totalPages > 5) {
+                    if (currentPage > 3) {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    if (currentPage > totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-emerald-600 text-white border border-emerald-600'
+                          : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Form */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-stone-100">
+          <div className="rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#FAEBD7' }}>
+            <div className="p-6 border-b border-stone-200/50">
               <h2 className="text-xl font-bold text-stone-900">
                 {editingId ? 'Editar Ingrediente' : 'Nuevo Ingrediente'}
               </h2>
@@ -467,11 +532,11 @@ export default function Ingredients() {
                 </div>
               </form>
             </div>
-            <div className="p-6 border-t border-stone-100 flex gap-3 justify-end bg-stone-50 rounded-b-2xl">
+            <div className="p-6 border-t border-stone-200/50 flex gap-3 justify-end rounded-b-2xl" style={{ backgroundColor: '#FAEBD7' }}>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+                className="px-5 py-2.5 text-stone-600 hover:bg-stone-200/50 rounded-xl font-medium transition-colors"
               >
                 Cancelar
               </button>
