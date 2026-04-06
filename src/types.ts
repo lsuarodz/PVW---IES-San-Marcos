@@ -98,3 +98,13 @@ export interface BenchmarkingSource {
   description: string;
   createdAt: string;
 }
+
+export interface IdeaVote {
+  id: string;
+  ideaId: string;
+  userId: string;
+  userName: string;
+  score: number;
+  reason: string;
+  createdAt: string;
+}

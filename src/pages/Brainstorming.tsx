@@ -3,8 +3,9 @@ import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, order
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils } from 'lucide-react';
-import { BenchmarkingIdea } from '../types';
+import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { BenchmarkingIdea, IdeaVote } from '../types';
+import { handleFirestoreError, OperationType } from '../firebase';
 
 export default function Brainstorming() {
   const { appUser } = useAuth();
@@ -12,15 +13,27 @@ export default function Brainstorming() {
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
   const [ideas, setIdeas] = useState<BenchmarkingIdea[]>([]);
+  const [votes, setVotes] = useState<IdeaVote[]>([]);
   const [newIdea, setNewIdea] = useState('');
   const [menuType, setMenuType] = useState<'coffee' | 'brunch'>('coffee');
+  const [votingFor, setVotingFor] = useState<string | null>(null);
+  const [voteScore, setVoteScore] = useState(5);
+  const [voteReason, setVoteReason] = useState('');
+  const [expandedVotes, setExpandedVotes] = useState<string[]>([]);
 
   useEffect(() => {
     const unsubIdeas = onSnapshot(query(collection(db, 'benchmarking_ideas'), orderBy('createdAt', 'asc')), (snapshot) => {
       setIdeas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BenchmarkingIdea)));
     });
 
-    return () => unsubIdeas();
+    const unsubVotes = onSnapshot(collection(db, 'idea_votes'), (snapshot) => {
+      setVotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IdeaVote)));
+    });
+
+    return () => {
+      unsubIdeas();
+      unsubVotes();
+    };
   }, []);
 
   const handleAddIdea = async () => {
@@ -60,9 +73,46 @@ export default function Brainstorming() {
       await updateDoc(doc(db, 'benchmarking_ideas', id), { status });
       showToast('Estado actualizado', 'success');
     } catch (error) {
-      console.error('Error updating status:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
       showToast('Error al actualizar estado', 'error');
     }
+  };
+
+  const handleVote = async (ideaId: string) => {
+    if (!appUser || !voteReason.trim()) return;
+
+    const voteId = `${ideaId}_${appUser.uid}`;
+    try {
+      await setDoc(doc(db, 'idea_votes', voteId), {
+        ideaId,
+        userId: appUser.uid,
+        userName: appUser.name,
+        score: voteScore,
+        reason: voteReason,
+        createdAt: new Date().toISOString()
+      });
+      setVotingFor(null);
+      setVoteReason('');
+      setVoteScore(5);
+      showToast('Voto registrado', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `idea_votes/${voteId}`);
+      showToast('Error al votar', 'error');
+    }
+  };
+
+  const toggleVotes = (ideaId: string) => {
+    setExpandedVotes(prev => 
+      prev.includes(ideaId) ? prev.filter(id => id !== ideaId) : [...prev, ideaId]
+    );
+  };
+
+  const getIdeaVotes = (ideaId: string) => votes.filter(v => v.ideaId === ideaId);
+  const getAverageScore = (ideaId: string) => {
+    const ideaVotes = getIdeaVotes(ideaId);
+    if (ideaVotes.length === 0) return 0;
+    const sum = ideaVotes.reduce((acc, v) => acc + v.score, 0);
+    return (sum / ideaVotes.length).toFixed(1);
   };
 
   const getStatusBadge = (status?: string) => {
@@ -120,6 +170,102 @@ export default function Brainstorming() {
                   <p className={`text-stone-800 break-words whitespace-pre-wrap ${idea.status === 'discarded' ? 'line-through text-stone-500' : ''}`}>
                     {idea.idea}
                   </p>
+
+                  {/* Voting Summary */}
+                  <div className="mt-4 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-1 text-amber-600 font-bold">
+                      <Star size={16} fill="currentColor" />
+                      <span>{getAverageScore(idea.id)}</span>
+                      <span className="text-stone-400 font-normal text-sm">({getIdeaVotes(idea.id).length} votos)</span>
+                    </div>
+                    
+                    <button 
+                      onClick={() => toggleVotes(idea.id)}
+                      className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center gap-1"
+                    >
+                      {expandedVotes.includes(idea.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      {expandedVotes.includes(idea.id) ? 'Ocultar votos' : 'Ver valoraciones'}
+                    </button>
+
+                    {idea.status !== 'discarded' && (
+                      <button 
+                        onClick={() => {
+                          setVotingFor(idea.id);
+                          const myVote = getIdeaVotes(idea.id).find(v => v.userId === appUser?.uid);
+                          if (myVote) {
+                            setVoteScore(myVote.score);
+                            setVoteReason(myVote.reason);
+                          }
+                        }}
+                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {getIdeaVotes(idea.id).some(v => v.userId === appUser?.uid) ? 'Editar mi voto' : 'Votar idea'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Voting Form */}
+                  {votingFor === idea.id && (
+                    <div className="mt-4 p-4 bg-white rounded-xl border border-emerald-200 shadow-sm">
+                      <h4 className="font-bold text-stone-800 mb-3 text-sm">Tu valoración</h4>
+                      <div className="flex items-center gap-2 mb-3">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setVoteScore(s)}
+                            className={`p-1 transition-colors ${s <= voteScore ? 'text-amber-500' : 'text-stone-300'}`}
+                          >
+                            <Star size={24} fill={s <= voteScore ? 'currentColor' : 'none'} />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={voteReason}
+                        onChange={(e) => setVoteReason(e.target.value)}
+                        placeholder="¿Por qué le das esta puntuación? (obligatorio)"
+                        className="w-full p-3 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm mb-3"
+                        rows={2}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => setVotingFor(null)}
+                          className="px-3 py-1.5 text-stone-500 hover:text-stone-700 text-sm font-medium"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={() => handleVote(idea.id)}
+                          disabled={!voteReason.trim()}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          Guardar Voto
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expanded Votes List */}
+                  {expandedVotes.includes(idea.id) && (
+                    <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
+                      {getIdeaVotes(idea.id).length === 0 ? (
+                        <p className="text-stone-400 text-sm italic">Aún no hay valoraciones para esta idea.</p>
+                      ) : (
+                        getIdeaVotes(idea.id).map(vote => (
+                          <div key={vote.id} className="bg-stone-50 p-3 rounded-lg border border-stone-100">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-bold text-stone-700 text-sm">{vote.userName}</span>
+                              <div className="flex items-center gap-0.5 text-amber-500">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} size={12} fill={i < vote.score ? 'currentColor' : 'none'} />
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-stone-600 text-sm italic">"{vote.reason}"</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0">

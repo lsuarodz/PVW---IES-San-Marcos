@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -92,8 +92,7 @@ export default function Menus() {
       resetForm();
       showToast('Menú guardado correctamente', 'success');
     } catch (error) {
-      console.error('Error saving menu:', error);
-      showToast('Error al guardar el menú', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `menus/${id}`);
     }
   };
 
@@ -156,7 +155,7 @@ export default function Menus() {
           filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
         html2pdf()
@@ -191,7 +190,7 @@ export default function Menus() {
           filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
         html2pdf()

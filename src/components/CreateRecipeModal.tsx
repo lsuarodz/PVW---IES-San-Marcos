@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { collection, doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -59,8 +59,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
       if (onSuccess) onSuccess(id);
       onClose();
     } catch (error) {
-      console.error('Error saving recipe:', error);
-      showToast('Error al guardar la receta', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `recipes/${id}`);
     }
   };
 
