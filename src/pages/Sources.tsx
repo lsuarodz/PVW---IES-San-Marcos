@@ -91,7 +91,7 @@ export default function Sources() {
         <h3 className="text-xl font-bold text-stone-800">Enlaces y Referencias</h3>
         <button
           onClick={() => setIsSourceModalOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
+          className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
         >
           <Plus size={16} />
           Añadir Fuente
@@ -103,7 +103,7 @@ export default function Sources() {
           <div key={source.id} className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">
+                <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-1 rounded-md">
                   {source.group}
                 </span>
                 <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-medium break-all">
@@ -119,8 +119,8 @@ export default function Sources() {
             
             <div className="space-y-4 text-sm">
               <div>
-                <h4 className="font-bold text-emerald-700 mb-1">Puntos Fuertes</h4>
-                <p className="text-stone-700 bg-emerald-50 p-3 rounded-lg">{source.strengths}</p>
+                <h4 className="font-bold text-violet-700 mb-1">Puntos Fuertes</h4>
+                <p className="text-stone-700 bg-violet-50 p-3 rounded-lg">{source.strengths}</p>
               </div>
               <div>
                 <h4 className="font-bold text-red-700 mb-1">Puntos Débiles</h4>
@@ -151,25 +151,25 @@ export default function Sources() {
               <form id="source-form" onSubmit={handleSaveSource} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">URL (Enlace)</label>
-                  <input required type="url" value={sourceForm.url || ''} onChange={e => setSourceForm({...sourceForm, url: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" placeholder="https://..." />
+                  <input required type="url" value={sourceForm.url || ''} onChange={e => setSourceForm({...sourceForm, url: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-violet-500 focus:border-violet-500" placeholder="https://..." />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Puntos Fuertes</label>
-                  <textarea required value={sourceForm.strengths || ''} onChange={e => setSourceForm({...sourceForm, strengths: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" rows={3}></textarea>
+                  <textarea required value={sourceForm.strengths || ''} onChange={e => setSourceForm({...sourceForm, strengths: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-violet-500 focus:border-violet-500" rows={3}></textarea>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Puntos Débiles</label>
-                  <textarea required value={sourceForm.weaknesses || ''} onChange={e => setSourceForm({...sourceForm, weaknesses: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" rows={3}></textarea>
+                  <textarea required value={sourceForm.weaknesses || ''} onChange={e => setSourceForm({...sourceForm, weaknesses: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-violet-500 focus:border-violet-500" rows={3}></textarea>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Descripción (¿Por qué nos viene bien?)</label>
-                  <textarea required value={sourceForm.description || ''} onChange={e => setSourceForm({...sourceForm, description: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" rows={3}></textarea>
+                  <textarea required value={sourceForm.description || ''} onChange={e => setSourceForm({...sourceForm, description: e.target.value})} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-violet-500 focus:border-violet-500" rows={3}></textarea>
                 </div>
               </form>
             </div>
             <div className="p-6 border-t border-stone-100 flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
               <button onClick={() => setIsSourceModalOpen(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-200 rounded-lg font-medium">Cancelar</button>
-              <button type="submit" form="source-form" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">Guardar</button>
+              <button type="submit" form="source-form" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium">Guardar</button>
             </div>
           </div>
         </div>

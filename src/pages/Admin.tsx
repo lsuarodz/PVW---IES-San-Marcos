@@ -132,7 +132,7 @@ export default function Admin() {
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
         <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
-          <UserPlus size={20} className="text-emerald-600" />
+          <UserPlus size={20} className="text-amber-600" />
           Añadir Nuevo Usuario
         </h2>
         <form onSubmit={handleAddStudent} className="flex flex-wrap gap-4 items-end">
@@ -142,7 +142,7 @@ export default function Admin() {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
               placeholder="Ej. Juan Pérez"
               required
             />
@@ -153,7 +153,7 @@ export default function Admin() {
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
               placeholder="usuario@gmail.com"
               required
             />
@@ -163,7 +163,7 @@ export default function Admin() {
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value as 'admin' | 'student' | 'docente')}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
               <option value="student">Alumno</option>
               <option value="docente">Docente</option>
@@ -177,7 +177,7 @@ export default function Admin() {
                 <select
                   value={newCourse}
                   onChange={(e) => setNewCourse(e.target.value)}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="2ºCOCINA">2º COCINA</option>
                   <option value="2ºPANADERÍA">2º PANADERÍA</option>
@@ -188,7 +188,7 @@ export default function Admin() {
                 <select
                   value={newGroup}
                   onChange={(e) => setNewGroup(e.target.value)}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
                   {[...Array(10)].map((_, i) => (
                     <option key={i + 1} value={String(i + 1)}>
@@ -202,7 +202,7 @@ export default function Admin() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px]"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px]"
           >
             {loading ? 'Añadiendo...' : 'Añadir'}
           </button>
@@ -230,7 +230,7 @@ export default function Admin() {
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                     user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
                     user.role === 'docente' ? 'bg-blue-100 text-blue-700' : 
-                    'bg-emerald-100 text-emerald-700'
+                    'bg-amber-100 text-amber-700'
                   }`}>
                     {user.role === 'admin' ? 'Tutor' : user.role === 'docente' ? 'Docente' : 'Alumno'}
                   </span>

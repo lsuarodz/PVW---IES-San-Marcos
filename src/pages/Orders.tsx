@@ -188,7 +188,7 @@ export default function Orders() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
             <h2 className="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
-              <ShoppingCart size={20} className="text-emerald-600" />
+              <ShoppingCart size={20} className="text-teal-600" />
               Recetas y Menús a Producir
             </h2>
             
@@ -214,7 +214,7 @@ export default function Orders() {
                         value={item.quantity || ''}
                         onChange={(e) => updateOrderItemQuantity(item.id, item.type, parseInt(e.target.value) || 0)}
                         onFocus={e => e.target.select()}
-                        className="w-20 px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center"
+                        className="w-20 px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"
                       />
                     </div>
                     <button
@@ -242,7 +242,7 @@ export default function Orders() {
                   placeholder="Buscar receta o menú..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 />
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
@@ -254,7 +254,7 @@ export default function Orders() {
                         <span className="text-sm font-medium text-stone-700">{menu.nameES}</span>
                         <button
                           onClick={() => addOrderItem(menu.id, 'menu')}
-                          className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md transition-colors"
+                          className="text-teal-600 hover:bg-teal-50 p-1.5 rounded-md transition-colors"
                         >
                           <Plus size={18} />
                         </button>
@@ -271,7 +271,7 @@ export default function Orders() {
                         <span className="text-sm font-medium text-stone-700">{recipe.nameES}</span>
                         <button
                           onClick={() => addOrderItem(recipe.id, 'recipe')}
-                          className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md transition-colors"
+                          className="text-teal-600 hover:bg-teal-50 p-1.5 rounded-md transition-colors"
                         >
                           <Plus size={18} />
                         </button>
@@ -302,14 +302,14 @@ export default function Orders() {
                 <button
                   onClick={exportPDF}
                   disabled={isPrinting || aggregatedList.length === 0}
-                  className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                  className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50"
                   title="Imprimir Lista"
                 >
                   <Printer size={20} />
                 </button>
                 <div className="text-right">
                   <div className="text-xs text-stone-500 uppercase font-bold tracking-wider">Coste Total Estimado</div>
-                  <div className="text-xl font-bold text-emerald-700">{totalOrderCost.toFixed(2)} €</div>
+                  <div className="text-xl font-bold text-teal-700">{totalOrderCost.toFixed(2)} €</div>
                 </div>
               </div>
             </div>
@@ -368,7 +368,7 @@ export default function Orders() {
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-stone-400 uppercase font-bold tracking-widest mb-1">Coste Total Estimado</div>
-                  <div className="text-2xl font-bold text-emerald-700">{totalOrderCost.toFixed(2)} €</div>
+                  <div className="text-2xl font-bold text-teal-700">{totalOrderCost.toFixed(2)} €</div>
                 </div>
               </div>
 
@@ -412,7 +412,7 @@ export default function Orders() {
                   <tfoot>
                     <tr className="border-t-2 border-stone-100 font-bold text-stone-900">
                       <td colSpan={3} className="py-4 text-right uppercase tracking-widest text-[10px] text-stone-400">Total Pedido</td>
-                      <td className="py-4 text-right text-emerald-700 text-lg">{totalOrderCost.toFixed(2)} €</td>
+                      <td className="py-4 text-right text-teal-700 text-lg">{totalOrderCost.toFixed(2)} €</td>
                     </tr>
                   </tfoot>
                 </table>

@@ -107,7 +107,7 @@ service cloud.firestore {
 
     function isValidIngredient() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'unit', 'costPerUnit', 'purchasePrice', 'wastePercentage', 'provider', 'format', 'allergens', 'createdBy', 'createdAt']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'unit', 'costPerUnit', 'purchasePrice', 'wastePercentage', 'provider', 'purchaseFormat', 'weightPerUnit', 'formatPrice', 'format', 'allergens', 'createdBy', 'createdAt']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              data.unit in ['kg', 'L', 'g', 'l', 'ml', 'ud'] &&
@@ -115,6 +115,9 @@ service cloud.firestore {
              (!('purchasePrice' in data) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
              (!('wastePercentage' in data) || (data.wastePercentage is number && data.wastePercentage >= 0 && data.wastePercentage <= 99)) &&
              (!('provider' in data) || data.provider == "" || isValidString(data.provider, 1, 100)) &&
+             (!('purchaseFormat' in data) || data.purchaseFormat == "" || isValidString(data.purchaseFormat, 1, 150)) &&
+             (!('weightPerUnit' in data) || (data.weightPerUnit is number && data.weightPerUnit >= 0)) &&
+             (!('formatPrice' in data) || (data.formatPrice is number && data.formatPrice >= 0)) &&
              (!('format' in data) || data.format == "" || isValidString(data.format, 1, 100)) &&
              (!('allergens' in data) || data.allergens is list) &&
              isValidString(data.createdBy, 1, 100) &&
@@ -164,6 +167,32 @@ service cloud.firestore {
              isValidString(data.userName, 1, 100) &&
              data.score is number && data.score >= 1 && data.score <= 5 &&
              isValidString(data.reason, 1, 1000) &&
+             data.createdAt is string;
+    }
+
+    function isValidProvider() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'name', 'contactName', 'phone', 'email', 'goodsType', 'address', 'notes', 'createdBy', 'createdAt']) &&
+             isValidString(data.name, 1, 150) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('contactName' in data) || data.contactName == "" || isValidString(data.contactName, 1, 150)) &&
+             (!('phone' in data) || data.phone == "" || isValidString(data.phone, 1, 50)) &&
+             (!('email' in data) || data.email == "" || isValidString(data.email, 1, 150)) &&
+             (!('goodsType' in data) || data.goodsType == "" || isValidString(data.goodsType, 1, 100)) &&
+             (!('address' in data) || data.address == "" || isValidString(data.address, 1, 300)) &&
+             (!('notes' in data) || data.notes == "" || isValidString(data.notes, 1, 1000)) &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    function isValidStandardWaste() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'item', 'percentage', 'notes', 'createdBy', 'createdAt']) &&
+             isValidString(data.item, 1, 150) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             data.percentage is number && data.percentage >= 0 && data.percentage <= 99 &&
+             (!('notes' in data) || data.notes == "" || isValidString(data.notes, 1, 1000)) &&
+             isValidString(data.createdBy, 1, 100) &&
              data.createdAt is string;
     }
 
@@ -243,6 +272,18 @@ service cloud.firestore {
       allow create: if isStudentOrAdmin() && isValidIdeaVote() && request.auth.uid == request.resource.data.userId;
       allow update: if isStudentOrAdmin() && isValidIdeaVote() && request.auth.uid == resource.data.userId && request.auth.uid == request.resource.data.userId;
       allow delete: if isStudentOrAdmin() && (request.auth.uid == resource.data.userId || isAdmin());
+    }
+
+    match /providers/{providerId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidProvider();
+      allow delete: if isSuperAdmin() || isAdmin();
+    }
+
+    match /standard_wastes/{wasteId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidStandardWaste();
+      allow delete: if isSuperAdmin() || isAdmin();
     }
   }
 }

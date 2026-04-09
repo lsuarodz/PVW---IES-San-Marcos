@@ -22,6 +22,9 @@
         "nameES": { "type": "string" },
         "nameEN": { "type": "string" },
         "provider": { "type": "string" },
+        "purchaseFormat": { "type": "string" },
+        "weightPerUnit": { "type": "number" },
+        "formatPrice": { "type": "number" },
         "format": { "type": "string" },
         "allergens": {
           "type": "array",
@@ -113,6 +116,36 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["ideaId", "userId", "userName", "score", "reason", "createdAt"]
+    },
+    "Provider": {
+      "title": "Provider",
+      "description": "A supplier or provider of goods",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "goodsType": { "type": "string" },
+        "address": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "createdBy", "createdAt"]
+    },
+    "StandardWaste": {
+      "title": "StandardWaste",
+      "description": "Standardized waste percentage for an item",
+      "type": "object",
+      "properties": {
+        "item": { "type": "string" },
+        "percentage": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["item", "percentage", "createdBy", "createdAt"]
     }
   },
   "firestore": {
@@ -135,6 +168,14 @@
     "idea_votes/{voteId}": {
       "schema": { "$ref": "#/entities/IdeaVote" },
       "description": "Votes for dish ideas"
+    },
+    "providers/{providerId}": {
+      "schema": { "$ref": "#/entities/Provider" },
+      "description": "Providers collection"
+    },
+    "standard_wastes/{wasteId}": {
+      "schema": { "$ref": "#/entities/StandardWaste" },
+      "description": "Standardized wastes collection"
     }
   }
 }

@@ -7,7 +7,7 @@ export default function ProjectPresentation() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
-        <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">
+        <div className="p-4 bg-sky-100 text-sky-600 rounded-2xl">
           <Presentation size={32} />
         </div>
         <div>
@@ -19,7 +19,7 @@ export default function ProjectPresentation() {
       <div className="grid gap-6 md:grid-cols-1">
         {/* Justificación */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <div className="flex items-center gap-3 mb-4 text-emerald-700">
+          <div className="flex items-center gap-3 mb-4 text-sky-700">
             <Info size={28} />
             <h2 className="text-2xl font-semibold">Justificación</h2>
           </div>
@@ -36,13 +36,13 @@ export default function ProjectPresentation() {
 
         {/* Definición */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <div className="flex items-center gap-3 mb-4 text-emerald-700">
+          <div className="flex items-center gap-3 mb-4 text-sky-700">
             <Target size={28} />
             <h2 className="text-2xl font-semibold">Definición</h2>
           </div>
           <div className="space-y-4 text-stone-600 leading-relaxed text-lg">
             <p>Por tanto, vuestro proyecto consistirá en:</p>
-            <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 font-medium text-xl text-center shadow-inner">
+            <div className="p-5 bg-sky-50 rounded-xl border border-sky-100 text-sky-800 font-medium text-xl text-center shadow-inner">
               Diseño y estandarización de una oferta compuesta de 4 Coffee Breaks y 3 Brunchs.
             </div>
             <p>
@@ -53,7 +53,7 @@ export default function ProjectPresentation() {
 
         {/* Productos */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <div className="flex items-center gap-3 mb-4 text-emerald-700">
+          <div className="flex items-center gap-3 mb-4 text-sky-700">
             <Package size={28} />
             <h2 className="text-2xl font-semibold">Productos</h2>
           </div>

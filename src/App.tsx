@@ -24,6 +24,7 @@ import WorkTeam from './pages/WorkTeam';
 import Benchmarking from './pages/Benchmarking';
 import Sources from './pages/Sources';
 import Brainstorming from './pages/Brainstorming';
+import Providers from './pages/Providers';
 
 // Componente para proteger rutas que requieren autenticación o permisos específicos
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) {
@@ -33,7 +34,7 @@ function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode,
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
       </div>
     );
   }
@@ -69,6 +70,7 @@ function AppRoutes() {
         <Route path="benchmarking" element={<Benchmarking />} />
         <Route path="sources" element={<Sources />} />
         <Route path="brainstorming" element={<Brainstorming />} />
+        <Route path="providers" element={<Providers />} />
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="recipes" element={<Recipes />} />
         <Route path="menus" element={<Menus />} />

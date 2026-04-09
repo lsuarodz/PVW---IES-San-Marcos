@@ -3,6 +3,9 @@ export interface Ingredient {
   nameES: string;
   nameEN: string;
   provider: string;
+  purchaseFormat?: string;
+  weightPerUnit?: number;
+  formatPrice?: number;
   costPerUnit: number;
   purchasePrice?: number;
   unit: string;
@@ -107,4 +110,26 @@ export interface IdeaVote {
   score: number;
   reason: string;
   createdAt: string;
+}
+
+export interface Provider {
+  id: string;
+  name: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  goodsType?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface StandardWaste {
+  id: string;
+  item: string;
+  percentage: number;
+  notes?: string;
+  createdAt: string;
+  createdBy: string;
 }

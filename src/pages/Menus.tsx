@@ -80,6 +80,7 @@ export default function Menus() {
 
     const menuData = {
       ...formData,
+      nameES: formData.nameES.trim() || 'Menú sin nombre',
       diners: formData.diners || null,
       nameEN: editingId ? menus.find(m => m.id === editingId)?.nameEN || '' : '',
       totalCost,
@@ -246,7 +247,7 @@ export default function Menus() {
         </div>
         <button
           onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
           Nuevo Menú
@@ -267,7 +268,7 @@ export default function Menus() {
                   <button 
                     onClick={() => exportEquipmentPDF(menu)} 
                     disabled={isPrinting}
-                    className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50" 
+                    className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
                     title="Imprimir material"
                   >
                     <CookingPot size={18} />
@@ -280,7 +281,7 @@ export default function Menus() {
                   >
                     <Download size={18} />
                   </button>
-                  <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                  <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
                     <Edit2 size={18} />
                   </button>
                   {isSuperAdmin && (
@@ -298,7 +299,7 @@ export default function Menus() {
                   menu.type === 'navidad' ? 'bg-red-100 text-red-700' :
                   menu.type === 'coffee' ? 'bg-amber-100 text-amber-800' :
                   menu.type === 'cafeteria' ? 'bg-blue-100 text-blue-700' :
-                  'bg-emerald-100 text-emerald-700'
+                  'bg-teal-100 text-teal-700'
                 }`}>
                   {menu.type === 'navidad' ? 'NAVIDAD SOLIDARIO' :
                    menu.type === 'coffee' ? 'COFFEE BREAK' :
@@ -342,11 +343,11 @@ export default function Menus() {
                 </div>
                 <div className="flex justify-between text-sm pt-3 border-t border-stone-100">
                   <span className="text-stone-700 font-medium">Precio de Venta:</span>
-                  <span className="font-bold text-emerald-700 text-lg">{menu.price.toFixed(2)} €</span>
+                  <span className="font-bold text-teal-700 text-lg">{menu.price.toFixed(2)} €</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-stone-500">Margen Bruto:</span>
-                  <span className={`font-medium ${menu.price > menu.totalCost ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <span className={`font-medium ${menu.price > menu.totalCost ? 'text-teal-600' : 'text-red-500'}`}>
                     {menu.price > 0 ? (((menu.price - menu.totalCost) / menu.price) * 100).toFixed(1) : 0}%
                   </span>
                 </div>
@@ -401,7 +402,7 @@ export default function Menus() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === pageNum
-                        ? 'bg-emerald-600 text-white border border-emerald-600'
+                        ? 'bg-teal-600 text-white border border-teal-600'
                         : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -424,20 +425,23 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="px-16 py-20 bg-[#fafaf7] text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
-            {/* Decorative Borders */}
-            <div className="absolute inset-8 border border-stone-200 pointer-events-none"></div>
-            <div className="absolute inset-10 border border-stone-100 pointer-events-none"></div>
+          <div ref={printRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+            {/* Elegant Borders */}
+            <div className="absolute inset-6 border-2 border-stone-800 pointer-events-none"></div>
+            <div className="absolute inset-8 border border-stone-300 pointer-events-none"></div>
             
             <div className="z-10 w-full flex flex-col items-center flex-1">
-              <div className="text-center mb-16 w-full pt-12">
-                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-6 font-sans">Propuesta Gastronómica</div>
-                <h1 className="text-5xl font-display font-medium mb-4 text-stone-800 tracking-tight leading-tight px-12">{printingMenu.nameES}</h1>
+              <div className="text-center mb-12 w-full pt-12">
+                <div className="flex justify-center mb-8">
+                  <Utensils className="text-stone-800" size={32} strokeWidth={1.5} />
+                </div>
+                <div className="text-stone-500 text-[11px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Propuesta Gastronómica</div>
+                <h1 className="text-5xl font-serif font-bold mb-4 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
                 {printingMenu.nameEN && <h2 className="text-xl text-stone-500 italic font-serif mb-4">{printingMenu.nameEN}</h2>}
                 
                 <div className="flex items-center justify-center gap-6 mt-8">
-                  <div className="h-px w-12 bg-stone-200"></div>
-                  <div className="text-[11px] tracking-[0.3em] uppercase text-stone-500 font-sans font-medium">
+                  <div className="h-px w-16 bg-stone-300"></div>
+                  <div className="text-[12px] tracking-[0.3em] uppercase text-stone-800 font-sans font-semibold">
                     {printingMenu.type === 'brunch' ? 'Menú Brunch' : 
                      printingMenu.type === 'cocktail' ? 'Menú Cóctel' :
                      printingMenu.type === 'navidad' ? 'Menú Navidad Solidario' :
@@ -445,23 +449,23 @@ export default function Menus() {
                      printingMenu.type === 'cafeteria' ? 'Cafetería' :
                      'Menú Pedagógico'}
                   </div>
-                  <div className="h-px w-12 bg-stone-200"></div>
+                  <div className="h-px w-16 bg-stone-300"></div>
                 </div>
               </div>
 
-              <div className="space-y-10 mb-16 w-full flex flex-col items-center max-w-xl">
+              <div className="space-y-10 mb-16 w-full flex flex-col items-center max-w-2xl">
                 {printingMenu.recipes.map((recipeId, index) => {
                   const recipe = recipes.find(r => r.id === recipeId);
                   if (!recipe) return null;
                   const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
                   return (
                     <div key={recipe.id} className="text-center w-full">
-                      <h3 className="text-2xl font-serif font-medium mb-2 text-stone-800 tracking-wide">{recipe.nameES}</h3>
+                      <h3 className="text-2xl font-serif font-bold mb-2 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
                       {recipe.descriptionES && (
                         <p className="text-stone-600 text-sm italic mb-3 leading-relaxed px-12 max-w-md mx-auto">{recipe.descriptionES}</p>
                       )}
                       {recipeAllergens.length > 0 && (
-                        <div className="flex justify-center gap-2 mt-3 opacity-50">
+                        <div className="flex justify-center gap-2 mt-3 opacity-60">
                           {recipeAllergens.map(a => {
                             const allergen = ALLERGENS.find(al => al.id === a);
                             return allergen ? (
@@ -471,7 +475,9 @@ export default function Menus() {
                         </div>
                       )}
                       {index < printingMenu.recipes.length - 1 && (
-                        <div className="mt-10 text-stone-300 text-2xl font-light">·</div>
+                        <div className="mt-10 flex justify-center">
+                          <div className="w-12 h-px bg-stone-300"></div>
+                        </div>
                       )}
                     </div>
                   );
@@ -480,12 +486,12 @@ export default function Menus() {
 
               <div className="mt-auto w-full flex flex-col items-center pb-12">
                 <div className="text-center mb-10">
-                  <div className="text-4xl font-display text-stone-800 mb-2">{printingMenu.price.toFixed(2)} €</div>
-                  <div className="text-[10px] text-stone-400 uppercase tracking-[0.3em] font-sans">Precio por persona · IVA incluido</div>
+                  <div className="text-4xl font-serif font-bold text-stone-900 mb-2">{printingMenu.price.toFixed(2)} €</div>
+                  <div className="text-[10px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IVA incluido</div>
                 </div>
 
-                <div className="pt-10 border-t border-stone-200 w-full max-w-md text-center">
-                  <p className="text-[9px] text-stone-400 uppercase tracking-[0.25em] font-sans leading-loose px-4">
+                <div className="pt-8 border-t border-stone-300 w-full max-w-md text-center">
+                  <p className="text-[9px] text-stone-500 uppercase tracking-[0.25em] font-sans leading-loose px-4">
                     Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
                   </p>
                 </div>
@@ -560,7 +566,7 @@ export default function Menus() {
               <h2 className="text-xl font-bold text-stone-900">
                 {editingId ? 'Editar Menú' : 'Nuevo Menú'}
               </h2>
-              <div className="text-lg font-bold text-emerald-700">
+              <div className="text-lg font-bold text-teal-700">
                 Coste: {calculateMenuTotalCost(formData.recipes, recipes).toFixed(2)} €
               </div>
             </div>
@@ -569,12 +575,12 @@ export default function Menus() {
               <form id="menu-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Nombre</label>
                     <input
-                      type="text" required
+                      type="text"
                       value={formData.nameES}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                 </div>
@@ -586,7 +592,7 @@ export default function Menus() {
                       type="text"
                       value={formData.targetClient}
                       onChange={e => setFormData({...formData, targetClient: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Ej. Alumnos, Profesores..."
                     />
                   </div>
@@ -596,7 +602,7 @@ export default function Menus() {
                       type="text"
                       value={formData.occasion}
                       onChange={e => setFormData({...formData, occasion: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Ej. Graduación, Reunión..."
                     />
                   </div>
@@ -605,7 +611,7 @@ export default function Menus() {
                     <select
                       value={formData.location}
                       onChange={e => setFormData({...formData, location: e.target.value as 'centro' | 'fuera'})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     >
                       <option value="centro">En el centro</option>
                       <option value="fuera">Fuera del centro</option>
@@ -619,7 +625,7 @@ export default function Menus() {
                     <select
                       value={formData.type}
                       onChange={e => setFormData({...formData, type: e.target.value as any})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     >
                       <option value="brunch">Brunch</option>
                       <option value="cocktail">Cóctel</option>
@@ -630,16 +636,15 @@ export default function Menus() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Precio de Venta (€) *</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Precio de Venta (€)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      required
-                      value={formData.price}
+                      value={formData.price === 0 ? '' : formData.price}
                       onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                 </div>
@@ -652,7 +657,7 @@ export default function Menus() {
                       value={formData.diners || ''}
                       onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || null})}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Opcional"
                     />
                   </div>
@@ -664,7 +669,7 @@ export default function Menus() {
                     <button
                       type="button"
                       onClick={() => setIsRecipeModalOpen(true)}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
                       <Plus size={16} /> Crear receta
                     </button>
@@ -677,7 +682,7 @@ export default function Menus() {
                       placeholder="Buscar receta..."
                       value={recipeSearch}
                       onChange={(e) => setRecipeSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                      className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                     />
                   </div>
 
@@ -692,7 +697,7 @@ export default function Menus() {
                               type="checkbox"
                               checked={formData.recipes.includes(recipe.id)}
                               onChange={() => toggleRecipe(recipe.id)}
-                              className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
+                              className="w-4 h-4 text-teal-600 rounded border-stone-300 focus:ring-teal-500"
                             />
                             <div className="flex-1">
                               <div className="text-sm font-medium text-stone-900">{recipe.nameES}</div>
@@ -721,7 +726,7 @@ export default function Menus() {
               <button
                 type="submit"
                 form="menu-form"
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
               >
                 Guardar Menú
               </button>

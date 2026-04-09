@@ -87,7 +87,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-stone-100 flex justify-between items-center">
           <h2 className="text-xl font-bold text-stone-900">Nueva Receta</h2>
-          <div className="text-lg font-bold text-emerald-700">
+          <div className="text-lg font-bold text-teal-700">
             Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                   type="text" required
                   value={formData.nameES}
                   onChange={e => setFormData({...formData, nameES: e.target.value})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
@@ -111,7 +111,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                   value={formData.portions || ''}
                   onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
                   onFocus={e => e.target.select()}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Opcional"
                 />
               </div>
@@ -123,7 +123,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                 <textarea
                   value={formData.steps.join('\n')}
                   onChange={e => setFormData({...formData, steps: e.target.value.split('\n').filter(s => s.trim())})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px]"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
                   placeholder="Un paso por línea..."
                 />
               </div>
@@ -132,7 +132,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                 <textarea
                   value={formData.equipment.join('\n')}
                   onChange={e => setFormData({...formData, equipment: e.target.value.split('\n').filter(s => s.trim())})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px]"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
                   placeholder="Un material por línea..."
                 />
               </div>
@@ -144,14 +144,14 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                 <button
                   type="button"
                   onClick={() => setIsIngredientModalOpen(true)}
-                  className="text-sm text-stone-500 hover:text-emerald-600 font-medium flex items-center gap-1 mr-4"
+                  className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1 mr-4"
                 >
                   <Plus size={16} /> Crear ingrediente
                 </button>
                 <button
                   type="button"
                   onClick={addIngredientToRecipe}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                  className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                 >
                   <Plus size={16} /> Añadir a receta
                 </button>
@@ -168,7 +168,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                           required
                           value={ri.ingredientId}
                           onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                         >
                           <option value="">Selecciona un ingrediente o receta...</option>
                           <optgroup label="Ingredientes">
@@ -193,7 +193,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                               setEditingIngredientId(selectedIng.id);
                               setIsIngredientModalOpen(true);
                             }}
-                            className="p-2 text-stone-500 hover:text-emerald-600 bg-white border border-stone-200 rounded-lg"
+                            className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg"
                             title="Editar ingrediente"
                           >
                             <Edit2 size={16} />
@@ -210,7 +210,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             value={ri.quantity}
                             onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                             onFocus={e => e.target.select()}
-                            className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                             placeholder="Cant."
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">
@@ -248,7 +248,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
           <button
             type="submit"
             form="create-recipe-form"
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
+            className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
           >
             Guardar Receta
           </button>

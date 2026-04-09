@@ -280,7 +280,7 @@ export default function Recipes() {
         </div>
         <button
           onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
           Nueva Receta
@@ -294,19 +294,19 @@ export default function Recipes() {
           <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
             <div className="p-6 flex-1">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
                   <BookOpen size={24} />
                 </div>
                 <div className="flex gap-1">
                   <button 
                     onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
-                    className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50" 
+                    className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
                     title="Imprimir"
                   >
                     <Printer size={18} />
                   </button>
-                  <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Editar">
+                  <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
                     <Edit2 size={18} />
                   </button>
                   {isSuperAdmin && (
@@ -336,7 +336,7 @@ export default function Recipes() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-stone-500">Coste Total:</span>
-                  <span className="font-bold text-emerald-700">{recipe.totalCost.toFixed(2)} €</span>
+                  <span className="font-bold text-teal-700">{recipe.totalCost.toFixed(2)} €</span>
                 </div>
               </div>
               
@@ -389,7 +389,7 @@ export default function Recipes() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === pageNum
-                        ? 'bg-emerald-600 text-white border border-emerald-600'
+                        ? 'bg-teal-600 text-white border border-teal-600'
                         : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -417,7 +417,7 @@ export default function Recipes() {
               <h2 className="text-xl font-bold text-stone-900">
                 {editingId ? 'Editar Receta' : 'Nueva Receta'}
               </h2>
-              <div className="text-lg font-bold text-emerald-700">
+              <div className="text-lg font-bold text-teal-700">
                 Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
               </div>
             </div>
@@ -431,7 +431,7 @@ export default function Recipes() {
                       type="text" required
                       value={formData.nameES}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                   <div>
@@ -441,7 +441,7 @@ export default function Recipes() {
                       value={formData.portions || ''}
                       onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Opcional"
                     />
                   </div>
@@ -453,14 +453,14 @@ export default function Recipes() {
                     <button
                       type="button"
                       onClick={() => setIsIngredientModalOpen(true)}
-                      className="text-sm text-stone-500 hover:text-emerald-600 font-medium flex items-center gap-1 mr-4"
+                      className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1 mr-4"
                     >
                       <Plus size={16} /> Crear nuevo ingrediente
                     </button>
                     <button
                       type="button"
                       onClick={addIngredientToRecipe}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
                       <Plus size={16} /> Añadir a la receta
                     </button>
@@ -479,7 +479,7 @@ export default function Recipes() {
                               required
                               value={ri.ingredientId}
                               onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                             >
                               <option value="">Selecciona un ingrediente o receta...</option>
                               <optgroup label="Ingredientes">
@@ -508,7 +508,7 @@ export default function Recipes() {
                                   setEditingIngredientId(selectedIng.id);
                                   setIsIngredientModalOpen(true);
                                 }}
-                                className="p-2 text-stone-500 hover:text-emerald-600 bg-white border border-stone-200 rounded-lg"
+                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg"
                                 title="Editar ingrediente"
                               >
                                 <Edit2 size={16} />
@@ -525,7 +525,7 @@ export default function Recipes() {
                                 value={ri.quantity}
                                 onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                                 onFocus={e => e.target.select()}
-                                className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 placeholder="Cant."
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">
@@ -560,7 +560,7 @@ export default function Recipes() {
                     <button
                       type="button"
                       onClick={addStep}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
                       <Plus size={16} /> Añadir paso
                     </button>
@@ -575,7 +575,7 @@ export default function Recipes() {
                           rows={2}
                           value={step}
                           onChange={e => updateStep(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="Describe este paso de la elaboración..."
                         />
                         <button
@@ -601,7 +601,7 @@ export default function Recipes() {
                     <button
                       type="button"
                       onClick={addEquipment}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
                       <Plus size={16} /> Añadir material
                     </button>
@@ -616,7 +616,7 @@ export default function Recipes() {
                           required
                           value={eq}
                           onChange={e => updateEquipment(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="Ej: 1 sartén, 1 batidora..."
                         />
                         <button
@@ -642,7 +642,7 @@ export default function Recipes() {
                     <button
                       type="button"
                       onClick={addTip}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
                       <Plus size={16} /> Añadir tip
                     </button>
@@ -657,7 +657,7 @@ export default function Recipes() {
                           rows={2}
                           value={tip}
                           onChange={e => updateTip(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="Ej: Encender los hornos solo 5 minutos antes..."
                         />
                         <button
@@ -690,7 +690,7 @@ export default function Recipes() {
               <button
                 type="submit"
                 form="recipe-form"
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
               >
                 Guardar Receta
               </button>
@@ -730,7 +730,7 @@ export default function Recipes() {
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-stone-500 text-xs font-sans mt-6">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
-                    <span className="text-emerald-700 font-bold text-sm">{printingRecipe.totalCost.toFixed(2)} €</span>
+                    <span className="text-teal-700 font-bold text-sm">{printingRecipe.totalCost.toFixed(2)} €</span>
                   </div>
                   {printingRecipe.portions && (
                     <div className="flex items-center gap-2">
@@ -786,7 +786,7 @@ export default function Recipes() {
                     <tfoot>
                       <tr className="border-t-2 border-stone-100 font-bold text-stone-900">
                         <td colSpan={3} className="py-4 text-right uppercase tracking-widest text-[10px] text-stone-400">Coste Total de la Receta</td>
-                        <td className="py-4 text-right text-emerald-700 text-lg">{printingRecipe.totalCost.toFixed(2)} €</td>
+                        <td className="py-4 text-right text-teal-700 text-lg">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -819,11 +819,11 @@ export default function Recipes() {
                     )}
 
                     {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                        <h3 className="text-[10px] font-bold mb-3 uppercase tracking-[0.2em] text-emerald-800 font-sans flex items-center gap-2">
+                      <div className="bg-teal-50/50 p-4 rounded-xl border border-teal-100">
+                        <h3 className="text-[10px] font-bold mb-3 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                           <span>🌱</span> Sostenibilidad
                         </h3>
-                        <ul className="space-y-2 text-[10px] text-emerald-900 font-sans">
+                        <ul className="space-y-2 text-[10px] text-teal-900 font-sans">
                           {printingRecipe.sustainabilityTips.map((tip, idx) => (
                             <li key={idx} className="leading-relaxed">• {tip}</li>
                           ))}

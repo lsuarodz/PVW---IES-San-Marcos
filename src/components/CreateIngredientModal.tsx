@@ -139,7 +139,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                 <input
                   type="text"
                   {...register('nameES', { required: 'El nombre es obligatorio' })}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.nameES ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.nameES ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.nameES && <p className="text-red-500 text-xs mt-1">{errors.nameES.message}</p>}
               </div>
@@ -152,7 +152,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                   type="text"
                   {...register('provider')}
                   placeholder="Ej. Makro, Mercamadrid..."
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                 <label className="block text-sm font-medium text-stone-700 mb-1">Unidad *</label>
                 <select
                   {...register('unit', { required: 'Selecciona una unidad' })}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="kg">Kilogramo (kg)</option>
                   <option value="L">Litro (L)</option>
@@ -181,7 +181,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     valueAsNumber: true
                   })}
                   onFocus={e => e.target.select()}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.purchasePrice ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.purchasePrice ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.purchasePrice && <p className="text-red-500 text-xs mt-1">{errors.purchasePrice.message}</p>}
               </div>
@@ -198,15 +198,15 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     valueAsNumber: true
                   })}
                   onFocus={e => e.target.select()}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.wastePercentage ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.wastePercentage ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.wastePercentage && <p className="text-red-500 text-xs mt-1">{errors.wastePercentage.message}</p>}
               </div>
             </div>
 
-            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
-              <AlertCircle className="text-emerald-600" size={20} />
-              <div className="text-sm text-emerald-800">
+            <div className="bg-teal-50 p-4 rounded-xl border border-teal-100 flex items-center gap-3">
+              <AlertCircle className="text-teal-600" size={20} />
+              <div className="text-sm text-teal-800">
                 Coste real por <strong>1 {unit}</strong> (aplicando merma): 
                 <span className="font-bold ml-2 text-lg">
                   {realCost} €
@@ -223,7 +223,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                       type="checkbox"
                       checked={(allergens || []).includes(allergen.id)}
                       onChange={() => toggleAllergen(allergen.id)}
-                      className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
+                      className="w-4 h-4 text-teal-600 rounded border-stone-300 focus:ring-teal-500"
                     />
                     <span className="text-lg" title={allergen.name}>{allergen.icon}</span>
                     <span className="text-sm text-stone-700">{allergen.name}</span>
@@ -245,7 +245,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
             type="submit"
             form="create-ingredient-form"
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+            className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
           >
             {loading ? 'Guardando...' : 'Guardar Ingrediente'}
           </button>

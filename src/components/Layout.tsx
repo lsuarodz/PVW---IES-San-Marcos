@@ -62,6 +62,7 @@ export default function Layout() {
 
   // Definición de los elementos del menú para Producción
   const productionItems = [
+    { name: 'Proveedores', path: '/providers', icon: <Users size={20} /> },
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
     { name: 'Escandallos', path: '/recipes', icon: <BookOpen size={20} /> },
     { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
@@ -83,7 +84,7 @@ export default function Layout() {
     <div className="flex h-screen bg-stone-100">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-3 text-emerald-700">
+        <div className="flex items-center gap-3 text-teal-700">
           <h1 className="text-lg font-bold tracking-tight">Proyecto Intermodular</h1>
         </div>
         <button 
@@ -109,7 +110,7 @@ export default function Layout() {
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 lg:h-auto p-6 border-b border-stone-200 flex items-center gap-3 text-emerald-700">
+        <div className="h-16 lg:h-auto p-6 border-b border-stone-200 flex items-center gap-3 text-teal-700">
           <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
           <h1 className="text-xl font-bold tracking-tight lg:hidden">Menú</h1>
         </div>
@@ -136,7 +137,7 @@ export default function Layout() {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                         isActive 
-                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          ? 'bg-sky-50 text-sky-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
                     >
@@ -169,7 +170,7 @@ export default function Layout() {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                         isActive 
-                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          ? 'bg-violet-50 text-violet-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
                     >
@@ -202,7 +203,7 @@ export default function Layout() {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                         isActive 
-                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          ? 'bg-teal-50 text-teal-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
                     >
@@ -235,7 +236,7 @@ export default function Layout() {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                         isActive 
-                          ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                          ? 'bg-amber-50 text-amber-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
                     >
@@ -252,7 +253,7 @@ export default function Layout() {
         <div className="p-4 border-t border-stone-200">
           {/* Información del usuario actual */}
           <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+            <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold">
               {appUser?.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">

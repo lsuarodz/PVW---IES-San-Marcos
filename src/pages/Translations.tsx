@@ -123,7 +123,7 @@ export default function Translations() {
   if (loading) {
     return (
       <div className="p-8 flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
       </div>
     );
   }
@@ -182,7 +182,7 @@ export default function Translations() {
                       <div className="flex items-center gap-2">
                         <div className="w-32 h-2 bg-stone-100 rounded-full overflow-hidden">
                           <div 
-                            className={`h-full rounded-full ${progress === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                            className={`h-full rounded-full ${progress === 100 ? 'bg-amber-500' : 'bg-blue-500'}`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>

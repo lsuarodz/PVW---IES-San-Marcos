@@ -244,7 +244,7 @@ export default function WorkTeam() {
         />
         <div className="flex justify-between items-center mb-8 print:hidden">
           <div className="flex items-center gap-4">
-            <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">
+            <div className="p-4 bg-sky-100 text-sky-600 rounded-2xl">
               <Users size={32} />
             </div>
             <div>
@@ -305,7 +305,7 @@ export default function WorkTeam() {
         <div className="space-y-12">
           {/* Generador de Equipos */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-200 print:hidden break-inside-avoid">
-            <div className="flex items-center gap-3 mb-4 text-emerald-700">
+            <div className="flex items-center gap-3 mb-4 text-sky-700">
               <Dices size={28} />
               <h2 className="text-2xl font-bold text-stone-900">Sorteo de Equipos</h2>
             </div>
@@ -319,12 +319,12 @@ export default function WorkTeam() {
                 max="10" 
                 value={numGroups} 
                 onChange={(e) => setNumGroups(Number(e.target.value))}
-                className="w-24 p-2 border border-stone-200 rounded-lg text-center text-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                className="w-24 p-2 border border-stone-200 rounded-lg text-center text-lg font-bold focus:ring-2 focus:ring-sky-500"
               />
               <button 
                 onClick={generateRandomGroups}
                 disabled={isGenerating || students.length === 0}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 font-medium text-lg ml-auto"
+                className="flex items-center gap-2 bg-sky-600 text-white px-6 py-2.5 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-50 font-medium text-lg ml-auto"
               >
                 <Dices size={24} className={isGenerating ? "animate-spin" : ""} />
                 {isGenerating ? 'Sorteando...' : '¡Sortear Equipos!'}
@@ -334,16 +334,16 @@ export default function WorkTeam() {
             {randomGroups.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 {randomGroups.map((group, i) => (
-                  <div key={i} className="bg-white border-2 border-emerald-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
-                    <h3 className="font-bold text-xl text-emerald-800 mb-4 flex items-center gap-2">
+                  <div key={i} className="bg-white border-2 border-sky-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-sky-500"></div>
+                    <h3 className="font-bold text-xl text-sky-800 mb-4 flex items-center gap-2">
                       <Users size={20} />
                       Equipo {i + 1}
                     </h3>
                     <ul className="space-y-3">
                       {group.map(student => (
                         <li key={student.email} className="text-stone-700 flex items-center gap-3 font-medium">
-                          <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                          <div className="w-2 h-2 rounded-full bg-sky-400"></div>
                           {student.name}
                         </li>
                       ))}
@@ -415,7 +415,7 @@ export default function WorkTeam() {
                 <div className="border-b border-stone-200 pb-4 mb-6 flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-bold text-stone-900">{sub.userName}</h2>
-                    <p className="text-emerald-600 font-medium">Grupo: {sub.group}</p>
+                    <p className="text-sky-600 font-medium">Grupo: {sub.group}</p>
                   </div>
                   {appUser?.role === 'admin' && (
                     <button
@@ -442,7 +442,7 @@ export default function WorkTeam() {
                       {questions.map((q) => (
                         <div key={q.id} className="break-inside-avoid">
                           <p className="font-medium text-stone-900 mb-2">
-                            <span className="text-emerald-600 mr-2">Pregunta {q.id} ({q.category}):</span>
+                            <span className="text-sky-600 mr-2">Pregunta {q.id} ({q.category}):</span>
                             {q.text}
                           </p>
                           <div className="bg-stone-50 p-4 rounded-xl text-stone-700 whitespace-pre-wrap border border-stone-100">
@@ -465,7 +465,7 @@ export default function WorkTeam() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
-        <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">
+        <div className="p-4 bg-sky-100 text-sky-600 rounded-2xl">
           <Users size={32} />
         </div>
         <div>
@@ -491,12 +491,12 @@ export default function WorkTeam() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Escribe aquí vuestra propuesta de menú y el coste estimado..."
-            className="w-full h-48 p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none mb-4"
+            className="w-full h-48 p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none mb-4"
           />
           <button
             onClick={handleDraftSubmit}
             disabled={saving || !draft.trim()}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="flex items-center gap-2 bg-sky-600 text-white px-6 py-3 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {saving ? 'Guardando...' : 'Enviar Borrador'}
             <Send size={20} />
@@ -504,14 +504,14 @@ export default function WorkTeam() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col gap-4">
-            <div className="flex items-center gap-3 text-emerald-700">
+          <div className="bg-sky-50 p-6 rounded-2xl border border-sky-100 flex flex-col gap-4">
+            <div className="flex items-center gap-3 text-sky-700">
               <CheckCircle className="shrink-0" size={28} />
               <h3 className="text-xl font-bold">¡Borrador enviado con éxito!</h3>
             </div>
             <div className="pl-10">
-              <h4 className="text-sm font-semibold text-emerald-800 uppercase tracking-wider mb-2">Vuestra propuesta:</h4>
-              <p className="text-emerald-900 whitespace-pre-wrap bg-white/60 p-4 rounded-xl border border-emerald-200/60">{draft}</p>
+              <h4 className="text-sm font-semibold text-sky-800 uppercase tracking-wider mb-2">Vuestra propuesta:</h4>
+              <p className="text-sky-900 whitespace-pre-wrap bg-white/60 p-4 rounded-xl border border-sky-200/60">{draft}</p>
             </div>
           </div>
 
@@ -522,7 +522,7 @@ export default function WorkTeam() {
               {questions.map((q) => (
                 <div key={q.id} className="space-y-3">
                   <label className="block text-lg font-medium text-stone-900">
-                    <span className="text-emerald-600 font-bold mr-2">Pregunta {q.id} ({q.category}):</span>
+                    <span className="text-sky-600 font-bold mr-2">Pregunta {q.id} ({q.category}):</span>
                     {q.text}
                   </label>
                   <textarea
@@ -530,7 +530,7 @@ export default function WorkTeam() {
                     onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
                     disabled={finalSubmitted}
                     placeholder="Escribe tu respuesta aquí..."
-                    className="w-full h-32 p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none disabled:bg-stone-100 disabled:text-stone-600"
+                    className="w-full h-32 p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none disabled:bg-stone-100 disabled:text-stone-600"
                   />
                   <div className="flex items-center gap-3 mt-2">
                     <label className="text-sm font-medium text-stone-700">Líder de esta respuesta:</label>
@@ -538,7 +538,7 @@ export default function WorkTeam() {
                       value={leaders[q.id] || ''}
                       onChange={(e) => setLeaders({ ...leaders, [q.id]: e.target.value })}
                       disabled={finalSubmitted}
-                      className="p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 disabled:bg-stone-100 disabled:text-stone-600"
+                      className="p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 disabled:bg-stone-100 disabled:text-stone-600"
                     >
                       <option value="">-- Seleccionar alumno --</option>
                       {students.map(s => (
@@ -555,7 +555,7 @@ export default function WorkTeam() {
                 <button
                   onClick={handleFinalSubmit}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg w-full justify-center"
+                  className="flex items-center gap-2 bg-sky-600 text-white px-8 py-4 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg w-full justify-center"
                 >
                   {saving ? 'Guardando...' : 'Enviar Respuestas Finales'}
                   <Send size={24} />
@@ -563,7 +563,7 @@ export default function WorkTeam() {
               </div>
             ) : (
               <div className="mt-8 p-6 bg-stone-50 rounded-xl border border-stone-200 text-center text-stone-600 font-medium flex items-center justify-center gap-2">
-                <CheckCircle className="text-emerald-600" size={24} />
+                <CheckCircle className="text-sky-600" size={24} />
                 Respuestas finales enviadas correctamente
               </div>
             )}

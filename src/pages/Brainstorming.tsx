@@ -118,7 +118,7 @@ export default function Brainstorming() {
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'approved':
-        return <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md"><CheckCircle size={14} /> Aprobada para escandallo</span>;
+        return <span className="flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-100 px-2 py-1 rounded-md"><CheckCircle size={14} /> Aprobada para escandallo</span>;
       case 'discarded':
         return <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-md"><XCircle size={14} /> Desechada</span>;
       default:
@@ -139,7 +139,7 @@ export default function Brainstorming() {
 
       <div className="bg-white rounded-xl border border-stone-200 p-8">
         <div className="text-center mb-8">
-          <MessageSquare size={48} className="mx-auto text-emerald-600 mb-4" />
+          <MessageSquare size={48} className="mx-auto text-violet-600 mb-4" />
           <h3 className="text-xl font-bold text-stone-800 mb-2">Puesta en común</h3>
           <p className="text-stone-500 max-w-2xl mx-auto">
             Añade aquí las ideas de platos. Posteriormente se hará una puesta en común y se desecharán aquellas menos realistas (por costes, diseño...). Las ideas NO desechadas se escandallarán.
@@ -151,7 +151,7 @@ export default function Brainstorming() {
             {generalIdeas.map(idea => (
               <div key={idea.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start gap-4 transition-colors ${
                 idea.status === 'discarded' ? 'bg-stone-100 border-stone-200 opacity-75' : 
-                idea.status === 'approved' ? 'bg-emerald-50 border-emerald-200' : 
+                idea.status === 'approved' ? 'bg-violet-50 border-violet-200' : 
                 'bg-white border-stone-200'
               }`}>
                 <div className="flex-1">
@@ -181,7 +181,7 @@ export default function Brainstorming() {
                     
                     <button 
                       onClick={() => toggleVotes(idea.id)}
-                      className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center gap-1"
+                      className="text-violet-600 hover:text-violet-700 text-sm font-medium flex items-center gap-1"
                     >
                       {expandedVotes.includes(idea.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       {expandedVotes.includes(idea.id) ? 'Ocultar votos' : 'Ver valoraciones'}
@@ -206,7 +206,7 @@ export default function Brainstorming() {
 
                   {/* Voting Form */}
                   {votingFor === idea.id && (
-                    <div className="mt-4 p-4 bg-white rounded-xl border border-emerald-200 shadow-sm">
+                    <div className="mt-4 p-4 bg-white rounded-xl border border-violet-200 shadow-sm">
                       <h4 className="font-bold text-stone-800 mb-3 text-sm">Tu valoración</h4>
                       <div className="flex items-center gap-2 mb-3">
                         {[1, 2, 3, 4, 5].map(s => (
@@ -223,7 +223,7 @@ export default function Brainstorming() {
                         value={voteReason}
                         onChange={(e) => setVoteReason(e.target.value)}
                         placeholder="¿Por qué le das esta puntuación? (obligatorio)"
-                        className="w-full p-3 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm mb-3"
+                        className="w-full p-3 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm mb-3"
                         rows={2}
                       />
                       <div className="flex justify-end gap-2">
@@ -236,7 +236,7 @@ export default function Brainstorming() {
                         <button 
                           onClick={() => handleVote(idea.id)}
                           disabled={!voteReason.trim()}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                          className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                         >
                           Guardar Voto
                         </button>
@@ -273,7 +273,7 @@ export default function Brainstorming() {
                     <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
                       <button 
                         onClick={() => handleStatusChange(idea.id, 'approved')}
-                        className={`p-1.5 rounded-md transition-colors ${idea.status === 'approved' ? 'bg-emerald-200 text-emerald-800' : 'text-stone-500 hover:bg-stone-200 hover:text-emerald-700'}`}
+                        className={`p-1.5 rounded-md transition-colors ${idea.status === 'approved' ? 'bg-violet-200 text-violet-800' : 'text-stone-500 hover:bg-stone-200 hover:text-violet-700'}`}
                         title="Aprobar para escandallo"
                       >
                         <CheckCircle size={18} />
@@ -311,7 +311,7 @@ export default function Brainstorming() {
             <select
               value={menuType}
               onChange={(e) => setMenuType(e.target.value as 'coffee' | 'brunch')}
-              className="px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white min-w-[160px]"
+              className="px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white min-w-[160px]"
             >
               <option value="coffee">Coffee Break</option>
               <option value="brunch">Brunch</option>
@@ -321,7 +321,7 @@ export default function Brainstorming() {
               value={newIdea}
               onChange={(e) => setNewIdea(e.target.value)}
               placeholder="Escribe el nombre o descripción del plato..."
-              className="flex-1 px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="flex-1 px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddIdea();
               }}
@@ -329,7 +329,7 @@ export default function Brainstorming() {
             <button
               onClick={handleAddIdea}
               disabled={!newIdea.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+              className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
             >
               <Plus size={20} />
               Añadir Plato

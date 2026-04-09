@@ -171,11 +171,11 @@ export default function Standardization() {
 
       {(appUser?.role === 'admin' || appUser?.role === 'docente') && (
         <div className="mb-12 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-          <div className="p-6 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-emerald-900">
+          <div className="p-6 bg-sky-50 border-b border-sky-100 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-sky-900">
               Respuestas de los Alumnos (Vista {appUser?.role === 'admin' ? 'Tutor' : 'Docente'})
             </h2>
-            <span className="bg-emerald-200 text-emerald-800 py-1 px-3 rounded-full text-sm font-bold">
+            <span className="bg-sky-200 text-sky-800 py-1 px-3 rounded-full text-sm font-bold">
               {allAnswers.length} respuestas
             </span>
           </div>
@@ -246,7 +246,7 @@ export default function Standardization() {
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
         <div className="p-6 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-sky-100 text-sky-700 rounded-xl flex items-center justify-center">
               <FileText size={24} />
             </div>
             <div>
@@ -256,7 +256,7 @@ export default function Standardization() {
           </div>
           {answer && (
             <div className="text-xs text-stone-500 flex items-center gap-1">
-              <CheckCircle2 size={14} className="text-emerald-600" />
+              <CheckCircle2 size={14} className="text-sky-600" />
               Última actualización: {new Date(answer.updatedAt).toLocaleString()}
             </div>
           )}
@@ -274,7 +274,7 @@ export default function Standardization() {
             <textarea
               value={formData.q1}
               onChange={(e) => setFormData({ ...formData, q1: e.target.value })}
-              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
               placeholder="Escribe tu respuesta aquí..."
             />
           </div>
@@ -290,7 +290,7 @@ export default function Standardization() {
             <textarea
               value={formData.q2}
               onChange={(e) => setFormData({ ...formData, q2: e.target.value })}
-              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+              className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
               placeholder="Escribe tu respuesta aquí..."
             />
           </div>
@@ -309,7 +309,7 @@ export default function Standardization() {
               <textarea
                 value={formData.q3}
                 onChange={(e) => setFormData({ ...formData, q3: e.target.value })}
-                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
                 placeholder="Escribe tu propuesta de estandarización para el Brunch..."
               />
             </div>
@@ -325,7 +325,7 @@ export default function Standardization() {
               <textarea
                 value={formData.q4}
                 onChange={(e) => setFormData({ ...formData, q4: e.target.value })}
-                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
                 placeholder="Escribe tu propuesta de estandarización para el Coffee Break..."
               />
             </div>
@@ -341,7 +341,7 @@ export default function Standardization() {
               <textarea
                 value={formData.q5}
                 onChange={(e) => setFormData({ ...formData, q5: e.target.value })}
-                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
                 placeholder="Escribe tu propuesta de estandarización para el Menú Solidario..."
               />
             </div>
@@ -350,7 +350,7 @@ export default function Standardization() {
 
         <div className="p-6 bg-stone-50 border-t border-stone-200 flex justify-end items-center gap-4">
           {showSuccess && (
-            <span className="text-emerald-600 font-medium flex items-center gap-2">
+            <span className="text-sky-600 font-medium flex items-center gap-2">
               <CheckCircle2 size={18} />
               Guardado correctamente
             </span>
@@ -358,7 +358,7 @@ export default function Standardization() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             <Save size={20} />
             {isSaving ? 'Guardando...' : 'Guardar Respuestas'}
