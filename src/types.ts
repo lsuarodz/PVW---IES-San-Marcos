@@ -23,7 +23,7 @@ export interface Recipe {
   nameEN: string;
   descriptionES: string;
   descriptionEN: string;
-  portions?: number;
+  portions?: number | null;
   steps: string[];
   stepsEN?: string[];
   equipment?: string[];
@@ -42,7 +42,7 @@ export interface Menu {
   targetClient?: string;
   location?: 'centro' | 'fuera';
   occasion?: string;
-  diners?: number;
+  diners?: number | null;
   recipes: string[];
   totalCost: number;
   price: number;

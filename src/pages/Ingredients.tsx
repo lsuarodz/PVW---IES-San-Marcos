@@ -485,6 +485,7 @@ export default function Ingredients() {
                       required
                       value={formData.purchasePrice}
                       onChange={e => setFormData({...formData, purchasePrice: e.target.value})}
+                      onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -497,6 +498,7 @@ export default function Ingredients() {
                       max="99"
                       value={formData.wastePercentage}
                       onChange={e => setFormData({...formData, wastePercentage: e.target.value})}
+                      onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>

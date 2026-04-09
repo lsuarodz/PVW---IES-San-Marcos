@@ -60,7 +60,7 @@ export default function Recipes() {
   // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
     nameES: '',
-    portions: undefined as number | undefined,
+    portions: null as number | null,
     steps: [] as string[],
     equipment: [] as string[],
     sustainabilityTips: [] as string[],
@@ -76,6 +76,7 @@ export default function Recipes() {
 
     const recipeData = {
       ...formData,
+      portions: formData.portions || null,
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: editingId ? recipes.find(r => r.id === editingId)?.nameEN || '' : '',
       descriptionES: editingId ? recipes.find(r => r.id === editingId)?.descriptionES || '' : '',
@@ -142,7 +143,7 @@ export default function Recipes() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', portions: undefined, steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
+    setFormData({ nameES: '', portions: null, steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
     setEditingId(null);
   };
 
@@ -220,11 +221,11 @@ export default function Recipes() {
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
-          margin: 0.5,
+          margin: 0,
           filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
         html2pdf()
@@ -438,7 +439,8 @@ export default function Recipes() {
                     <input
                       type="number" min="1" step="1"
                       value={formData.portions || ''}
-                      onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || undefined})}
+                      onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
+                      onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Opcional"
                     />
@@ -522,6 +524,7 @@ export default function Recipes() {
                                 required
                                 value={ri.quantity}
                                 onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
+                                onFocus={e => e.target.select()}
                                 className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 placeholder="Cant."
                               />
@@ -717,106 +720,124 @@ export default function Recipes() {
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="p-8 bg-white text-stone-900 font-sans" style={{ width: '700px' }}>
-            <div className="border-b-2 border-stone-900 pb-4 mb-6">
-              <h1 className="text-2xl font-bold mb-1 uppercase tracking-tight" style={{ color: '#A52A2A' }}>{printingRecipe.nameES}</h1>
-              {printingRecipe.nameEN && <h2 className="text-lg text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
-              <div className="flex justify-between items-end">
-                <div className="text-xs text-stone-500">
-                  <strong>Coste total:</strong> {printingRecipe.totalCost.toFixed(2)} €
-                  {printingRecipe.portions && <span className="ml-2">| <strong>Raciones:</strong> {printingRecipe.portions}</span>}
-                </div>
-                <div className="text-xs text-stone-500">
-                  <strong>Creado por:</strong> {printingRecipe.createdBy}
+          <div ref={printRef} className="px-12 py-16 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+            <div className="z-10 w-full">
+              <div className="border-b border-stone-200 pb-8 mb-10">
+                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Ficha Técnica de Producción</div>
+                <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-3">{printingRecipe.nameES}</h1>
+                {printingRecipe.nameEN && <h2 className="text-xl text-stone-500 italic mb-4">{printingRecipe.nameEN}</h2>}
+                
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-stone-500 text-xs font-sans mt-6">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
+                    <span className="text-emerald-700 font-bold text-sm">{printingRecipe.totalCost.toFixed(2)} €</span>
+                  </div>
+                  {printingRecipe.portions && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
+                      <span className="text-stone-700 font-bold">{printingRecipe.portions}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
+                    <span className="text-stone-700">{printingRecipe.createdBy}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mb-6">
-              <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Escandallo Detallado</h3>
-              <table className="w-full text-[10px] text-left mb-4" style={{ tableLayout: 'fixed' }}>
-                <thead className="bg-stone-50 text-stone-600 uppercase border-b border-stone-200">
-                  <tr>
-                    <th className="px-1 py-1 w-1/2">Ingrediente</th>
-                    <th className="px-1 py-1 text-right w-1/6">Cantidad</th>
-                    <th className="px-1 py-1 text-right w-1/6">Coste/Ud</th>
-                    <th className="px-1 py-1 text-right w-1/6">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {printingRecipe.ingredients.map((ri, idx) => {
-                    const ing = ingredients.find(i => i.id === ri.ingredientId);
-                    const subRecipe = recipes.find(r => r.id === ri.ingredientId);
-                    const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
-                    const unit = ing ? ing.unit : 'ud';
-                    
-                    let realCostPerUnit = 0;
-                    if (ing) {
-                      realCostPerUnit = ing.costPerUnit;
-                    } else if (subRecipe) {
-                      realCostPerUnit = subRecipe.totalCost;
-                    }
-                    
-                    const itemTotalCost = realCostPerUnit * ri.quantity;
-
-                    return (
-                      <tr key={idx} className="border-b border-stone-100">
-                        <td className="px-1 py-1 font-medium truncate">{name}</td>
-                        <td className="px-1 py-1 text-right">{ri.quantity} {unit}</td>
-                        <td className="px-1 py-1 text-right">{realCostPerUnit.toFixed(2)} €</td>
-                        <td className="px-1 py-1 text-right font-medium">{itemTotalCost.toFixed(2)} €</td>
+              <div className="grid grid-cols-1 gap-12">
+                <div>
+                  <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Escandallo Detallado</h3>
+                  <table className="w-full text-[11px] text-left mb-4 font-sans">
+                    <thead>
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-100">
+                        <th className="py-2 font-medium">Ingrediente</th>
+                        <th className="py-2 font-medium text-right">Cantidad</th>
+                        <th className="py-2 font-medium text-right">Coste/Ud</th>
+                        <th className="py-2 font-medium text-right">Total</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-stone-50 font-bold text-stone-900">
-                    <td colSpan={3} className="px-1 py-2 text-right">Coste Total de la Receta:</td>
-                    <td className="px-1 py-2 text-right text-emerald-700">{printingRecipe.totalCost.toFixed(2)} €</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-stone-50">
+                      {printingRecipe.ingredients.map((ri, idx) => {
+                        const ing = ingredients.find(i => i.id === ri.ingredientId);
+                        const subRecipe = recipes.find(r => r.id === ri.ingredientId);
+                        const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
+                        const unit = ing ? ing.unit : 'ud';
+                        
+                        let realCostPerUnit = 0;
+                        if (ing) {
+                          realCostPerUnit = ing.costPerUnit;
+                        } else if (subRecipe) {
+                          realCostPerUnit = subRecipe.totalCost;
+                        }
+                        
+                        const itemTotalCost = realCostPerUnit * ri.quantity;
 
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Elaboración</h3>
-                {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                  <ol className="space-y-2 list-decimal pl-4 mb-6 text-xs">
-                    {printingRecipe.steps.map((step, idx) => (
-                      <li key={idx} className="text-stone-800 leading-relaxed pl-1">{step}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-stone-500 italic mb-6 text-xs">No hay pasos de elaboración definidos.</p>
-                )}
+                        return (
+                          <tr key={idx}>
+                            <td className="py-2 font-medium text-stone-800">{name}</td>
+                            <td className="py-2 text-right text-stone-600">{ri.quantity} {unit}</td>
+                            <td className="py-2 text-right text-stone-500">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-2 text-right font-bold text-stone-800">{itemTotalCost.toFixed(2)} €</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-stone-100 font-bold text-stone-900">
+                        <td colSpan={3} className="py-4 text-right uppercase tracking-widest text-[10px] text-stone-400">Coste Total de la Receta</td>
+                        <td className="py-4 text-right text-emerald-700 text-lg">{printingRecipe.totalCost.toFixed(2)} €</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
 
-                {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Material y Equipamiento</h3>
-                    <ul className="space-y-1 list-disc pl-4 mb-6 text-xs">
-                      {printingRecipe.equipment.map((eq, idx) => (
-                        <li key={idx} className="text-stone-800 leading-relaxed pl-1">{eq}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
+                <div className="grid grid-cols-2 gap-12">
+                  <div>
+                    <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Elaboración</h3>
+                    {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
+                      <ol className="space-y-3 list-decimal pl-4 text-[11px] text-stone-700 font-sans">
+                        {printingRecipe.steps.map((step, idx) => (
+                          <li key={idx} className="leading-relaxed pl-2">{step}</li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-xs text-stone-400 italic font-sans">No hay pasos de elaboración definidos.</p>
+                    )}
+                  </div>
 
-                {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-1 flex items-center gap-2">
-                      <span>🌱</span> Tips de Sostenibilidad
-                    </h3>
-                    <ul className="space-y-1 list-none pl-1 text-xs">
-                      {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                        <li key={idx} className="text-stone-800 leading-relaxed flex gap-2">
-                          <span className="text-emerald-600 font-bold">•</span>
-                          {tip}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
+                  <div className="space-y-8">
+                    {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Material</h3>
+                        <ul className="space-y-2 list-disc pl-4 text-[11px] text-stone-700 font-sans">
+                          {printingRecipe.equipment.map((eq, idx) => (
+                            <li key={idx} className="leading-relaxed pl-2">{eq}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                        <h3 className="text-[10px] font-bold mb-3 uppercase tracking-[0.2em] text-emerald-800 font-sans flex items-center gap-2">
+                          <span>🌱</span> Sostenibilidad
+                        </h3>
+                        <ul className="space-y-2 text-[10px] text-emerald-900 font-sans">
+                          {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                            <li key={idx} className="leading-relaxed">• {tip}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-12 text-center">
+                <p className="text-[9px] text-stone-400 uppercase tracking-[0.3em] font-sans">
+                  Ficha Técnica · Proyecto Intermodular Gastronómico
+                </p>
               </div>
             </div>
           </div>

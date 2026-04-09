@@ -59,7 +59,7 @@ export default function Menus() {
     targetClient: '',
     location: 'centro' as 'centro' | 'fuera',
     occasion: '',
-    diners: undefined as number | undefined,
+    diners: null as number | null,
     recipes: [] as string[],
     price: 0,
   });
@@ -80,6 +80,7 @@ export default function Menus() {
 
     const menuData = {
       ...formData,
+      diners: formData.diners || null,
       nameEN: editingId ? menus.find(m => m.id === editingId)?.nameEN || '' : '',
       totalCost,
       createdBy: appUser.group || appUser.name,
@@ -129,7 +130,7 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: undefined, recipes: [], price: 0 });
+    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
     setEditingId(null);
     setRecipeSearch('');
   };
@@ -423,52 +424,72 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center justify-center">
-            <div className="text-center mb-10 w-full border-b border-stone-200 pb-6">
-              <h1 className="text-3xl font-bold mb-2 uppercase tracking-widest">{printingMenu.nameES}</h1>
-              {printingMenu.nameEN && <h2 className="text-lg text-stone-500 italic">{printingMenu.nameEN}</h2>}
-              <div className="mt-3 text-xs tracking-widest uppercase text-stone-400">
-                {printingMenu.type === 'brunch' ? 'Menú Brunch' : 
-                 printingMenu.type === 'cocktail' ? 'Menú Cóctel' :
-                 printingMenu.type === 'navidad' ? 'Menú Navidad Solidario' :
-                 printingMenu.type === 'coffee' ? 'Coffee Break' :
-                 printingMenu.type === 'cafeteria' ? 'Cafetería' :
-                 'Menú Pedagógico'}
-              </div>
-            </div>
-
-            <div className="space-y-6 mb-10 w-full flex flex-col items-center">
-              {printingMenu.recipes.map(recipeId => {
-                const recipe = recipes.find(r => r.id === recipeId);
-                if (!recipe) return null;
-                const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
-                return (
-                  <div key={recipe.id} className="text-center max-w-md">
-                    <h3 className="text-lg font-bold mb-1">{recipe.nameES}</h3>
-                    {recipeAllergens.length > 0 && (
-                      <div className="flex justify-center gap-1 mt-1">
-                        {recipeAllergens.map(a => {
-                          const allergen = ALLERGENS.find(al => al.id === a);
-                          return allergen ? (
-                            <span key={a} title={allergen.name} className="text-xs">{allergen.icon}</span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
+          <div ref={printRef} className="px-16 py-20 bg-[#fafaf7] text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+            {/* Decorative Borders */}
+            <div className="absolute inset-8 border border-stone-200 pointer-events-none"></div>
+            <div className="absolute inset-10 border border-stone-100 pointer-events-none"></div>
+            
+            <div className="z-10 w-full flex flex-col items-center flex-1">
+              <div className="text-center mb-16 w-full pt-12">
+                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-6 font-sans">Propuesta Gastronómica</div>
+                <h1 className="text-5xl font-display font-medium mb-4 text-stone-800 tracking-tight leading-tight px-12">{printingMenu.nameES}</h1>
+                {printingMenu.nameEN && <h2 className="text-xl text-stone-500 italic font-serif mb-4">{printingMenu.nameEN}</h2>}
+                
+                <div className="flex items-center justify-center gap-6 mt-8">
+                  <div className="h-px w-12 bg-stone-200"></div>
+                  <div className="text-[11px] tracking-[0.3em] uppercase text-stone-500 font-sans font-medium">
+                    {printingMenu.type === 'brunch' ? 'Menú Brunch' : 
+                     printingMenu.type === 'cocktail' ? 'Menú Cóctel' :
+                     printingMenu.type === 'navidad' ? 'Menú Navidad Solidario' :
+                     printingMenu.type === 'coffee' ? 'Coffee Break' :
+                     printingMenu.type === 'cafeteria' ? 'Cafetería' :
+                     'Menú Pedagógico'}
                   </div>
-                );
-              })}
-            </div>
+                  <div className="h-px w-12 bg-stone-200"></div>
+                </div>
+              </div>
 
-            <div className="text-center pt-6 border-t border-stone-200 w-full max-w-xs">
-              <div className="text-xl font-bold">{printingMenu.price.toFixed(2)} €</div>
-              <div className="text-[10px] text-stone-400 mt-1 uppercase tracking-widest">IVA Incluido</div>
-            </div>
+              <div className="space-y-10 mb-16 w-full flex flex-col items-center max-w-xl">
+                {printingMenu.recipes.map((recipeId, index) => {
+                  const recipe = recipes.find(r => r.id === recipeId);
+                  if (!recipe) return null;
+                  const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
+                  return (
+                    <div key={recipe.id} className="text-center w-full">
+                      <h3 className="text-2xl font-serif font-medium mb-2 text-stone-800 tracking-wide">{recipe.nameES}</h3>
+                      {recipe.descriptionES && (
+                        <p className="text-stone-600 text-sm italic mb-3 leading-relaxed px-12 max-w-md mx-auto">{recipe.descriptionES}</p>
+                      )}
+                      {recipeAllergens.length > 0 && (
+                        <div className="flex justify-center gap-2 mt-3 opacity-50">
+                          {recipeAllergens.map(a => {
+                            const allergen = ALLERGENS.find(al => al.id === a);
+                            return allergen ? (
+                              <span key={a} title={allergen.name} className="text-sm">{allergen.icon}</span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      {index < printingMenu.recipes.length - 1 && (
+                        <div className="mt-10 text-stone-300 text-2xl font-light">·</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
-            <div className="mt-12 pt-6 border-t border-stone-200 text-center w-full">
-              <p className="text-[9px] text-stone-500 uppercase tracking-wider max-w-lg mx-auto">
-                Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
-              </p>
+              <div className="mt-auto w-full flex flex-col items-center pb-12">
+                <div className="text-center mb-10">
+                  <div className="text-4xl font-display text-stone-800 mb-2">{printingMenu.price.toFixed(2)} €</div>
+                  <div className="text-[10px] text-stone-400 uppercase tracking-[0.3em] font-sans">Precio por persona · IVA incluido</div>
+                </div>
+
+                <div className="pt-10 border-t border-stone-200 w-full max-w-md text-center">
+                  <p className="text-[9px] text-stone-400 uppercase tracking-[0.25em] font-sans leading-loose px-4">
+                    Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -477,42 +498,55 @@ export default function Menus() {
       {/* Hidden PDF Template for Equipment */}
       {printingEquipmentMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printEquipmentRef} className="px-16 py-20 bg-white text-stone-900 font-sans w-[794px] min-h-[1122px] mx-auto">
-            <div className="border-b-2 border-stone-900 pb-4 mb-6 text-center">
-              <h1 className="text-2xl font-bold mb-2 uppercase tracking-tight">Material - {printingEquipmentMenu.nameES}</h1>
-              <div className="flex justify-center gap-8 mt-3">
-                <div className="text-xs text-stone-500">
-                  <strong>Tipo:</strong> {printingEquipmentMenu.type}
-                </div>
-                <div className="text-xs text-stone-500">
-                  <strong>Lugar:</strong> {printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}
+          <div ref={printEquipmentRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+            <div className="z-10 w-full">
+              <div className="border-b border-stone-200 pb-8 mb-12">
+                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
+                <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
+                <div className="flex items-center gap-4 text-stone-500 text-sm font-sans">
+                  <span className="uppercase tracking-widest">{printingEquipmentMenu.type}</span>
+                  <span className="text-stone-300">|</span>
+                  <span>{printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}</span>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-6 max-w-2xl mx-auto">
-              {printingEquipmentMenu.recipes.map(recipeId => {
-                const recipe = recipes.find(r => r.id === recipeId);
-                if (!recipe || !recipe.equipment || recipe.equipment.length === 0) return null;
-                
-                return (
-                  <div key={recipe.id} className="mb-4">
-                    <h3 className="text-sm font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1 text-center">{recipe.nameES}</h3>
-                    <ul className="space-y-1 list-disc pl-5 text-xs">
-                      {recipe.equipment.map((eq, idx) => (
-                        <li key={idx} className="text-stone-800 leading-relaxed pl-1">{eq}</li>
-                      ))}
-                    </ul>
+              <div className="space-y-12">
+                <div>
+                  <h2 className="text-xl font-display font-medium text-stone-800 mb-6 flex items-center gap-3">
+                    <span className="h-px w-8 bg-stone-300"></span>
+                    Material y Equipamiento Necesario
+                  </h2>
+                  <div className="space-y-8">
+                    {printingEquipmentMenu.recipes.map((recipeId) => {
+                      const recipe = recipes.find(r => r.id === recipeId);
+                      if (!recipe || !recipe.equipment || recipe.equipment.length === 0) return null;
+                      return (
+                        <div key={recipe.id} className="bg-stone-50/50 p-6 rounded-xl border border-stone-100">
+                          <h3 className="text-lg font-serif font-bold text-stone-800 mb-3">{recipe.nameES}</h3>
+                          <ul className="grid grid-cols-2 gap-x-8 gap-y-2 list-disc pl-5 text-xs text-stone-600 font-sans">
+                            {recipe.equipment.map((eq, idx) => (
+                              <li key={idx} className="pl-1 leading-relaxed">{eq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-              
-              {printingEquipmentMenu.recipes.every(recipeId => {
-                const recipe = recipes.find(r => r.id === recipeId);
-                return !recipe || !recipe.equipment || recipe.equipment.length === 0;
-              }) && (
-                <p className="text-stone-500 italic text-xs text-center">No hay material ni equipamiento definido en las recetas de este menú.</p>
-              )}
+                  
+                  {printingEquipmentMenu.recipes.every(recipeId => {
+                    const recipe = recipes.find(r => r.id === recipeId);
+                    return !recipe || !recipe.equipment || recipe.equipment.length === 0;
+                  }) && (
+                    <p className="text-stone-400 italic text-sm text-center py-12 font-sans">No hay material ni equipamiento definido en las recetas de este menú.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-20 pt-8 border-t border-stone-100 text-center">
+                <p className="text-[9px] text-stone-400 uppercase tracking-[0.3em] font-sans">
+                  Documento de uso interno · Proyecto Intermodular
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -604,6 +638,7 @@ export default function Menus() {
                       required
                       value={formData.price}
                       onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                      onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -615,7 +650,8 @@ export default function Menus() {
                     <input
                       type="number" min="1" step="1"
                       value={formData.diners || ''}
-                      onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || undefined})}
+                      onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || null})}
+                      onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Opcional"
                     />

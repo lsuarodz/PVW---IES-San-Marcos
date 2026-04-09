@@ -25,7 +25,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
 
   const [formData, setFormData] = useState({
     nameES: '',
-    portions: undefined as number | undefined,
+    portions: null as number | null,
     steps: [] as string[],
     equipment: [] as string[],
     sustainabilityTips: [] as string[],
@@ -43,6 +43,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
 
     const recipeData = {
       ...formData,
+      portions: formData.portions || null,
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: '',
       descriptionES: '',
@@ -108,7 +109,8 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                 <input
                   type="number" min="1" step="1"
                   value={formData.portions || ''}
-                  onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || undefined})}
+                  onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
+                  onFocus={e => e.target.select()}
                   className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Opcional"
                 />
@@ -207,6 +209,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             required
                             value={ri.quantity}
                             onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
+                            onFocus={e => e.target.select()}
                             className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             placeholder="Cant."
                           />

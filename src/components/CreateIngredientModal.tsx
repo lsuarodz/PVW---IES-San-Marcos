@@ -180,6 +180,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     min: { value: 0, message: 'El precio no puede ser negativo' },
                     valueAsNumber: true
                   })}
+                  onFocus={e => e.target.select()}
                   className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.purchasePrice ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.purchasePrice && <p className="text-red-500 text-xs mt-1">{errors.purchasePrice.message}</p>}
@@ -196,6 +197,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     max: { value: 99, message: 'Máximo 99' },
                     valueAsNumber: true
                   })}
+                  onFocus={e => e.target.select()}
                   className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.wastePercentage ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.wastePercentage && <p className="text-red-500 text-xs mt-1">{errors.wastePercentage.message}</p>}

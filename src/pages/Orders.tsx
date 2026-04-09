@@ -149,11 +149,11 @@ export default function Orders() {
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
-          margin: 0.5,
+          margin: 0,
           filename: `Pedido_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
         html2pdf()
@@ -213,6 +213,7 @@ export default function Orders() {
                         step="1"
                         value={item.quantity || ''}
                         onChange={(e) => updateOrderItemQuantity(item.id, item.type, parseInt(e.target.value) || 0)}
+                        onFocus={e => e.target.select()}
                         className="w-20 px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center"
                       />
                     </div>
@@ -357,59 +358,71 @@ export default function Orders() {
       {/* Hidden Print Layout */}
       {isPrinting && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="p-10 bg-white text-stone-900 font-sans" style={{ width: '800px' }}>
-            <div className="border-b-2 border-stone-900 pb-6 mb-8 flex justify-between items-end">
+          <div ref={printRef} className="px-12 py-16 bg-white text-stone-900 font-sans w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+            <div className="z-10 w-full">
+              <div className="border-b border-stone-200 pb-8 mb-10 flex justify-between items-end">
+                <div>
+                  <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Pedido y Compra</div>
+                  <h1 className="text-3xl font-bold uppercase tracking-tight text-stone-800">Lista de Pedido</h1>
+                  <p className="text-stone-500 mt-1 text-sm">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-stone-400 uppercase font-bold tracking-widest mb-1">Coste Total Estimado</div>
+                  <div className="text-2xl font-bold text-emerald-700">{totalOrderCost.toFixed(2)} €</div>
+                </div>
+              </div>
+
+              <div className="mb-10">
+                <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">Producción Incluida</h3>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-2">
+                  {orderItems.filter(item => item.quantity > 0).map(item => {
+                    const isRecipe = item.type === 'recipe';
+                    const data = isRecipe ? recipes.find(r => r.id === item.id) : menus.find(m => m.id === item.id);
+                    return (
+                      <div key={`${item.type}-${item.id}`} className="flex justify-between text-[11px] border-b border-stone-50 pb-1">
+                        <span className="text-stone-700">{data?.nameES} <span className="text-[9px] text-stone-400 uppercase ml-1">({isRecipe ? 'Receta' : 'Menú'})</span></span>
+                        <span className="font-bold text-stone-900">x{item.quantity}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tight">Lista de Pedido / Compra</h1>
-                <p className="text-stone-500 mt-1">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
-                <div className="text-2xl font-bold text-stone-900">{totalOrderCost.toFixed(2)} €</div>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h3 className="text-base font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Recetas Incluidas</h3>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                {orderItems.filter(item => item.quantity > 0).map(item => {
-                  const recipe = recipes.find(r => r.id === item.recipeId);
-                  return (
-                    <div key={item.recipeId} className="flex justify-between text-xs border-b border-stone-100 pb-1">
-                      <span>{recipe?.nameES}</span>
-                      <span className="font-bold">x{item.quantity}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold mb-2 uppercase tracking-wider text-stone-800 border-b border-stone-200 pb-1">Desglose de Ingredientes</h3>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-stone-300">
-                    <th className="py-1 font-bold text-xs">Ingrediente</th>
-                    <th className="py-1 font-bold text-xs">Proveedor</th>
-                    <th className="py-1 font-bold text-xs text-right">Cantidad</th>
-                    <th className="py-1 font-bold text-xs text-right">Coste Est.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200">
-                  {aggregatedList.map((item) => (
-                    <tr key={item.ingredientId}>
-                      <td className="py-1 text-xs">{item.name}</td>
-                      <td className="py-1 text-xs text-stone-600">{item.provider || '-'}</td>
-                      <td className="py-1 text-xs text-right font-medium">{item.totalQuantity.toFixed(3)} {item.unit}</td>
-                      <td className="py-1 text-xs text-right">{item.totalCost.toFixed(2)} €</td>
+                <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">Desglose de Ingredientes</h3>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-stone-400 uppercase tracking-wider text-[10px] border-b border-stone-100">
+                      <th className="py-2 font-medium">Ingrediente</th>
+                      <th className="py-2 font-medium">Proveedor</th>
+                      <th className="py-2 font-medium text-right">Cantidad</th>
+                      <th className="py-2 font-medium text-right">Coste Est.</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="mt-12 pt-8 border-t border-stone-200 text-center text-xs text-stone-400">
-              Documento generado automáticamente por Proyecto Intermodular
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {aggregatedList.map((item) => (
+                      <tr key={item.ingredientId}>
+                        <td className="py-2 text-[11px] font-medium text-stone-800">{item.name}</td>
+                        <td className="py-2 text-[10px] text-stone-500 italic">{item.provider || '-'}</td>
+                        <td className="py-2 text-[11px] text-right font-bold text-stone-900">{item.totalQuantity.toFixed(3)} {item.unit}</td>
+                        <td className="py-2 text-[11px] text-right text-stone-600">{item.totalCost.toFixed(2)} €</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-stone-100 font-bold text-stone-900">
+                      <td colSpan={3} className="py-4 text-right uppercase tracking-widest text-[10px] text-stone-400">Total Pedido</td>
+                      <td className="py-4 text-right text-emerald-700 text-lg">{totalOrderCost.toFixed(2)} €</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              
+              <div className="mt-auto pt-12 text-center">
+                <p className="text-[9px] text-stone-400 uppercase tracking-[0.3em] font-sans">
+                  Documento generado automáticamente · Proyecto Intermodular
+                </p>
+              </div>
             </div>
           </div>
         </div>
