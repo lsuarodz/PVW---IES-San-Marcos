@@ -63,6 +63,7 @@ export default function Recipes() {
     portions: null as number | null,
     steps: [] as string[],
     equipment: [] as string[],
+    miseEnPlace: '',
     sustainabilityTips: [] as string[],
     ingredients: [] as RecipeIngredient[],
   });
@@ -135,6 +136,7 @@ export default function Recipes() {
       portions: recipe.portions,
       steps: recipe.steps || (recipe.descriptionES ? [recipe.descriptionES] : []),
       equipment: recipe.equipment || [],
+      miseEnPlace: recipe.miseEnPlace || '',
       sustainabilityTips: recipe.sustainabilityTips || [],
       ingredients: recipe.ingredients,
     });
@@ -143,7 +145,7 @@ export default function Recipes() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', portions: null, steps: [], equipment: [], sustainabilityTips: [], ingredients: [] });
+    setFormData({ nameES: '', portions: null, steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [] });
     setEditingId(null);
   };
 
@@ -634,6 +636,17 @@ export default function Recipes() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-900 mb-1">Mise en place</label>
+                  <textarea
+                    rows={3}
+                    value={formData.miseEnPlace}
+                    onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="Describe la mise en place necesaria..."
+                  />
                 </div>
 
                 <div>

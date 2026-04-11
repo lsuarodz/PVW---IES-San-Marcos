@@ -60,6 +60,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "miseEnPlace": { "type": "string" },
         "sustainabilityTips": {
           "type": "array",
           "items": { "type": "string" }
@@ -88,6 +89,8 @@
       "properties": {
         "nameES": { "type": "string" },
         "nameEN": { "type": "string" },
+        "eventDate": { "type": "string" },
+        "eventPlace": { "type": "string" },
         "type": { "type": "string", "enum": ["brunch", "cocktail"] },
         "targetClient": { "type": "string" },
         "location": { "type": "string", "enum": ["centro", "fuera"] },
@@ -102,6 +105,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["nameES", "type", "recipes", "totalCost", "price", "createdBy", "createdAt"]
+    },
+    "ProductionIdea": {
+      "title": "ProductionIdea",
+      "description": "A brainstorming idea for a menu",
+      "type": "object",
+      "properties": {
+        "menuId": { "type": "string" },
+        "idea": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["menuId", "idea", "createdBy", "createdAt"]
     },
     "IdeaVote": {
       "title": "IdeaVote",
@@ -226,6 +241,10 @@
     "standard_wastes/{wasteId}": {
       "schema": { "$ref": "#/entities/StandardWaste" },
       "description": "Standardized wastes collection"
+    },
+    "production_ideas/{ideaId}": {
+      "schema": { "$ref": "#/entities/ProductionIdea" },
+      "description": "Production brainstorming ideas"
     },
     "clients/{clientId}": {
       "schema": { "$ref": "#/entities/Client" },

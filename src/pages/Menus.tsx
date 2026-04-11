@@ -55,6 +55,8 @@ export default function Menus() {
   // Estado para almacenar los datos del formulario del menú
   const [formData, setFormData] = useState({
     nameES: '',
+    eventDate: '',
+    eventPlace: '',
     type: 'brunch' as Menu['type'],
     targetClient: '',
     location: 'centro' as 'centro' | 'fuera',
@@ -118,6 +120,8 @@ export default function Menus() {
   const openEdit = (menu: Menu) => {
     setFormData({
       nameES: menu.nameES,
+      eventDate: menu.eventDate || '',
+      eventPlace: menu.eventPlace || '',
       type: menu.type,
       targetClient: menu.targetClient || '',
       location: menu.location || 'centro',
@@ -131,7 +135,7 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
+    setFormData({ nameES: '', eventDate: '', eventPlace: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
     setEditingId(null);
     setRecipeSearch('');
   };
@@ -437,7 +441,8 @@ export default function Menus() {
                 </div>
                 <div className="text-stone-500 text-[11px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Propuesta Gastronómica</div>
                 <h1 className="text-5xl font-serif font-bold mb-4 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
-                {printingMenu.nameEN && <h2 className="text-xl text-stone-500 italic font-serif mb-4">{printingMenu.nameEN}</h2>}
+                {printingMenu.eventDate && <h2 className="text-xl text-stone-600 font-serif mb-2">{printingMenu.eventDate}</h2>}
+                {printingMenu.eventPlace && <h2 className="text-xl text-stone-600 font-serif mb-4">{printingMenu.eventPlace}</h2>}
                 
                 <div className="flex items-center justify-center gap-6 mt-8">
                   <div className="h-px w-16 bg-stone-300"></div>
@@ -581,6 +586,29 @@ export default function Menus() {
                       value={formData.nameES}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Fecha del Evento</label>
+                    <input
+                      type="text"
+                      value={formData.eventDate}
+                      onChange={e => setFormData({...formData, eventDate: e.target.value})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="Ej. 15 de Mayo de 2026"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Lugar del Evento</label>
+                    <input
+                      type="text"
+                      value={formData.eventPlace}
+                      onChange={e => setFormData({...formData, eventPlace: e.target.value})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="Ej. Salón Principal"
                     />
                   </div>
                 </div>

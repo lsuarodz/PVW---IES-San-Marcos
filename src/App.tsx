@@ -38,6 +38,7 @@ import Brainstorming from './pages/Brainstorming';
 import Providers from './pages/Providers';
 import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
+import ProductionBrainstorming from './pages/ProductionBrainstorming';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -116,6 +117,7 @@ function AppRoutes() {
         <Route path="providers" element={<Providers />} />
         <Route path="clients" element={<Clients />} />
         <Route path="quotes" element={<Quotes />} />
+        <Route path="production-brainstorming" element={<ProductionBrainstorming />} />
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="recipes" element={<Recipes />} />
         <Route path="menus" element={<Menus />} />

@@ -30,6 +30,7 @@ export interface Recipe {
   steps: string[];
   stepsEN?: string[];
   equipment?: string[];
+  miseEnPlace?: string;
   sustainabilityTips?: string[];
   ingredients: RecipeIngredient[];
   totalCost: number;
@@ -41,6 +42,8 @@ export interface Menu {
   id: string;
   nameES: string;
   nameEN: string;
+  eventDate?: string;
+  eventPlace?: string;
   type: 'brunch' | 'cocktail' | 'navidad' | 'coffee' | 'cafeteria' | 'pedagogico';
   targetClient?: string;
   location?: 'centro' | 'fuera';
@@ -49,6 +52,14 @@ export interface Menu {
   recipes: string[];
   totalCost: number;
   price: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ProductionIdea {
+  id: string;
+  menuId: string;
+  idea: string;
   createdBy: string;
   createdAt: string;
 }

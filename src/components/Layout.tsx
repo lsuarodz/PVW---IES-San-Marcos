@@ -63,6 +63,7 @@ export default function Layout() {
 
   // Definición de los elementos del menú para Producción
   const productionItems = [
+    { name: 'Tormenta de Ideas', path: '/production-brainstorming', icon: <Lightbulb size={20} /> },
     { name: 'Proveedores', path: '/providers', icon: <Users size={20} /> },
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
     { name: 'Escandallos', path: '/recipes', icon: <BookOpen size={20} /> },
