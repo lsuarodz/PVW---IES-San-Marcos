@@ -196,6 +196,40 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidClient() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'name', 'contactName', 'phone', 'email', 'company', 'address', 'notes', 'createdBy', 'createdAt']) &&
+             isValidString(data.name, 1, 150) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('contactName' in data) || data.contactName == "" || isValidString(data.contactName, 1, 150)) &&
+             (!('phone' in data) || data.phone == "" || isValidString(data.phone, 1, 50)) &&
+             (!('email' in data) || data.email == "" || isValidString(data.email, 1, 150)) &&
+             (!('company' in data) || data.company == "" || isValidString(data.company, 1, 150)) &&
+             (!('address' in data) || data.address == "" || isValidString(data.address, 1, 300)) &&
+             (!('notes' in data) || data.notes == "" || isValidString(data.notes, 1, 1000)) &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    function isValidQuote() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'clientId', 'date', 'eventDate', 'eventType', 'guests', 'items', 'subtotal', 'tax', 'total', 'notes', 'status', 'createdBy', 'createdAt']) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             isValidString(data.clientId, 1, 100) &&
+             isValidString(data.date, 1, 100) &&
+             (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
+             (!('eventType' in data) || data.eventType == "" || isValidString(data.eventType, 1, 150)) &&
+             (!('guests' in data) || data.guests is number) &&
+             data.items is list &&
+             data.subtotal is number &&
+             data.tax is number &&
+             data.total is number &&
+             data.status in ['draft', 'sent', 'accepted', 'rejected'] &&
+             (!('notes' in data) || data.notes == "" || isValidString(data.notes, 1, 2000)) &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -283,6 +317,18 @@ service cloud.firestore {
     match /standard_wastes/{wasteId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidStandardWaste();
+      allow delete: if isSuperAdmin() || isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidClient();
+      allow delete: if isSuperAdmin() || isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidQuote();
       allow delete: if isSuperAdmin() || isAdmin();
     }
   }

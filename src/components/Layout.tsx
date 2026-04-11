@@ -34,6 +34,7 @@ export default function Layout() {
     jornada1: false,
     jornada2: true,
     produccion: true,
+    comercial: true,
     otros: true
   });
 
@@ -67,6 +68,12 @@ export default function Layout() {
     { name: 'Escandallos', path: '/recipes', icon: <BookOpen size={20} /> },
     { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
     { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
+  ];
+
+  // Definición de los elementos del menú para Gestión Comercial
+  const comercialItems = [
+    { name: 'Clientes', path: '/clients', icon: <Users size={20} /> },
+    { name: 'Presupuestos', path: '/quotes', icon: <FileText size={20} /> },
   ];
 
   // Definición de otros elementos del menú
@@ -204,6 +211,39 @@ export default function Layout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                         isActive 
                           ? 'bg-teal-50 text-teal-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Gestión Comercial */}
+          <div>
+            <button 
+              onClick={() => toggleSection('comercial')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+            >
+              <span>Gestión Comercial</span>
+              {openSections.comercial ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.comercial && (
+              <div className="space-y-1 mt-2">
+                {comercialItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-rose-50 text-rose-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
                     >

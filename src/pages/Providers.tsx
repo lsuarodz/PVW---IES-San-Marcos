@@ -79,7 +79,8 @@ export default function Providers() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="min-h-full p-8" style={{ backgroundColor: 'wheat' }}>
+      <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -220,6 +221,7 @@ export default function Providers() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

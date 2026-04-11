@@ -17,7 +17,7 @@ export default function Ingredients() {
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { ingredients, recipes, standardWastes } = useData();
+  const { ingredients, recipes, standardWastes, providers } = useData();
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
@@ -310,7 +310,8 @@ export default function Ingredients() {
   }, [search]);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="min-h-full p-8" style={{ backgroundColor: 'bisque' }}>
+      <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -439,16 +440,19 @@ export default function Ingredients() {
                   <div className="text-sm text-stone-900 font-medium">{ing.nameES}</div>
                 </td>
                 <td className="px-6 py-4">
-                  <input
-                    type="text"
+                  <select
                     value={ing.provider || ''}
                     onChange={(e) => {
                       const newProvider = e.target.value;
                       setDoc(doc(db, 'ingredients', ing.id), { ...ing, provider: newProvider });
                     }}
                     className="w-full px-2 py-1 text-sm bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors"
-                    placeholder="Proveedor..."
-                  />
+                  >
+                    <option value="">-</option>
+                    {providers.map(p => (
+                      <option key={p.id} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
@@ -868,6 +872,72 @@ export default function Ingredients() {
           </div>
         </div>
       )}
+      {/* Waste Modal */}
+      {isWasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-stone-200">
+              <h2 className="text-xl font-bold text-stone-900">
+                {editingWasteId ? 'Editar Merma Estandarizada' : 'Nueva Merma Estandarizada'}
+              </h2>
+            </div>
+            <div className="p-6">
+              <form id="waste-form" onSubmit={handleWasteSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Ingrediente / Familia *</label>
+                  <input
+                    type="text"
+                    required
+                    value={wasteFormData.item}
+                    onChange={e => setWasteFormData({...wasteFormData, item: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="Ej. Pescado blanco, Patatas..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">% de Merma *</label>
+                  <input
+                    type="number"
+                    required
+                    step="1"
+                    min="0"
+                    max="99"
+                    value={wasteFormData.percentage}
+                    onChange={e => setWasteFormData({...wasteFormData, percentage: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Notas (Opcional)</label>
+                  <textarea
+                    value={wasteFormData.notes}
+                    onChange={e => setWasteFormData({...wasteFormData, notes: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none h-24"
+                    placeholder="Detalles sobre cómo se calculó esta merma..."
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-stone-200 bg-stone-50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsWasteModalOpen(false)}
+                className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="waste-form"
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
     </div>
   );
 }

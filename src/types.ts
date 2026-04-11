@@ -133,3 +133,40 @@ export interface StandardWaste {
   createdAt: string;
   createdBy: string;
 }
+
+export interface Client {
+  id: string;
+  name: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  company?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface QuoteItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Quote {
+  id: string;
+  clientId: string;
+  date: string;
+  eventDate?: string;
+  eventType?: string;
+  guests?: number;
+  items: QuoteItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  notes?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected';
+  createdAt: string;
+  createdBy: string;
+}

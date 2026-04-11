@@ -146,6 +146,56 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["item", "percentage", "createdBy", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "A client of the business",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "company": { "type": "string" },
+        "address": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "createdBy", "createdAt"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "A quote or budget for a client event",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "date": { "type": "string" },
+        "eventDate": { "type": "string" },
+        "eventType": { "type": "string" },
+        "guests": { "type": "number" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" },
+              "total": { "type": "number" }
+            },
+            "required": ["description", "quantity", "unitPrice", "total"]
+          }
+        },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "total": { "type": "number" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "sent", "accepted", "rejected"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "date", "items", "subtotal", "tax", "total", "status", "createdBy", "createdAt"]
     }
   },
   "firestore": {
@@ -176,6 +226,14 @@
     "standard_wastes/{wasteId}": {
       "schema": { "$ref": "#/entities/StandardWaste" },
       "description": "Standardized wastes collection"
+    },
+    "clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Clients collection"
+    },
+    "quotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/Quote" },
+      "description": "Quotes collection"
     }
   }
 }

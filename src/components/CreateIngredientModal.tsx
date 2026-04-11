@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { AlertCircle } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { useForm, Controller } from 'react-hook-form';
 
+// ============================================================================
+// INTERFACES (Definición de Tipos y Props)
+// ============================================================================
+// Las "Props" son los parámetros que recibe este componente desde fuera.
+// Por ejemplo, "isOpen" le dice si debe mostrarse o estar oculto.
 interface CreateIngredientModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: (newIngredientId: string) => void;
-  editingId?: string | null;
-  initialData?: any;
+  isOpen: boolean; // ¿El modal está abierto?
+  onClose: () => void; // Función para cerrar el modal
+  onSuccess?: (newIngredientId: string) => void; // Función opcional que se ejecuta si todo va bien
+  editingId?: string | null; // Si estamos editando, aquí viene el ID del ingrediente
+  initialData?: any; // Los datos iniciales si estamos editando
 }
 
+// Esto define la forma de los datos del formulario (qué campos tiene)
 interface IngredientFormData {
   nameES: string;
   provider: string;
@@ -24,19 +31,31 @@ interface IngredientFormData {
   wastePercentage: number;
 }
 
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 export default function CreateIngredientModal({ isOpen, onClose, onSuccess, editingId, initialData }: CreateIngredientModalProps) {
+  // Traemos el usuario actual y la lista de proveedores desde los contextos globales
   const { appUser } = useAuth();
-  const { showToast } = useToast();
+  const { providers } = useData();
+  const { showToast } = useToast(); // Para mostrar mensajes emergentes
+  
+  // Estado para saber si estamos guardando datos (para deshabilitar el botón y mostrar "Guardando...")
   const [loading, setLoading] = useState(false);
 
+  // ============================================================================
+  // CONFIGURACIÓN DEL FORMULARIO (react-hook-form)
+  // ============================================================================
+  // useForm es una librería que nos facilita manejar formularios sin tener que 
+  // crear un "useState" para cada campo.
   const {
-    register,
-    handleSubmit,
+    register, // Conecta un campo HTML (input) con la librería
+    handleSubmit, // Función que se ejecuta al enviar el formulario
     control,
-    watch,
-    reset,
-    setValue,
-    formState: { errors }
+    watch, // Permite "vigilar" el valor de un campo en tiempo real
+    reset, // Sirve para vaciar el formulario o llenarlo con datos iniciales
+    setValue, // Permite cambiar el valor de un campo manualmente
+    formState: { errors } // Aquí se guardan los errores de validación (ej. "Campo obligatorio")
   } = useForm<IngredientFormData>({
     defaultValues: {
       nameES: '',
@@ -48,8 +67,13 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
     }
   });
 
+  // ============================================================================
+  // EFECTO: LLENAR DATOS AL ABRIR
+  // ============================================================================
+  // Este useEffect se ejecuta cada vez que el modal se abre o cambia el ingrediente a editar.
   useEffect(() => {
     if (isOpen) {
+      // Si tenemos un editingId, significa que vamos a EDITAR. Llenamos el formulario con sus datos.
       if (editingId && initialData) {
         reset({
           nameES: initialData.nameES || '',
@@ -60,6 +84,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
           wastePercentage: initialData.wastePercentage || 0,
         });
       } else {
+        // Si NO hay editingId, significa que vamos a CREAR uno nuevo. Vaciamos el formulario.
         reset({
           nameES: '',
           provider: '',
@@ -72,27 +97,39 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
     }
   }, [isOpen, editingId, initialData, reset]);
 
+  // "Vigilamos" estos campos para poder calcular el coste real en vivo mientras el usuario escribe
   const purchasePrice = watch('purchasePrice');
   const wastePercentage = watch('wastePercentage');
   const unit = watch('unit');
   const allergens = watch('allergens');
 
+  // Si el modal no está abierto, no renderizamos nada (devolvemos null)
   if (!isOpen) return null;
 
+  // ============================================================================
+  // FUNCIÓN PARA GUARDAR EN FIREBASE
+  // ============================================================================
   const onSubmit = async (data: IngredientFormData) => {
     if (!appUser) return;
-    setLoading(true);
+    setLoading(true); // Activamos el estado de carga
 
+    // 1. Cálculos de seguridad
     const waste = Number(data.wastePercentage) || 0;
-    const safeWaste = Math.min(Math.max(waste, 0), 99);
+    const safeWaste = Math.min(Math.max(waste, 0), 99); // Evitamos mermas mayores a 99% o menores a 0%
     const price = Number(data.purchasePrice) || 0;
+    
+    // 2. Cálculo del coste real por unidad (Precio / (1 - Merma%))
     const costPerUnit = price / (1 - (safeWaste / 100));
 
+    // 3. Preparamos el ID. Si estamos editando, usamos el ID existente. 
+    // Si es nuevo, Firebase genera un ID automático (doc(collection(...)).id).
     const id = editingId || doc(collection(db, 'ingredients')).id;
+    
+    // 4. Preparamos el objeto final que se guardará en la base de datos
     const ingredientData = {
       ...data,
       purchasePrice: price,
-      nameEN: initialData?.nameEN || '',
+      nameEN: initialData?.nameEN || '', // Mantenemos el nombre en inglés si existía
       wastePercentage: safeWaste,
       costPerUnit,
       createdBy: initialData?.createdBy || appUser.group || appUser.name,
@@ -100,7 +137,10 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
     };
 
     try {
+      // 5. Guardamos en Firebase. "setDoc" crea el documento si no existe, o lo sobrescribe si ya existe.
       await setDoc(doc(db, 'ingredients', id), ingredientData);
+      
+      // 6. Si todo fue bien, avisamos al componente padre (onSuccess), mostramos un mensaje y cerramos.
       if (onSuccess) onSuccess(id);
       showToast(editingId ? 'Ingrediente actualizado' : 'Ingrediente guardado correctamente', 'success');
       onClose();
@@ -108,10 +148,11 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
       console.error('Error saving ingredient:', error);
       showToast('Error al guardar el ingrediente', 'error');
     } finally {
-      setLoading(false);
+      setLoading(false); // Desactivamos el estado de carga, haya ido bien o mal
     }
   };
 
+  // Función auxiliar para marcar/desmarcar alérgenos
   const toggleAllergen = (id: string) => {
     const currentAllergens = allergens || [];
     const newAllergens = currentAllergens.includes(id)
@@ -148,12 +189,15 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Proveedor</label>
-                <input
-                  type="text"
+                <select
                   {...register('provider')}
-                  placeholder="Ej. Makro, Mercamadrid..."
                   className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
+                >
+                  <option value="">Sin proveedor</option>
+                  {providers.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
