@@ -66,6 +66,7 @@ export default function Recipes() {
     miseEnPlace: '',
     sustainabilityTips: [] as string[],
     ingredients: [] as RecipeIngredient[],
+    imageUrl: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,13 +140,14 @@ export default function Recipes() {
       miseEnPlace: recipe.miseEnPlace || '',
       sustainabilityTips: recipe.sustainabilityTips || [],
       ingredients: recipe.ingredients,
+      imageUrl: recipe.imageUrl || '',
     });
     setEditingId(recipe.id);
     setIsModalOpen(true);
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', portions: null, steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [] });
+    setFormData({ nameES: '', portions: null, steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
     setEditingId(null);
   };
 
@@ -294,12 +296,24 @@ export default function Recipes() {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
           return (
           <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
+            {recipe.imageUrl && (
+              <div className="w-full h-48 bg-stone-100 overflow-hidden">
+                <img 
+                  src={recipe.imageUrl} 
+                  alt={recipe.nameES} 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            )}
             <div className="p-6 flex-1">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
-                  <BookOpen size={24} />
-                </div>
-                <div className="flex gap-1">
+                {!recipe.imageUrl && (
+                  <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
+                    <BookOpen size={24} />
+                  </div>
+                )}
+                <div className={`flex gap-1 ${recipe.imageUrl ? 'w-full justify-end' : ''}`}>
                   <button 
                     onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
@@ -447,6 +461,16 @@ export default function Recipes() {
                       placeholder="Opcional"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">URL de la Imagen (opcional)</label>
+                  <input
+                    type="url"
+                    value={formData.imageUrl || ''}
+                    onChange={e => setFormData({...formData, imageUrl: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                  />
                 </div>
 
                 <div>
@@ -757,6 +781,17 @@ export default function Recipes() {
                   </div>
                 </div>
               </div>
+
+              {printingRecipe.imageUrl && (
+                <div className="mb-10 w-full h-64 bg-stone-100 rounded-xl overflow-hidden border border-stone-200">
+                  <img 
+                    src={printingRecipe.imageUrl} 
+                    alt={printingRecipe.nameES} 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-12">
                 <div>

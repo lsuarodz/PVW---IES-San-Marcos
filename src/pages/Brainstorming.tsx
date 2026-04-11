@@ -15,6 +15,7 @@ export default function Brainstorming() {
   const [ideas, setIdeas] = useState<BenchmarkingIdea[]>([]);
   const [votes, setVotes] = useState<IdeaVote[]>([]);
   const [newIdea, setNewIdea] = useState('');
+  const [newReferenceLink, setNewReferenceLink] = useState('');
   const [menuType, setMenuType] = useState<'coffee' | 'brunch'>('coffee');
   const [votingFor, setVotingFor] = useState<string | null>(null);
   const [voteScore, setVoteScore] = useState(5);
@@ -22,6 +23,7 @@ export default function Brainstorming() {
   const [expandedVotes, setExpandedVotes] = useState<string[]>([]);
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [editingIdeaText, setEditingIdeaText] = useState('');
+  const [editingReferenceLink, setEditingReferenceLink] = useState('');
 
   useEffect(() => {
     const unsubIdeas = onSnapshot(query(collection(db, 'benchmarking_ideas'), orderBy('createdAt', 'asc')), (snapshot) => {
@@ -48,11 +50,13 @@ export default function Brainstorming() {
         type: 'general', // We keep 'general' to separate from matrix ideas
         group: appUser.group || 'Sin Grupo',
         idea: newIdea,
+        referenceLink: newReferenceLink.trim() || null,
         status: 'pending',
         menuType,
         createdAt: new Date().toISOString()
       });
       setNewIdea('');
+      setNewReferenceLink('');
       showToast('Idea añadida', 'success');
     } catch (error) {
       console.error('Error adding idea:', error);
@@ -70,14 +74,16 @@ export default function Brainstorming() {
     }
   };
 
-  const handleStartEdit = (ideaId: string, currentText: string) => {
+  const handleStartEdit = (ideaId: string, currentText: string, currentLink?: string) => {
     setEditingIdeaId(ideaId);
     setEditingIdeaText(currentText);
+    setEditingReferenceLink(currentLink || '');
   };
 
   const handleCancelEdit = () => {
     setEditingIdeaId(null);
     setEditingIdeaText('');
+    setEditingReferenceLink('');
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -85,10 +91,12 @@ export default function Brainstorming() {
     
     try {
       await updateDoc(doc(db, 'benchmarking_ideas', id), {
-        idea: editingIdeaText
+        idea: editingIdeaText,
+        referenceLink: editingReferenceLink.trim() || null
       });
       setEditingIdeaId(null);
       setEditingIdeaText('');
+      setEditingReferenceLink('');
       showToast('Idea actualizada', 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
@@ -203,6 +211,13 @@ export default function Brainstorming() {
                         className="w-full flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
                         rows={3}
                       />
+                      <input
+                        type="url"
+                        value={editingReferenceLink}
+                        onChange={(e) => setEditingReferenceLink(e.target.value)}
+                        placeholder="Enlace de referencia (opcional)..."
+                        className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm"
+                      />
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={handleCancelEdit}
@@ -213,7 +228,7 @@ export default function Brainstorming() {
                         </button>
                         <button
                           onClick={() => handleSaveEdit(idea.id)}
-                          disabled={!editingIdeaText.trim() || editingIdeaText === idea.idea}
+                          disabled={!editingIdeaText.trim() || (editingIdeaText === idea.idea && editingReferenceLink === (idea.referenceLink || ''))}
                           className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors disabled:opacity-50"
                           title="Guardar"
                         >
@@ -222,9 +237,21 @@ export default function Brainstorming() {
                       </div>
                     </div>
                   ) : (
-                    <p className={`text-stone-800 break-words whitespace-pre-wrap ${idea.status === 'discarded' ? 'line-through text-stone-500' : ''}`}>
-                      {idea.idea}
-                    </p>
+                    <div className="flex-1 flex flex-col">
+                      <p className={`text-stone-800 break-words whitespace-pre-wrap ${idea.status === 'discarded' ? 'line-through text-stone-500' : ''}`}>
+                        {idea.idea}
+                      </p>
+                      {idea.referenceLink && (
+                        <a 
+                          href={idea.referenceLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-violet-600 hover:text-violet-700 text-sm mt-2 truncate inline-block"
+                        >
+                          {idea.referenceLink}
+                        </a>
+                      )}
+                    </div>
                   )}
 
                   {/* Voting Summary */}
@@ -329,7 +356,7 @@ export default function Brainstorming() {
                     <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
                       {editingIdeaId !== idea.id && (
                         <button
-                          onClick={() => handleStartEdit(idea.id, idea.idea)}
+                          onClick={() => handleStartEdit(idea.id, idea.idea, idea.referenceLink)}
                           className="p-1.5 rounded-md text-stone-500 hover:bg-stone-200 hover:text-violet-700 transition-colors"
                           title="Editar idea"
                         >
@@ -372,33 +399,45 @@ export default function Brainstorming() {
             )}
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
-            <select
-              value={menuType}
-              onChange={(e) => setMenuType(e.target.value as 'coffee' | 'brunch')}
-              className="px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white min-w-[160px]"
-            >
-              <option value="coffee">Coffee Break</option>
-              <option value="brunch">Brunch</option>
-            </select>
+          <div className="flex flex-col gap-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <select
+                value={menuType}
+                onChange={(e) => setMenuType(e.target.value as 'coffee' | 'brunch')}
+                className="px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white min-w-[160px]"
+              >
+                <option value="coffee">Coffee Break</option>
+                <option value="brunch">Brunch</option>
+              </select>
+              <input
+                type="text"
+                value={newIdea}
+                onChange={(e) => setNewIdea(e.target.value)}
+                placeholder="Escribe el nombre o descripción del plato..."
+                className="flex-1 px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddIdea();
+                }}
+              />
+              <button
+                onClick={handleAddIdea}
+                disabled={!newIdea.trim()}
+                className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
+              >
+                <Plus size={20} />
+                Añadir Plato
+              </button>
+            </div>
             <input
-              type="text"
-              value={newIdea}
-              onChange={(e) => setNewIdea(e.target.value)}
-              placeholder="Escribe el nombre o descripción del plato..."
-              className="flex-1 px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              type="url"
+              value={newReferenceLink}
+              onChange={(e) => setNewReferenceLink(e.target.value)}
+              placeholder="Enlace de referencia (opcional)..."
+              className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddIdea();
               }}
             />
-            <button
-              onClick={handleAddIdea}
-              disabled={!newIdea.trim()}
-              className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <Plus size={20} />
-              Añadir Plato
-            </button>
           </div>
         </div>
       </div>

@@ -65,6 +65,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "imageUrl": { "type": "string" },
         "ingredients": {
           "type": "array",
           "items": {
@@ -113,6 +114,7 @@
       "properties": {
         "menuId": { "type": "string" },
         "idea": { "type": "string" },
+        "referenceLink": { "type": "string" },
         "createdBy": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

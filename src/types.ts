@@ -34,6 +34,7 @@ export interface Recipe {
   sustainabilityTips?: string[];
   ingredients: RecipeIngredient[];
   totalCost: number;
+  imageUrl?: string;
   createdBy: string;
   createdAt: string;
 }
@@ -60,6 +61,7 @@ export interface ProductionIdea {
   id: string;
   menuId: string;
   idea: string;
+  referenceLink?: string;
   createdBy: string;
   createdAt: string;
 }
@@ -98,6 +100,7 @@ export interface BenchmarkingIdea {
   type: 'coffee' | 'brunch' | 'general';
   group: string;
   idea: string;
+  referenceLink?: string;
   status?: 'pending' | 'discarded' | 'approved';
   menuType?: 'coffee' | 'brunch';
   createdAt: string;

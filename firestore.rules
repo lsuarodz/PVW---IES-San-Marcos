@@ -126,7 +126,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt', 'portions']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt', 'portions', 'imageUrl']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -136,6 +136,7 @@ service cloud.firestore {
              (!('equipment' in data) || data.equipment is list) &&
              (!('miseEnPlace' in data) || data.miseEnPlace == "" || isValidString(data.miseEnPlace, 1, 2000)) &&
              (!('sustainabilityTips' in data) || data.sustainabilityTips is list) &&
+             (!('imageUrl' in data) || data.imageUrl == "" || isValidString(data.imageUrl, 1, 2000)) &&
              data.ingredients is list && data.ingredients.size() <= 100 &&
              data.totalCost is number && data.totalCost >= 0 &&
              isValidString(data.createdBy, 1, 100) &&
@@ -235,10 +236,11 @@ service cloud.firestore {
 
     function isValidProductionIdea() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['id', 'menuId', 'idea', 'createdBy', 'createdAt']) &&
+      return hasOnlyAllowedFields(['id', 'menuId', 'idea', 'referenceLink', 'createdBy', 'createdAt']) &&
              (!('id' in data) || isValidString(data.id, 1, 100)) &&
              isValidString(data.menuId, 1, 100) &&
              isValidString(data.idea, 1, 2000) &&
+             (!('referenceLink' in data) || data.referenceLink == "" || isValidString(data.referenceLink, 1, 2000)) &&
              isValidString(data.createdBy, 1, 100) &&
              data.createdAt is string;
     }
