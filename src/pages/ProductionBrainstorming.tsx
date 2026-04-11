@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, MessageSquare, Lightbulb } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, Lightbulb, Edit2, X, Check } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../firebase';
 
 export default function ProductionBrainstorming() {
@@ -16,6 +16,8 @@ export default function ProductionBrainstorming() {
 
   const [selectedMenuId, setSelectedMenuId] = useState<string>('');
   const [newIdea, setNewIdea] = useState('');
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [editingIdeaText, setEditingIdeaText] = useState('');
 
   const handleAddIdea = async () => {
     if (!newIdea.trim() || !appUser || !selectedMenuId) return;
@@ -44,6 +46,32 @@ export default function ProductionBrainstorming() {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `production_ideas/${id}`);
       showToast('Error al eliminar idea', 'error');
+    }
+  };
+
+  const handleStartEdit = (ideaId: string, currentText: string) => {
+    setEditingIdeaId(ideaId);
+    setEditingIdeaText(currentText);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIdeaId(null);
+    setEditingIdeaText('');
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editingIdeaText.trim()) return;
+    
+    try {
+      await updateDoc(doc(db, 'production_ideas', id), {
+        idea: editingIdeaText
+      });
+      setEditingIdeaId(null);
+      setEditingIdeaText('');
+      showToast('Idea actualizada', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `production_ideas/${id}`);
+      showToast('Error al actualizar idea', 'error');
     }
   };
 
@@ -108,16 +136,55 @@ export default function ProductionBrainstorming() {
                     <span>{idea.createdBy}</span>
                   </div>
                   {isAdminOrDocente && (
-                    <button
-                      onClick={() => handleDeleteIdea(idea.id)}
-                      className="text-stone-400 hover:text-red-600 transition-colors"
-                      title="Eliminar idea"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {editingIdeaId !== idea.id && (
+                        <button
+                          onClick={() => handleStartEdit(idea.id, idea.idea)}
+                          className="text-stone-400 hover:text-teal-600 transition-colors"
+                          title="Editar idea"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteIdea(idea.id)}
+                        className="text-stone-400 hover:text-red-600 transition-colors"
+                        title="Eliminar idea"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   )}
                 </div>
-                <p className="text-stone-800 flex-1 whitespace-pre-wrap">{idea.idea}</p>
+                {editingIdeaId === idea.id ? (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <textarea
+                      value={editingIdeaText}
+                      onChange={(e) => setEditingIdeaText(e.target.value)}
+                      className="w-full flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                      rows={4}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={handleCancelEdit}
+                        className="p-1.5 text-stone-500 hover:bg-stone-100 rounded-lg transition-colors"
+                        title="Cancelar"
+                      >
+                        <X size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleSaveEdit(idea.id)}
+                        disabled={!editingIdeaText.trim() || editingIdeaText === idea.idea}
+                        className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Guardar"
+                      >
+                        <Check size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-stone-800 flex-1 whitespace-pre-wrap">{idea.idea}</p>
+                )}
                 <div className="mt-4 text-xs text-stone-400">
                   {new Date(idea.createdAt).toLocaleDateString()}
                 </div>

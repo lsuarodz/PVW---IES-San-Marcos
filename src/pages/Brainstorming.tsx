@@ -3,7 +3,7 @@ import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, order
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils, Star, ChevronDown, ChevronUp, Edit2, X, Check } from 'lucide-react';
 import { BenchmarkingIdea, IdeaVote } from '../types';
 import { handleFirestoreError, OperationType } from '../firebase';
 
@@ -20,6 +20,8 @@ export default function Brainstorming() {
   const [voteScore, setVoteScore] = useState(5);
   const [voteReason, setVoteReason] = useState('');
   const [expandedVotes, setExpandedVotes] = useState<string[]>([]);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [editingIdeaText, setEditingIdeaText] = useState('');
 
   useEffect(() => {
     const unsubIdeas = onSnapshot(query(collection(db, 'benchmarking_ideas'), orderBy('createdAt', 'asc')), (snapshot) => {
@@ -65,6 +67,32 @@ export default function Brainstorming() {
     } catch (error) {
       console.error('Error deleting idea:', error);
       showToast('Error al eliminar idea', 'error');
+    }
+  };
+
+  const handleStartEdit = (ideaId: string, currentText: string) => {
+    setEditingIdeaId(ideaId);
+    setEditingIdeaText(currentText);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIdeaId(null);
+    setEditingIdeaText('');
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editingIdeaText.trim()) return;
+    
+    try {
+      await updateDoc(doc(db, 'benchmarking_ideas', id), {
+        idea: editingIdeaText
+      });
+      setEditingIdeaId(null);
+      setEditingIdeaText('');
+      showToast('Idea actualizada', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
+      showToast('Error al actualizar idea', 'error');
     }
   };
 
@@ -167,9 +195,37 @@ export default function Brainstorming() {
                     </span>
                     {getStatusBadge(idea.status)}
                   </div>
-                  <p className={`text-stone-800 break-words whitespace-pre-wrap ${idea.status === 'discarded' ? 'line-through text-stone-500' : ''}`}>
-                    {idea.idea}
-                  </p>
+                  {editingIdeaId === idea.id ? (
+                    <div className="flex-1 flex flex-col gap-2 mt-2">
+                      <textarea
+                        value={editingIdeaText}
+                        onChange={(e) => setEditingIdeaText(e.target.value)}
+                        className="w-full flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                        rows={3}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="p-1.5 text-stone-500 hover:bg-stone-100 rounded-lg transition-colors"
+                          title="Cancelar"
+                        >
+                          <X size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleSaveEdit(idea.id)}
+                          disabled={!editingIdeaText.trim() || editingIdeaText === idea.idea}
+                          className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Guardar"
+                        >
+                          <Check size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className={`text-stone-800 break-words whitespace-pre-wrap ${idea.status === 'discarded' ? 'line-through text-stone-500' : ''}`}>
+                      {idea.idea}
+                    </p>
+                  )}
 
                   {/* Voting Summary */}
                   <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -271,6 +327,15 @@ export default function Brainstorming() {
                 <div className="flex items-center gap-2 shrink-0">
                   {isAdmin && (
                     <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
+                      {editingIdeaId !== idea.id && (
+                        <button
+                          onClick={() => handleStartEdit(idea.id, idea.idea)}
+                          className="p-1.5 rounded-md text-stone-500 hover:bg-stone-200 hover:text-violet-700 transition-colors"
+                          title="Editar idea"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleStatusChange(idea.id, 'approved')}
                         className={`p-1.5 rounded-md transition-colors ${idea.status === 'approved' ? 'bg-violet-200 text-violet-800' : 'text-stone-500 hover:bg-stone-200 hover:text-violet-700'}`}
