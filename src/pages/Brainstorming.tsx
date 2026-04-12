@@ -3,7 +3,7 @@ import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, order
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils, Star, ChevronDown, ChevronUp, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, CheckCircle, XCircle, Clock, Coffee, Utensils, Star, ChevronDown, ChevronUp, Edit2, X, Check, ExternalLink } from 'lucide-react';
 import { BenchmarkingIdea, IdeaVote } from '../types';
 import { handleFirestoreError, OperationType } from '../firebase';
 
@@ -59,8 +59,8 @@ export default function Brainstorming() {
       setNewReferenceLink('');
       showToast('Idea añadida', 'success');
     } catch (error) {
-      console.error('Error adding idea:', error);
       showToast('Error al añadir idea', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `benchmarking_ideas/${id}`);
     }
   };
 
@@ -99,8 +99,8 @@ export default function Brainstorming() {
       setEditingReferenceLink('');
       showToast('Idea actualizada', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
       showToast('Error al actualizar idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
     }
   };
 
@@ -109,8 +109,8 @@ export default function Brainstorming() {
       await updateDoc(doc(db, 'benchmarking_ideas', id), { status });
       showToast('Estado actualizado', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
       showToast('Error al actualizar estado', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `benchmarking_ideas/${id}`);
     }
   };
 
@@ -132,8 +132,8 @@ export default function Brainstorming() {
       setVoteScore(5);
       showToast('Voto registrado', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `idea_votes/${voteId}`);
       showToast('Error al votar', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `idea_votes/${voteId}`);
     }
   };
 
@@ -243,12 +243,13 @@ export default function Brainstorming() {
                       </p>
                       {idea.referenceLink && (
                         <a 
-                          href={idea.referenceLink} 
+                          href={idea.referenceLink.startsWith('http') ? idea.referenceLink : `https://${idea.referenceLink}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-violet-600 hover:text-violet-700 text-sm mt-2 truncate inline-block"
+                          className="text-violet-600 hover:text-violet-700 text-sm mt-2 flex items-center gap-1.5 w-fit font-medium bg-violet-50 px-2 py-1 rounded-md transition-colors"
                         >
-                          {idea.referenceLink}
+                          <ExternalLink size={14} />
+                          <span className="truncate max-w-[250px] sm:max-w-sm">{idea.referenceLink}</span>
                         </a>
                       )}
                     </div>

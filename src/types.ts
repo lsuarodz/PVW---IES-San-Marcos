@@ -46,7 +46,7 @@ export interface Menu {
   eventDate?: string;
   eventPlace?: string;
   type: 'brunch' | 'cocktail' | 'navidad' | 'coffee' | 'cafeteria' | 'pedagogico';
-  targetClient?: string;
+  clientId?: string;
   location?: 'centro' | 'fuera';
   occasion?: string;
   diners?: number | null;

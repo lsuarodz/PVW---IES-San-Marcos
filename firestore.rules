@@ -146,13 +146,13 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventPlace', 'type', 'targetClient', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt', 'diners']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt', 'diners']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
              (!('eventPlace' in data) || data.eventPlace == "" || isValidString(data.eventPlace, 1, 150)) &&
              data.type in ['brunch', 'cocktail', 'navidad', 'coffee', 'cafeteria', 'pedagogico'] &&
-             (!('targetClient' in data) || data.targetClient == "" || isValidString(data.targetClient, 1, 100)) &&
+             (!('clientId' in data) || data.clientId == "" || isValidString(data.clientId, 1, 100)) &&
              (!('location' in data) || data.location in ['centro', 'fuera']) &&
              (!('occasion' in data) || data.occasion == "" || isValidString(data.occasion, 1, 100)) &&
              data.recipes is list && data.recipes.size() <= 50 &&
@@ -240,7 +240,7 @@ service cloud.firestore {
              (!('id' in data) || isValidString(data.id, 1, 100)) &&
              isValidString(data.menuId, 1, 100) &&
              isValidString(data.idea, 1, 2000) &&
-             (!('referenceLink' in data) || data.referenceLink == "" || isValidString(data.referenceLink, 1, 2000)) &&
+             (!('referenceLink' in data) || data.referenceLink == null || data.referenceLink == "" || isValidString(data.referenceLink, 1, 2000)) &&
              isValidString(data.createdBy, 1, 100) &&
              data.createdAt is string;
     }

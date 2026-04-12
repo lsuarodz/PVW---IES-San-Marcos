@@ -23,7 +23,7 @@ export default function Menus() {
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { menus, recipes, ingredients } = useData();
+  const { menus, recipes, ingredients, clients } = useData();
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
@@ -58,7 +58,7 @@ export default function Menus() {
     eventDate: '',
     eventPlace: '',
     type: 'brunch' as Menu['type'],
-    targetClient: '',
+    clientId: '',
     location: 'centro' as 'centro' | 'fuera',
     occasion: '',
     diners: null as number | null,
@@ -123,7 +123,7 @@ export default function Menus() {
       eventDate: menu.eventDate || '',
       eventPlace: menu.eventPlace || '',
       type: menu.type,
-      targetClient: menu.targetClient || '',
+      clientId: menu.clientId || '',
       location: menu.location || 'centro',
       occasion: menu.occasion || '',
       diners: menu.diners,
@@ -135,7 +135,7 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', eventDate: '', eventPlace: '', type: 'brunch', targetClient: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
+    setFormData({ nameES: '', eventDate: '', eventPlace: '', type: 'brunch', clientId: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
     setEditingId(null);
     setRecipeSearch('');
   };
@@ -235,8 +235,9 @@ export default function Menus() {
   }, [search]);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <ConfirmModal
+    <div className="min-h-full p-8" style={{ backgroundColor: 'lavender' }}>
+      <div className="max-w-6xl mx-auto">
+        <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
@@ -295,7 +296,7 @@ export default function Menus() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-1">
                 <h3 className="text-xl font-bold text-stone-900">{menu.nameES}</h3>
                 <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                   menu.type === 'brunch' ? 'bg-orange-100 text-orange-700' : 
@@ -311,6 +312,12 @@ export default function Menus() {
                    menu.type === 'pedagogico' ? 'PEDAGÓGICO' :
                    menu.type.toUpperCase()}
                 </span>
+              </div>
+              
+              <div className="text-sm text-stone-500 mb-4 flex gap-3 flex-wrap">
+                {menu.eventDate && <span>📅 {menu.eventDate} </span>}
+                {menu.eventPlace && <span>📍 {menu.eventPlace} </span>}
+                {menu.clientId && <span>👤 {clients.find(c => c.id === menu.clientId)?.name || menu.clientId}</span>}
               </div>
               
               {menuAllergens.length > 0 && (
@@ -615,14 +622,17 @@ export default function Menus() {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Tipo de Cliente</label>
-                    <input
-                      type="text"
-                      value={formData.targetClient}
-                      onChange={e => setFormData({...formData, targetClient: e.target.value})}
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Cliente</label>
+                    <select
+                      value={formData.clientId}
+                      onChange={e => setFormData({...formData, clientId: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="Ej. Alumnos, Profesores..."
-                    />
+                    >
+                      <option value="">-- Selecciona un cliente --</option>
+                      {clients.map(client => (
+                        <option key={client.id} value={client.id}>{client.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Ocasión</label>
@@ -773,6 +783,7 @@ export default function Menus() {
           }));
         }}
       />
+    </div>
     </div>
   );
 }

@@ -4,12 +4,12 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, MessageSquare, Lightbulb, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, Lightbulb, Edit2, X, Check, ExternalLink } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../firebase';
 
 export default function ProductionBrainstorming() {
   const { appUser } = useAuth();
-  const { menus, productionIdeas } = useData();
+  const { menus, productionIdeas, clients } = useData();
   const { showToast } = useToast();
   
   const isAdminOrDocente = appUser?.role === 'admin' || appUser?.role === 'docente';
@@ -38,8 +38,8 @@ export default function ProductionBrainstorming() {
       setNewReferenceLink('');
       showToast('Idea añadida', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `production_ideas/${id}`);
       showToast('Error al añadir idea', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `production_ideas/${id}`);
     }
   };
 
@@ -48,8 +48,8 @@ export default function ProductionBrainstorming() {
       await deleteDoc(doc(db, 'production_ideas', id));
       showToast('Idea eliminada', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `production_ideas/${id}`);
       showToast('Error al eliminar idea', 'error');
+      handleFirestoreError(error, OperationType.DELETE, `production_ideas/${id}`);
     }
   };
 
@@ -78,8 +78,8 @@ export default function ProductionBrainstorming() {
       setEditingReferenceLink('');
       showToast('Idea actualizada', 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `production_ideas/${id}`);
       showToast('Error al actualizar idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `production_ideas/${id}`);
     }
   };
 
@@ -112,8 +112,14 @@ export default function ProductionBrainstorming() {
         </select>
       </div>
 
-      {selectedMenuId && (
+      {selectedMenuId && selectedMenu && (
         <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-wrap gap-4 text-sm text-stone-600">
+            {selectedMenu.eventDate && <div className="flex items-center gap-2">📅 <span className="font-medium">Fecha:</span> {selectedMenu.eventDate}</div>}
+            {selectedMenu.eventPlace && <div className="flex items-center gap-2">📍 <span className="font-medium">Lugar:</span> {selectedMenu.eventPlace}</div>}
+            {selectedMenu.clientId && <div className="flex items-center gap-2">👤 <span className="font-medium">Cliente:</span> {clients.find(c => c.id === selectedMenu.clientId)?.name || selectedMenu.clientId}</div>}
+          </div>
+
           {isAdminOrDocente && (
             <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-col gap-4">
               <div className="flex gap-4">
@@ -212,12 +218,13 @@ export default function ProductionBrainstorming() {
                     <p className="text-stone-800 whitespace-pre-wrap">{idea.idea}</p>
                     {idea.referenceLink && (
                       <a 
-                        href={idea.referenceLink} 
+                        href={idea.referenceLink.startsWith('http') ? idea.referenceLink : `https://${idea.referenceLink}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-teal-600 hover:text-teal-700 text-sm mt-2 truncate inline-block"
+                        className="text-teal-600 hover:text-teal-700 text-sm mt-2 flex items-center gap-1.5 w-fit font-medium bg-teal-50 px-2 py-1 rounded-md transition-colors"
                       >
-                        {idea.referenceLink}
+                        <ExternalLink size={14} />
+                        <span className="truncate max-w-[250px] sm:max-w-sm">{idea.referenceLink}</span>
                       </a>
                     )}
                   </div>

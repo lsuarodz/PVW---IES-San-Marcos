@@ -268,8 +268,9 @@ export default function Recipes() {
   }, [search]);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <ConfirmModal
+    <div className="min-h-full p-8" style={{ backgroundColor: 'beige' }}>
+      <div className="max-w-6xl mx-auto">
+        <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
@@ -891,6 +892,7 @@ export default function Recipes() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

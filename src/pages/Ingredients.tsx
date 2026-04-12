@@ -310,7 +310,7 @@ export default function Ingredients() {
   }, [search]);
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'bisque' }}>
+    <div className="min-h-full p-8" style={{ backgroundColor: 'cornsilk' }}>
       <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}

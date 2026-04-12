@@ -79,7 +79,7 @@ export default function Providers() {
   };
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'wheat' }}>
+    <div className="min-h-full p-8" style={{ backgroundColor: 'beige' }}>
       <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
