@@ -89,11 +89,11 @@ export default function ProductionBrainstorming() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-800 mb-2 flex items-center gap-3">
-          <Lightbulb className="text-teal-600" size={32} />
+        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2 flex items-center gap-3">
+          <Lightbulb className="text-teal-600" size={36} />
           Tormenta de Ideas (Producción)
         </h1>
-        <p className="text-stone-500">
+        <p className="text-stone-500 text-lg">
           Pizarra de trabajo para añadir ideas vinculadas a los menús.
         </p>
       </div>
@@ -106,9 +106,15 @@ export default function ProductionBrainstorming() {
           className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
           <option value="">-- Selecciona un menú --</option>
-          {menus.map(menu => (
-            <option key={menu.id} value={menu.id}>{menu.nameES}</option>
-          ))}
+          {menus.map(menu => {
+            const dateStr = menu.eventDate ? ` - 📅 ${menu.eventDate}` : '';
+            const placeStr = menu.eventPlace ? ` - 📍 ${menu.eventPlace}` : '';
+            return (
+              <option key={menu.id} value={menu.id}>
+                {menu.nameES}{dateStr}{placeStr}
+              </option>
+            );
+          })}
         </select>
       </div>
 

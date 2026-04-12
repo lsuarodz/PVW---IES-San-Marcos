@@ -79,7 +79,7 @@ export default function Providers() {
   };
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'beige' }}>
+    <div className="min-h-full p-8">
       <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -91,8 +91,8 @@ export default function Providers() {
 
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Proveedores</h1>
-          <p className="text-stone-500 mt-2">Gestiona tu lista de proveedores y contactos.</p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Proveedores</h1>
+          <p className="text-stone-500 text-lg">Gestiona tu lista de proveedores y contactos.</p>
         </div>
         <button
           onClick={() => {

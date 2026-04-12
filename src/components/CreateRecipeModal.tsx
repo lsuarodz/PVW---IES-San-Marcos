@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { collection, doc, setDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -30,7 +31,29 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
     equipment: [] as string[],
     sustainabilityTips: [] as string[],
     ingredients: [] as RecipeIngredient[],
+    imageUrl: '',
   });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const storageRef = ref(storage, `recipes/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData({ ...formData, imageUrl: url });
+      showToast('Imagen subida correctamente', 'success');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showToast('Error al subir la imagen', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -114,6 +137,25 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                   className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Opcional"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Imagen de la Receta (opcional)</label>
+              <div className="flex items-center gap-4">
+                {formData.imageUrl && (
+                  <img src={formData.imageUrl} alt="Vista previa" className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
+                )}
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                    className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
+                  />
+                  {uploadingImage && <p className="text-xs text-teal-600 mt-1">Subiendo imagen...</p>}
+                </div>
               </div>
             </div>
 

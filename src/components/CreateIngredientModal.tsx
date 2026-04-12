@@ -166,7 +166,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
-      <div className="rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#FAEBD7' }}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-stone-200/50">
           <h2 className="text-xl font-bold text-stone-900">
             {editingId ? 'Editar Ingrediente' : 'Nuevo Ingrediente'}
@@ -277,7 +277,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-stone-200/50 flex justify-end gap-3 rounded-b-2xl" style={{ backgroundColor: '#FAEBD7' }}>
+        <div className="p-6 border-t border-stone-200/50 flex justify-end gap-3 rounded-b-2xl bg-stone-50">
           <button
             type="button"
             onClick={onClose}

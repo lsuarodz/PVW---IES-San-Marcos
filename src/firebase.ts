@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Inicializa la aplicación de Firebase con la configuración proporcionada
@@ -8,6 +9,9 @@ const app = initializeApp(firebaseConfig);
 
 // Exporta la instancia de la base de datos Firestore para realizar consultas y operaciones
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Exporta la instancia de Storage para guardar archivos
+export const storage = getStorage(app);
 
 // Habilitar persistencia offline para que la app funcione sin conexión
 enableIndexedDbPersistence(db).catch((err) => {

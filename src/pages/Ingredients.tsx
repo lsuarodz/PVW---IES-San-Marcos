@@ -310,7 +310,7 @@ export default function Ingredients() {
   }, [search]);
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'cornsilk' }}>
+    <div className="min-h-full p-8">
       <div className="max-w-6xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -320,10 +320,10 @@ export default function Ingredients() {
         onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         isDestructive={confirmModal.isDestructive}
       />
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Ingredientes</h1>
-          <p className="text-stone-500 mt-2">Gestiona el listado de ingredientes y sus costes.</p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Ingredientes</h1>
+          <p className="text-stone-500 text-lg">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
         <div className="flex gap-3">
           {activeTab === 'ingredients' && selectedIds.size > 0 && isSuperAdmin && (
@@ -656,7 +656,7 @@ export default function Ingredients() {
       {/* Modal Form */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#FAEBD7' }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-stone-200/50">
               <h2 className="text-xl font-bold text-stone-900">
                 {editingId ? 'Editar Ingrediente' : 'Nuevo Ingrediente'}
@@ -853,7 +853,7 @@ export default function Ingredients() {
                 </div>
               </form>
             </div>
-            <div className="p-6 border-t border-stone-200/50 flex gap-3 justify-end rounded-b-2xl" style={{ backgroundColor: '#FAEBD7' }}>
+            <div className="p-6 border-t border-stone-200/50 flex gap-3 justify-end rounded-b-2xl bg-stone-50">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}

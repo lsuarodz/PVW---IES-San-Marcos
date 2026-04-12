@@ -235,7 +235,7 @@ export default function Menus() {
   }, [search]);
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'lavender' }}>
+    <div className="min-h-full p-8">
       <div className="max-w-6xl mx-auto">
         <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -247,8 +247,8 @@ export default function Menus() {
       />
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Menús</h1>
-          <p className="text-stone-500 mt-2">Agrupa recetas para crear ofertas estandarizadas.</p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Menús</h1>
+          <p className="text-stone-500 text-lg">Agrupa recetas para crear ofertas estandarizadas.</p>
         </div>
         <button
           onClick={() => { resetForm(); setIsModalOpen(true); }}

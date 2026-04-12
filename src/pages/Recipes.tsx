@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -68,6 +69,27 @@ export default function Recipes() {
     ingredients: [] as RecipeIngredient[],
     imageUrl: '',
   });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const storageRef = ref(storage, `recipes/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setFormData({ ...formData, imageUrl: url });
+      showToast('Imagen subida correctamente', 'success');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showToast('Error al subir la imagen', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,7 +290,7 @@ export default function Recipes() {
   }, [search]);
 
   return (
-    <div className="min-h-full p-8" style={{ backgroundColor: 'beige' }}>
+    <div className="min-h-full p-8">
       <div className="max-w-6xl mx-auto">
         <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -280,8 +302,8 @@ export default function Recipes() {
       />
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Escandallos / Recetas</h1>
-          <p className="text-stone-500 mt-2">Crea recetas y calcula sus costes automáticamente.</p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Escandallos / Recetas</h1>
+          <p className="text-stone-500 text-lg">Crea recetas y calcula sus costes automáticamente.</p>
         </div>
         <button
           onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -464,14 +486,22 @@ export default function Recipes() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">URL de la Imagen (opcional)</label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl || ''}
-                    onChange={e => setFormData({...formData, imageUrl: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                  />
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Imagen de la Receta (opcional)</label>
+                  <div className="flex items-center gap-4">
+                    {formData.imageUrl && (
+                      <img src={formData.imageUrl} alt="Vista previa" className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
+                      />
+                      {uploadingImage && <p className="text-xs text-teal-600 mt-1">Subiendo imagen...</p>}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
