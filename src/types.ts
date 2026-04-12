@@ -44,6 +44,7 @@ export interface Menu {
   nameES: string;
   nameEN: string;
   eventDate?: string;
+  eventTime?: string;
   eventPlace?: string;
   type: 'brunch' | 'cocktail' | 'navidad' | 'coffee' | 'cafeteria' | 'pedagogico';
   clientId?: string;
@@ -170,6 +171,7 @@ export interface QuoteItem {
 
 export interface Quote {
   id: string;
+  reference?: string;
   clientId: string;
   date: string;
   eventDate?: string;

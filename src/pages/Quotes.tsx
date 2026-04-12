@@ -83,8 +83,20 @@ export default function Quotes() {
     }
 
     const id = editingId || doc(collection(db, 'quotes')).id;
+    
+    let reference = quotes.find(q => q.id === editingId)?.reference;
+    if (!reference) {
+      const client = clients.find(c => c.id === formData.clientId);
+      const clientPrefix = client ? client.name.substring(0, 3).toUpperCase() : 'CLI';
+      const currentYear = new Date().getFullYear();
+      const quotesThisYear = quotes.filter(q => new Date(q.createdAt).getFullYear() === currentYear);
+      const nextNumber = String(quotesThisYear.length + 1).padStart(3, '0');
+      reference = `${clientPrefix}${currentYear}/${nextNumber}`;
+    }
+
     const quoteData: Quote = {
       id,
+      reference,
       clientId: formData.clientId,
       date: formData.date || new Date().toISOString().split('T')[0],
       eventDate: formData.eventDate || '',
@@ -172,7 +184,7 @@ export default function Quotes() {
         <div class="header">
           <div>
             <h1 class="title">PRESUPUESTO</h1>
-            <p>Ref: PR-${quote.id.slice(0, 6).toUpperCase()}</p>
+            <p>Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
           </div>
           <div class="meta">
             <p><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</p>
@@ -285,6 +297,7 @@ export default function Quotes() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200">
+                <th className="px-6 py-4 text-sm font-semibold text-stone-900">Ref.</th>
                 <th className="px-6 py-4 text-sm font-semibold text-stone-900">Fecha</th>
                 <th className="px-6 py-4 text-sm font-semibold text-stone-900">Cliente</th>
                 <th className="px-6 py-4 text-sm font-semibold text-stone-900">Evento</th>
@@ -298,6 +311,9 @@ export default function Quotes() {
                 const client = clients.find(c => c.id === quote.clientId);
                 return (
                   <tr key={quote.id} className="hover:bg-stone-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-stone-900">
+                      {quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}
+                    </td>
                     <td className="px-6 py-4 text-sm text-stone-600">
                       {new Date(quote.date).toLocaleDateString('es-ES')}
                     </td>

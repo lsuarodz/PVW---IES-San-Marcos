@@ -56,6 +56,7 @@ export default function Menus() {
   const [formData, setFormData] = useState({
     nameES: '',
     eventDate: '',
+    eventTime: '',
     eventPlace: '',
     type: 'brunch' as Menu['type'],
     clientId: '',
@@ -121,6 +122,7 @@ export default function Menus() {
     setFormData({
       nameES: menu.nameES,
       eventDate: menu.eventDate || '',
+      eventTime: menu.eventTime || '',
       eventPlace: menu.eventPlace || '',
       type: menu.type,
       clientId: menu.clientId || '',
@@ -135,7 +137,7 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', eventDate: '', eventPlace: '', type: 'brunch', clientId: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
+    setFormData({ nameES: '', eventDate: '', eventTime: '', eventPlace: '', type: 'brunch', clientId: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
     setEditingId(null);
     setRecipeSearch('');
   };
@@ -316,6 +318,7 @@ export default function Menus() {
               
               <div className="text-sm text-stone-500 mb-4 flex gap-3 flex-wrap">
                 {menu.eventDate && <span>📅 {menu.eventDate} </span>}
+                {menu.eventTime && <span>⏰ {menu.eventTime} </span>}
                 {menu.eventPlace && <span>📍 {menu.eventPlace} </span>}
                 {menu.clientId && <span>👤 {clients.find(c => c.id === menu.clientId)?.name || menu.clientId}</span>}
               </div>
@@ -448,7 +451,7 @@ export default function Menus() {
                 </div>
                 <div className="text-stone-500 text-[11px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Propuesta Gastronómica</div>
                 <h1 className="text-5xl font-serif font-bold mb-4 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
-                {printingMenu.eventDate && <h2 className="text-xl text-stone-600 font-serif mb-2">{printingMenu.eventDate}</h2>}
+                {printingMenu.eventDate && <h2 className="text-xl text-stone-600 font-serif mb-2">{printingMenu.eventDate}{printingMenu.eventTime ? ` a las ${printingMenu.eventTime}` : ''}</h2>}
                 {printingMenu.eventPlace && <h2 className="text-xl text-stone-600 font-serif mb-4">{printingMenu.eventPlace}</h2>}
                 
                 <div className="flex items-center justify-center gap-6 mt-8">
@@ -521,10 +524,16 @@ export default function Menus() {
               <div className="border-b border-stone-200 pb-8 mb-12">
                 <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
                 <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
-                <div className="flex items-center gap-4 text-stone-500 text-sm font-sans">
+                <div className="flex items-center gap-4 text-stone-500 text-sm font-sans flex-wrap">
                   <span className="uppercase tracking-widest">{printingEquipmentMenu.type}</span>
                   <span className="text-stone-300">|</span>
                   <span>{printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}</span>
+                  {printingEquipmentMenu.eventDate && (
+                    <>
+                      <span className="text-stone-300">|</span>
+                      <span>{printingEquipmentMenu.eventDate}{printingEquipmentMenu.eventTime ? ` a las ${printingEquipmentMenu.eventTime}` : ''}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -597,7 +606,7 @@ export default function Menus() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Fecha del Evento</label>
                     <input
@@ -606,6 +615,15 @@ export default function Menus() {
                       onChange={e => setFormData({...formData, eventDate: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Ej. 15 de Mayo de 2026"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Hora del Evento</label>
+                    <input
+                      type="time"
+                      value={formData.eventTime || ''}
+                      onChange={e => setFormData({...formData, eventTime: e.target.value})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                   <div>

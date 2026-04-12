@@ -121,8 +121,6 @@ export default function ProductionBrainstorming() {
       {selectedMenuId && selectedMenu && (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-wrap gap-4 text-sm text-stone-600">
-            {selectedMenu.eventDate && <div className="flex items-center gap-2">📅 <span className="font-medium">Fecha:</span> {selectedMenu.eventDate}</div>}
-            {selectedMenu.eventPlace && <div className="flex items-center gap-2">📍 <span className="font-medium">Lugar:</span> {selectedMenu.eventPlace}</div>}
             {selectedMenu.clientId && <div className="flex items-center gap-2">👤 <span className="font-medium">Cliente:</span> {clients.find(c => c.id === selectedMenu.clientId)?.name || selectedMenu.clientId}</div>}
           </div>
 

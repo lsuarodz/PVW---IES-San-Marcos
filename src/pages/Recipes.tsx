@@ -14,7 +14,7 @@ import html2pdf from 'html2pdf.js';
 import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
-export default function Recipes() {
+export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
   // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
@@ -25,6 +25,9 @@ export default function Recipes() {
   
   // Estados para almacenar los datos de la base de datos
   const { recipes, ingredients, menus } = useData();
+  
+  // Filtrar recetas por tipo (las que no tienen tipo se consideran 'plato')
+  const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === 'elaborado');
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
@@ -100,6 +103,7 @@ export default function Recipes() {
 
     const recipeData = {
       ...formData,
+      type,
       portions: formData.portions || null,
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: editingId ? recipes.find(r => r.id === editingId)?.nameEN || '' : '',
@@ -274,7 +278,7 @@ export default function Recipes() {
     }, 500);
   };
 
-  const filteredRecipes = recipes.filter(r => 
+  const filteredRecipes = filteredByType.filter(r => 
     r.nameES.toLowerCase().includes(search.toLowerCase()) || 
     r.nameEN?.toLowerCase().includes(search.toLowerCase())
   );
@@ -287,7 +291,7 @@ export default function Recipes() {
   // Resetear a la página 1 cuando se busca
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, type]);
 
   return (
     <div className="min-h-full p-8">
@@ -302,15 +306,21 @@ export default function Recipes() {
       />
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Escandallos / Recetas</h1>
-          <p className="text-stone-500 text-lg">Crea recetas y calcula sus costes automáticamente.</p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">
+            {type === 'elaborado' ? 'Elaborados' : 'Platos'}
+          </h1>
+          <p className="text-stone-500 text-lg">
+            {type === 'elaborado' 
+              ? 'Crea elaboraciones base que luego podrás usar en tus platos.' 
+              : 'Crea platos finales combinando ingredientes y elaborados.'}
+          </p>
         </div>
         <button
           onClick={() => { resetForm(); setIsModalOpen(true); }}
           className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
-          Nueva Receta
+          {type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato'}
         </button>
       </div>
 

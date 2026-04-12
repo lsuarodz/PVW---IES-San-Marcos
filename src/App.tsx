@@ -119,7 +119,8 @@ function AppRoutes() {
         <Route path="quotes" element={<Quotes />} />
         <Route path="production-brainstorming" element={<ProductionBrainstorming />} />
         <Route path="ingredients" element={<Ingredients />} />
-        <Route path="recipes" element={<Recipes />} />
+        <Route path="elaborados" element={<Recipes type="elaborado" />} />
+        <Route path="recipes" element={<Recipes type="plato" />} />
         <Route path="menus" element={<Menus />} />
         <Route path="orders" element={<Orders />} />
         <Route path="coffee-brunch" element={<CoffeeBrunch />} />

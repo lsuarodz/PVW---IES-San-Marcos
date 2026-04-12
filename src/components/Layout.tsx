@@ -66,7 +66,8 @@ export default function Layout() {
     { name: 'Tormenta de Ideas', path: '/production-brainstorming', icon: <Lightbulb size={20} /> },
     { name: 'Proveedores', path: '/providers', icon: <Users size={20} /> },
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
-    { name: 'Escandallos', path: '/recipes', icon: <BookOpen size={20} /> },
+    { name: 'Elaborados', path: '/elaborados', icon: <BookOpen size={20} /> },
+    { name: 'Platos', path: '/recipes', icon: <BookOpen size={20} /> },
     { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
     { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
   ];
