@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, handleFirestoreError, OperationType } from '../firebase';
@@ -15,6 +16,7 @@ import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculati
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
@@ -183,6 +185,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setEditingId(null);
   };
 
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (editId && recipes.length > 0) {
+      const recipeToEdit = recipes.find(r => r.id === editId);
+      if (recipeToEdit) {
+        openEdit(recipeToEdit);
+        // Remove the query param so it doesn't reopen on refresh
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, recipes]);
+
   const addStep = () => {
     setFormData({
       ...formData,
@@ -330,6 +344,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </button>
       </div>
 
+      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+          <input
+            type="text"
+            placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedRecipes.map((recipe) => {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
@@ -389,7 +416,27 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <span className="text-stone-500">Ingredientes:</span>
                   <span className="font-medium text-stone-900">{recipe.ingredients.length}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
+                  <div className="pt-2 border-t border-stone-100">
+                    <span className="text-xs text-stone-500 block mb-1">Elaborados:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {recipe.ingredients.map(ri => {
+                        const elaborado = recipes.find(r => r.id === ri.ingredientId);
+                        if (!elaborado) return null;
+                        return (
+                          <button
+                            key={ri.ingredientId}
+                            onClick={() => openEdit(elaborado)}
+                            className="text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-md hover:bg-teal-100 transition-colors text-left"
+                          >
+                            {elaborado.nameES}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm pt-2 border-t border-stone-100">
                   <span className="text-stone-500">Coste Total:</span>
                   <span className="font-bold text-teal-700">{recipe.totalCost.toFixed(2)} €</span>
                 </div>

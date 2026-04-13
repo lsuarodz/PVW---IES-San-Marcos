@@ -10,7 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 
 export default function Quotes() {
   const { appUser } = useAuth();
-  const { quotes, clients } = useData();
+  const { quotes, clients, menus } = useData();
   const { showToast } = useToast();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
@@ -60,6 +60,29 @@ export default function Quotes() {
       ...formData,
       items: [...(formData.items || []), { description: '', quantity: 1, unitPrice: 0, total: 0 }]
     });
+  };
+
+  const addMenuToQuote = (menuId: string) => {
+    const menu = menus.find(m => m.id === menuId);
+    if (!menu) return;
+
+    const quantity = formData.guests || 1;
+    const newItem: QuoteItem = {
+      description: `Menú: ${menu.nameES}`,
+      quantity: quantity,
+      unitPrice: menu.price,
+      total: quantity * menu.price
+    };
+
+    const newItems = [...(formData.items || []), newItem];
+    const totals = calculateTotals(newItems, formData.tax || 21);
+
+    setFormData({
+      ...formData,
+      items: newItems,
+      ...totals
+    });
+    showToast('Menú añadido al presupuesto', 'success');
   };
 
   const removeItem = (index: number) => {
@@ -487,14 +510,30 @@ export default function Quotes() {
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-medium text-stone-900">Conceptos</h3>
-                      <button
-                        type="button"
-                        onClick={addItem}
-                        className="text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 text-sm"
-                      >
-                        <PlusCircle size={16} />
-                        Añadir línea
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addMenuToQuote(e.target.value);
+                              e.target.value = ''; // Reset select
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        >
+                          <option value="">Añadir menú...</option>
+                          {menus.map(menu => (
+                            <option key={menu.id} value={menu.id}>{menu.nameES} ({menu.price.toFixed(2)} €)</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={addItem}
+                          className="text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 text-sm"
+                        >
+                          <PlusCircle size={16} />
+                          Añadir línea
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="space-y-3">

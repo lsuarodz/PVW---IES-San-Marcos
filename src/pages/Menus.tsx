@@ -70,6 +70,7 @@ export default function Menus() {
   // Referencias y estados para la funcionalidad de impresión a PDF
   const printRef = useRef<HTMLDivElement>(null);
   const printEquipmentRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [printingMenu, setPrintingMenu] = useState<Menu | null>(null);
   const [printingEquipmentMenu, setPrintingEquipmentMenu] = useState<Menu | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -253,7 +254,11 @@ export default function Menus() {
           <p className="text-stone-500 text-lg">Agrupa recetas para crear ofertas estandarizadas.</p>
         </div>
         <button
-          onClick={() => { resetForm(); setIsModalOpen(true); }}
+          onClick={() => { 
+            resetForm(); 
+            setIsModalOpen(true); 
+            setTimeout(() => nameInputRef.current?.focus(), 100);
+          }}
           className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
@@ -342,7 +347,9 @@ export default function Menus() {
                       const recipe = recipes.find(r => r.id === recipeId);
                       return recipe ? (
                         <li key={recipeId} className="text-stone-900 font-medium">
-                          {recipe.nameES}
+                          <a href={recipe.type === 'elaborado' ? `/elaborados?edit=${recipe.id}` : `/recipes?edit=${recipe.id}`} className="hover:text-teal-600 hover:underline">
+                            {recipe.nameES}
+                          </a>
                         </li>
                       ) : null;
                     })}
@@ -735,35 +742,88 @@ export default function Menus() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
                     <input
                       type="text"
-                      placeholder="Buscar receta..."
+                      placeholder="Buscar receta para añadir..."
                       value={recipeSearch}
                       onChange={(e) => setRecipeSearch(e.target.value)}
                       className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                     />
+                    {recipeSearch && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).map(recipe => (
+                          <button
+                            key={recipe.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, recipes: [...prev.recipes, recipe.id] }));
+                              setRecipeSearch('');
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-stone-50 text-sm flex justify-between items-center"
+                          >
+                            <span className="font-medium text-stone-900">{recipe.nameES}</span>
+                            <span className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} €</span>
+                          </button>
+                        ))}
+                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).length === 0 && (
+                          <div className="px-4 py-2 text-sm text-stone-500 text-center">No hay más recetas que coincidan</div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 max-h-64 overflow-y-auto">
-                    {recipes.length === 0 ? (
-                      <p className="text-sm text-stone-500 text-center py-4">No hay recetas disponibles. Crea una primero.</p>
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
+                    {formData.recipes.length === 0 ? (
+                      <p className="text-sm text-stone-500 text-center py-4">No hay recetas añadidas a este menú.</p>
                     ) : (
                       <div className="space-y-2">
-                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase())).map(recipe => (
-                          <label key={recipe.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={formData.recipes.includes(recipe.id)}
-                              onChange={() => toggleRecipe(recipe.id)}
-                              className="w-4 h-4 text-teal-600 rounded border-stone-300 focus:ring-teal-500"
-                            />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-stone-900">{recipe.nameES}</div>
-                              <div className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} € coste</div>
+                        {formData.recipes.map((recipeId, index) => {
+                          const recipe = recipes.find(r => r.id === recipeId);
+                          if (!recipe) return null;
+                          return (
+                            <div key={recipeId} className="flex items-center gap-3 p-2 bg-white border border-stone-200 rounded-lg">
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (index > 0) {
+                                      const newRecipes = [...formData.recipes];
+                                      [newRecipes[index - 1], newRecipes[index]] = [newRecipes[index], newRecipes[index - 1]];
+                                      setFormData(prev => ({ ...prev, recipes: newRecipes }));
+                                    }
+                                  }}
+                                  disabled={index === 0}
+                                  className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (index < formData.recipes.length - 1) {
+                                      const newRecipes = [...formData.recipes];
+                                      [newRecipes[index + 1], newRecipes[index]] = [newRecipes[index], newRecipes[index + 1]];
+                                      setFormData(prev => ({ ...prev, recipes: newRecipes }));
+                                    }
+                                  }}
+                                  disabled={index === formData.recipes.length - 1}
+                                  className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-stone-900">{recipe.nameES}</div>
+                                <div className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} € coste</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleRecipe(recipe.id)}
+                                className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
-                          </label>
-                        ))}
-                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase())).length === 0 && recipeSearch && (
-                          <p className="text-sm text-stone-500 text-center py-4">No se encontraron recetas con "{recipeSearch}".</p>
-                        )}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
