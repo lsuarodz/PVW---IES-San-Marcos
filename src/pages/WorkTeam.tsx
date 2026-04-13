@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useData } from '../context/DataContext';
 import { db } from '../firebase';
 import { collection, getDocs, query, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Users, Send, CheckCircle, Printer, AlertCircle, Dices, Trash2 } from 'lucide-react';
@@ -25,6 +26,7 @@ export default function WorkTeam() {
   // Obtenemos el usuario actual
   const { appUser } = useAuth();
   const { showToast } = useToast();
+  const { settings } = useData();
   
   // Estados para la primera parte (borrador de ideas)
   const [draft, setDraft] = useState('');
@@ -242,6 +244,14 @@ export default function WorkTeam() {
           onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
           isDestructive={confirmModal.isDestructive}
         />
+        
+        {/* Print Header Logo */}
+        {settings?.logoUrl && (
+          <div className="hidden print:block mb-8 text-center">
+            <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain mx-auto" crossOrigin="anonymous" />
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-8 print:hidden">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-sky-100 text-sky-600 rounded-2xl">

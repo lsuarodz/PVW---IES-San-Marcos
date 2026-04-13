@@ -12,7 +12,7 @@ import { getMenuAllergens } from '../utils/calculations';
 
 export default function Quotes() {
   const { appUser } = useAuth();
-  const { quotes, clients, menus, recipes, ingredients } = useData();
+  const { quotes, clients, menus, recipes, ingredients, settings } = useData();
   const { showToast } = useToast();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
@@ -194,8 +194,14 @@ export default function Quotes() {
     if (!printWindow) return;
 
     const quoteMenus = quote.items
-      .filter(item => item.menuId)
-      .map(item => menus.find(m => m.id === item.menuId))
+      .map(item => {
+        if (item.menuId) return menus.find(m => m.id === item.menuId);
+        if (item.description.startsWith('Menú: ')) {
+          const menuName = item.description.replace('Menú: ', '').trim();
+          return menus.find(m => m.nameES === menuName);
+        }
+        return null;
+      })
       .filter(Boolean);
 
     const menusHtml = quoteMenus.map(menu => {
@@ -215,15 +221,15 @@ export default function Quotes() {
         ` : '';
 
         const separatorHtml = index < menu.recipes.length - 1 ? `
-          <div class="mt-6 flex justify-center">
-            <div class="w-12 h-px bg-stone-300"></div>
+          <div class="mt-2 flex justify-center">
+            <div class="w-8 h-px bg-stone-300"></div>
           </div>
         ` : '';
 
         return `
           <div class="text-center w-full">
-            <h3 class="text-xl font-serif font-bold mb-1 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
-            ${recipe.descriptionES ? `<p class="text-stone-600 text-xs italic mb-2 leading-relaxed px-12 max-w-md mx-auto">${recipe.descriptionES}</p>` : ''}
+            <h3 class="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
+            ${recipe.descriptionES ? `<p class="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm mx-auto">${recipe.descriptionES}</p>` : ''}
             ${allergensHtml}
             ${separatorHtml}
           </div>
@@ -238,15 +244,14 @@ export default function Quotes() {
                      'Menú Pedagógico';
 
       return `
-        <div style="page-break-before: always;"></div>
-        <div class="px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden" style="box-sizing: border-box;">
+        <div class="menu-page bg-white text-stone-900 font-serif mx-auto flex flex-col items-center relative overflow-hidden" style="box-sizing: border-box;">
           <div class="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
           <div class="absolute inset-6 border border-stone-300 pointer-events-none"></div>
           
           <div class="z-10 w-full flex flex-col items-center h-full">
             <div class="text-center mb-6 w-full pt-6">
               <div class="flex justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" class="h-16 object-contain" crossorigin="anonymous" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`}
               </div>
               <div class="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
               <h1 class="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">${menu.nameES}</h1>
@@ -320,10 +325,12 @@ export default function Quotes() {
           .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
           .total-row.final { font-weight: bold; font-size: 1.2em; border-top: 2px solid #1c1917; margin-top: 8px; padding-top: 16px; }
           .notes { margin-top: 50px; padding-top: 20px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 0.9em; }
+          .menu-page { width: 100%; min-height: 100vh; padding: 40px; box-sizing: border-box; page-break-before: always; }
           @media print {
             body { padding: 0; background: white; }
             button { display: none; }
-            .quote-page { padding: 20mm; max-width: none; min-height: 100vh; box-sizing: border-box; }
+            .quote-page { padding: 20mm; max-width: none; min-height: 100vh; box-sizing: border-box; page-break-after: always; }
+            .menu-page { padding: 12mm; width: 100%; height: 100vh; box-sizing: border-box; page-break-before: always; page-break-after: always; }
             @page { margin: 0; size: A4; }
           }
         </style>
@@ -332,6 +339,7 @@ export default function Quotes() {
         <div class="quote-page">
           <div class="header">
             <div>
+              ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 60px; object-fit: contain; margin-bottom: 16px;" crossorigin="anonymous" />` : ''}
               <h1 class="title">PRESUPUESTO</h1>
               <p>Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
             </div>

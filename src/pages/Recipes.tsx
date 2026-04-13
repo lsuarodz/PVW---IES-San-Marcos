@@ -26,7 +26,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { recipes, ingredients, menus } = useData();
+  const { recipes, ingredients, menus, settings } = useData();
   
   // Filtrar recetas por tipo (las que no tienen tipo se consideran 'plato')
   const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === 'elaborado');
@@ -882,6 +882,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           <div ref={printRef} className="px-12 py-16 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-8 mb-10">
+                {settings?.logoUrl && (
+                  <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain mb-6" crossOrigin="anonymous" />
+                )}
                 <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Ficha Técnica de Producción</div>
                 <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-3">{printingRecipe.nameES}</h1>
                 {printingRecipe.nameEN && <h2 className="text-xl text-stone-500 italic mb-4">{printingRecipe.nameEN}</h2>}

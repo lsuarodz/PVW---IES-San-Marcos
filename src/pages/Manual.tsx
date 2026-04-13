@@ -1,10 +1,12 @@
 import React, { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 import { Download, BookOpen } from 'lucide-react';
+import { useData } from '../context/DataContext';
 
 export default function Manual() {
   // Referencia al contenedor que queremos imprimir en PDF
   const printRef = useRef<HTMLDivElement>(null);
+  const { settings } = useData();
 
   // Función para exportar el contenido a PDF usando html2pdf.js
   const exportPDF = () => {
@@ -40,9 +42,13 @@ export default function Manual() {
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-8" ref={printRef}>
         <div className="max-w-none text-stone-700">
           <div className="flex items-center gap-3 mb-6 border-b border-stone-200 pb-4">
-            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-              <BookOpen size={24} />
-            </div>
+            {settings?.logoUrl ? (
+              <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain" crossOrigin="anonymous" />
+            ) : (
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                <BookOpen size={24} />
+              </div>
+            )}
             <h2 className="text-2xl font-bold text-stone-900">Manual de Usuario: Proyecto Intermodular</h2>
           </div>
           

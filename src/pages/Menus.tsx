@@ -23,7 +23,7 @@ export default function Menus() {
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { menus, recipes, ingredients, clients } = useData();
+  const { menus, recipes, ingredients, clients, settings } = useData();
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
@@ -454,7 +454,11 @@ export default function Menus() {
             <div className="z-10 w-full flex flex-col items-center h-full">
               <div className="text-center mb-6 w-full pt-6">
                 <div className="flex justify-center mb-4">
-                  <Utensils className="text-stone-800" size={28} strokeWidth={1.5} />
+                  {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain" crossOrigin="anonymous" />
+                  ) : (
+                    <Utensils className="text-stone-800" size={28} strokeWidth={1.5} />
+                  )}
                 </div>
                 <div className="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
                 <h1 className="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
@@ -482,9 +486,9 @@ export default function Menus() {
                   const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
                   return (
                     <div key={recipe.id} className="text-center w-full">
-                      <h3 className="text-xl font-serif font-bold mb-1 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
+                      <h3 className="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
                       {recipe.descriptionES && (
-                        <p className="text-stone-600 text-xs italic mb-2 leading-relaxed px-12 max-w-md mx-auto">{recipe.descriptionES}</p>
+                        <p className="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm mx-auto">{recipe.descriptionES}</p>
                       )}
                       {recipeAllergens.length > 0 && (
                         <div className="flex justify-center gap-2 mt-2 opacity-60">
@@ -497,8 +501,8 @@ export default function Menus() {
                         </div>
                       )}
                       {index < printingMenu.recipes.length - 1 && (
-                        <div className="mt-6 flex justify-center">
-                          <div className="w-12 h-px bg-stone-300"></div>
+                        <div className="mt-2 flex justify-center">
+                          <div className="w-8 h-px bg-stone-300"></div>
                         </div>
                       )}
                     </div>

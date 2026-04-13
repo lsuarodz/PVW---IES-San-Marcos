@@ -190,3 +190,8 @@ export interface Quote {
   createdAt: string;
   createdBy: string;
 }
+
+export interface AppSettings {
+  id?: string;
+  logoUrl?: string;
+}

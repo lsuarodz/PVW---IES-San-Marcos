@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trash2, UserPlus } from 'lucide-react';
+import { Trash2, UserPlus, Settings as SettingsIcon, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/ConfirmModal';
 
 interface User {
@@ -20,6 +21,7 @@ export default function Admin() {
   // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
   const { showToast } = useToast();
+  const { settings } = useData();
   
   // Estados para almacenar la lista de usuarios y los datos del nuevo usuario a crear
   const [users, setUsers] = useState<User[]>([]);
@@ -29,6 +31,16 @@ export default function Admin() {
   const [newCourse, setNewCourse] = useState('2ºCOCINA');
   const [newGroup, setNewGroup] = useState('1');
   const [loading, setLoading] = useState(false);
+
+  // Estado para el logo
+  const [logoUrl, setLogoUrl] = useState('');
+  const [savingLogo, setSavingLogo] = useState(false);
+
+  useEffect(() => {
+    if (settings?.logoUrl) {
+      setLogoUrl(settings.logoUrl);
+    }
+  }, [settings]);
 
   // Estados para el modal de confirmación
   const [confirmModal, setConfirmModal] = useState<{
@@ -115,6 +127,20 @@ export default function Admin() {
     });
   };
 
+  const handleSaveLogo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingLogo(true);
+    try {
+      await setDoc(doc(db, 'settings', 'global'), { logoUrl }, { merge: true });
+      showToast('Logo actualizado correctamente', 'success');
+    } catch (error) {
+      console.error('Error saving logo:', error);
+      showToast('Error al guardar el logo', 'error');
+    } finally {
+      setSavingLogo(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <ConfirmModal
@@ -126,8 +152,44 @@ export default function Admin() {
         isDestructive={confirmModal.isDestructive}
       />
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Gestión de Usuarios</h1>
-        <p className="text-stone-500 mt-2">Añade los correos de los alumnos y docentes para darles acceso a la plataforma.</p>
+        <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Administración</h1>
+        <p className="text-stone-500 mt-2">Gestiona los usuarios y la configuración global de la plataforma.</p>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
+        <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
+          <SettingsIcon size={20} className="text-amber-600" />
+          Configuración Global
+        </h2>
+        <form onSubmit={handleSaveLogo} className="flex flex-wrap gap-4 items-end max-w-2xl">
+          <div className="flex-1 min-w-[300px]">
+            <label className="block text-sm font-medium text-stone-700 mb-1 flex items-center gap-2">
+              <ImageIcon size={16} />
+              URL del Logo del Centro
+            </label>
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="https://ejemplo.com/logo.png"
+            />
+            <p className="text-xs text-stone-500 mt-1">Esta imagen aparecerá en la cabecera de los presupuestos y menús impresos.</p>
+          </div>
+          <button
+            type="submit"
+            disabled={savingLogo}
+            className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px]"
+          >
+            {savingLogo ? 'Guardando...' : 'Guardar Logo'}
+          </button>
+        </form>
+        {logoUrl && (
+          <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200 inline-block">
+            <p className="text-xs font-medium text-stone-500 mb-2 uppercase tracking-wider">Vista previa</p>
+            <img src={logoUrl} alt="Logo preview" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
