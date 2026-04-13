@@ -48,6 +48,9 @@
         "nameEN": { "type": "string" },
         "descriptionES": { "type": "string" },
         "descriptionEN": { "type": "string" },
+        "type": { "type": "string", "enum": ["elaborado", "plato"] },
+        "yieldQuantity": { "type": "number" },
+        "yieldUnit": { "type": "string", "enum": ["kg", "L", "ud"] },
         "steps": {
           "type": "array",
           "items": { "type": "string" }
@@ -91,6 +94,7 @@
         "nameES": { "type": "string" },
         "nameEN": { "type": "string" },
         "eventDate": { "type": "string" },
+        "eventTime": { "type": "string" },
         "eventPlace": { "type": "string" },
         "type": { "type": "string", "enum": ["brunch", "cocktail"] },
         "targetClient": { "type": "string" },
@@ -187,6 +191,7 @@
       "type": "object",
       "properties": {
         "clientId": { "type": "string" },
+        "reference": { "type": "string" },
         "date": { "type": "string" },
         "eventDate": { "type": "string" },
         "eventType": { "type": "string" },

@@ -109,9 +109,11 @@ export default function ProductionBrainstorming() {
           {menus.map(menu => {
             const dateStr = menu.eventDate ? ` - 📅 ${menu.eventDate}` : '';
             const placeStr = menu.eventPlace ? ` - 📍 ${menu.eventPlace}` : '';
+            const clientName = clients.find(c => c.id === menu.clientId)?.name || menu.clientId;
+            const clientStr = clientName ? ` - 👤 ${clientName}` : '';
             return (
               <option key={menu.id} value={menu.id}>
-                {menu.nameES}{dateStr}{placeStr}
+                {menu.nameES}{dateStr}{placeStr}{clientStr}
               </option>
             );
           })}

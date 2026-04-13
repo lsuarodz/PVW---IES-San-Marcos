@@ -65,6 +65,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [formData, setFormData] = useState({
     nameES: '',
     portions: null as number | null,
+    yieldQuantity: null as number | null,
+    yieldUnit: 'kg' as 'kg' | 'L' | 'ud',
     steps: [] as string[],
     equipment: [] as string[],
     miseEnPlace: '',
@@ -105,6 +107,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       ...formData,
       type,
       portions: formData.portions || null,
+      yieldQuantity: formData.yieldQuantity || null,
+      yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: editingId ? recipes.find(r => r.id === editingId)?.nameEN || '' : '',
       descriptionES: editingId ? recipes.find(r => r.id === editingId)?.descriptionES || '' : '',
@@ -161,6 +165,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({
       nameES: recipe.nameES,
       portions: recipe.portions,
+      yieldQuantity: recipe.yieldQuantity || null,
+      yieldUnit: recipe.yieldUnit as 'kg' | 'L' | 'ud' || 'kg',
       steps: recipe.steps || (recipe.descriptionES ? [recipe.descriptionES] : []),
       equipment: recipe.equipment || [],
       miseEnPlace: recipe.miseEnPlace || '',
@@ -173,7 +179,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', portions: null, steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
+    setFormData({ nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
     setEditingId(null);
   };
 
@@ -483,17 +489,45 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Raciones (para cuántas personas)</label>
-                    <input
-                      type="number" min="1" step="1"
-                      value={formData.portions || ''}
-                      onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
-                      onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="Opcional"
-                    />
-                  </div>
+                  {type === 'elaborado' ? (
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
+                        <input
+                          type="number" min="0" step="0.01" required
+                          value={formData.yieldQuantity || ''}
+                          onChange={e => setFormData({...formData, yieldQuantity: parseFloat(e.target.value) || null})}
+                          onFocus={e => e.target.select()}
+                          className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Ej: 1.5"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+                        <select
+                          value={formData.yieldUnit}
+                          onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
+                          className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        >
+                          <option value="kg">kg</option>
+                          <option value="L">L</option>
+                          <option value="ud">ud</option>
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Raciones (para cuántas personas)</label>
+                      <input
+                        type="number" min="1" step="1"
+                        value={formData.portions || ''}
+                        onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
+                        onFocus={e => e.target.select()}
+                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Imagen de la Receta (opcional)</label>
@@ -529,7 +563,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       onClick={addIngredientToRecipe}
                       className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                     >
-                      <Plus size={16} /> Añadir a la receta
+                      <Plus size={16} /> Añadir ingrediente
                     </button>
                   </div>
                   
@@ -582,7 +616,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               </button>
                             )}
                           </div>
-                          <div className="w-32">
+                          <div className="w-24 shrink-0">
                             <div className="relative">
                               <input
                                 type="number"
@@ -592,10 +626,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 value={ri.quantity}
                                 onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                                 onFocus={e => e.target.select()}
-                                className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className="w-full pl-2 pr-8 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 placeholder="Cant."
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">
                                 {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : '')}
                               </span>
                             </div>

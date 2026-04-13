@@ -126,7 +126,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt', 'portions', 'imageUrl']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -137,6 +137,9 @@ service cloud.firestore {
              (!('miseEnPlace' in data) || data.miseEnPlace == "" || isValidString(data.miseEnPlace, 1, 2000)) &&
              (!('sustainabilityTips' in data) || data.sustainabilityTips is list) &&
              (!('imageUrl' in data) || data.imageUrl == "" || isValidString(data.imageUrl, 1, 2000)) &&
+             (!('type' in data) || data.type in ['elaborado', 'plato']) &&
+             (!('yieldUnit' in data) || data.yieldUnit in ['kg', 'L', 'ud']) &&
+             (!('yieldQuantity' in data) || data.yieldQuantity == null || (data.yieldQuantity is number && data.yieldQuantity >= 0)) &&
              data.ingredients is list && data.ingredients.size() <= 100 &&
              data.totalCost is number && data.totalCost >= 0 &&
              isValidString(data.createdBy, 1, 100) &&
@@ -146,10 +149,11 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt', 'diners']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt', 'diners']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
+             (!('eventTime' in data) || data.eventTime == "" || isValidString(data.eventTime, 1, 50)) &&
              (!('eventPlace' in data) || data.eventPlace == "" || isValidString(data.eventPlace, 1, 150)) &&
              data.type in ['brunch', 'cocktail', 'navidad', 'coffee', 'cafeteria', 'pedagogico'] &&
              (!('clientId' in data) || data.clientId == "" || isValidString(data.clientId, 1, 100)) &&
@@ -217,8 +221,9 @@ service cloud.firestore {
 
     function isValidQuote() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['id', 'clientId', 'date', 'eventDate', 'eventType', 'guests', 'items', 'subtotal', 'tax', 'total', 'notes', 'status', 'createdBy', 'createdAt']) &&
+      return hasOnlyAllowedFields(['id', 'reference', 'clientId', 'date', 'eventDate', 'eventType', 'guests', 'items', 'subtotal', 'tax', 'total', 'notes', 'status', 'createdBy', 'createdAt']) &&
              (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('reference' in data) || data.reference == "" || isValidString(data.reference, 1, 100)) &&
              isValidString(data.clientId, 1, 100) &&
              isValidString(data.date, 1, 100) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&

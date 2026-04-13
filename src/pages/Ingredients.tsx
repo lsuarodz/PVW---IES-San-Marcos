@@ -424,7 +424,7 @@ export default function Ingredients() {
           <tbody className="divide-y divide-stone-200">
             {paginatedIngredients.map((ing) => (
               <tr key={ing.id} className={`hover:bg-stone-50 transition-colors ${selectedIds.has(ing.id) ? 'bg-teal-50/30' : ''}`}>
-                <td className="px-6 py-4">
+                <td className="px-6 py-2">
                   <button 
                     onClick={() => toggleSelect(ing.id)}
                     className="text-stone-400 hover:text-teal-600 transition-colors"
@@ -436,10 +436,10 @@ export default function Ingredients() {
                     )}
                   </button>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-2">
                   <div className="text-sm text-stone-900 font-medium">{ing.nameES}</div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-2">
                   <select
                     value={ing.provider || ''}
                     onChange={(e) => {
@@ -454,7 +454,7 @@ export default function Ingredients() {
                     ))}
                   </select>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-2">
                   <div className="flex flex-wrap gap-1">
                     {ing.allergens && ing.allergens.length > 0 ? (
                       ing.allergens.map(a => {
@@ -468,50 +468,52 @@ export default function Ingredients() {
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={ing.purchasePrice || ing.costPerUnit}
-                      onChange={(e) => {
-                        const newPrice = Number(e.target.value) || 0;
-                        const waste = ing.wastePercentage || 0;
-                        const safeWaste = Math.min(Math.max(waste, 0), 99);
-                        const newCost = newPrice / (1 - (safeWaste / 100));
-                        setDoc(doc(db, 'ingredients', ing.id), { ...ing, purchasePrice: newPrice, costPerUnit: newCost });
-                      }}
-                      onFocus={e => e.target.select()}
-                      className="w-20 px-2 py-1 text-sm bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors"
-                    />
-                    <span className="text-sm text-stone-500">€ / {ing.unit}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-stone-500">Merma:</span>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="99"
-                      value={ing.wastePercentage || 0}
-                      onChange={(e) => {
-                        const newWaste = Number(e.target.value) || 0;
-                        const safeWaste = Math.min(Math.max(newWaste, 0), 99);
-                        const price = ing.purchasePrice || ing.costPerUnit;
-                        const newCost = price / (1 - (safeWaste / 100));
-                        setDoc(doc(db, 'ingredients', ing.id), { ...ing, wastePercentage: safeWaste, costPerUnit: newCost });
-                      }}
-                      onFocus={e => e.target.select()}
-                      className="w-16 px-2 py-1 text-xs bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-orange-600"
-                    />
-                    <span className="text-xs text-orange-600">%</span>
-                  </div>
-                  <div className="text-xs text-teal-600 font-medium mt-1">
-                    Coste real: {ing.costPerUnit.toFixed(2)} €
+                <td className="px-6 py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={ing.purchasePrice || ing.costPerUnit}
+                        onChange={(e) => {
+                          const newPrice = Number(e.target.value) || 0;
+                          const waste = ing.wastePercentage || 0;
+                          const safeWaste = Math.min(Math.max(waste, 0), 99);
+                          const newCost = newPrice / (1 - (safeWaste / 100));
+                          setDoc(doc(db, 'ingredients', ing.id), { ...ing, purchasePrice: newPrice, costPerUnit: newCost });
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="w-16 px-1 py-0.5 text-sm font-bold bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-right"
+                      />
+                      <span className="text-sm font-bold text-stone-900">€/{ing.unit}</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <span className="text-stone-500 w-12">Merma:</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="99"
+                        value={ing.wastePercentage || 0}
+                        onChange={(e) => {
+                          const newWaste = Number(e.target.value) || 0;
+                          const safeWaste = Math.min(Math.max(newWaste, 0), 99);
+                          const price = ing.purchasePrice || ing.costPerUnit;
+                          const newCost = price / (1 - (safeWaste / 100));
+                          setDoc(doc(db, 'ingredients', ing.id), { ...ing, wastePercentage: safeWaste, costPerUnit: newCost });
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="w-10 px-1 py-0 text-xs bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-orange-600 text-right"
+                      />
+                      <span className="text-orange-600">%</span>
+                    </div>
+                    <div className="text-xs text-teal-600 font-medium pt-0.5 border-t border-stone-100 mt-0.5">
+                      Coste real: {ing.costPerUnit.toFixed(2)} €
+                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-right">
+                <td className="px-6 py-2 text-sm text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => openEdit(ing)}

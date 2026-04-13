@@ -147,6 +147,18 @@ export default function Quotes() {
     setIsModalOpen(true);
   };
 
+  const handleDuplicate = (quote: Quote) => {
+    const { id, reference, createdAt, createdBy, ...rest } = quote;
+    setFormData({
+      ...rest,
+      date: new Date().toISOString().split('T')[0],
+      status: 'draft'
+    });
+    setEditingId(null);
+    setIsModalOpen(true);
+    showToast('Presupuesto duplicado. Revisa y guarda los cambios.', 'success');
+  };
+
   const handlePrint = (quote: Quote) => {
     const client = clients.find(c => c.id === quote.clientId);
     const printWindow = window.open('', '_blank');
@@ -342,6 +354,13 @@ export default function Quotes() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleDuplicate(quote)}
+                          className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Duplicar"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
                         <button
                           onClick={() => handlePrint(quote)}
                           className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"

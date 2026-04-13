@@ -22,11 +22,14 @@ export interface RecipeIngredient {
 
 export interface Recipe {
   id: string;
+  type?: 'elaborado' | 'plato';
   nameES: string;
   nameEN: string;
   descriptionES: string;
   descriptionEN: string;
   portions?: number | null;
+  yieldQuantity?: number | null;
+  yieldUnit?: string;
   steps: string[];
   stepsEN?: string[];
   equipment?: string[];
