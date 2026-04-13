@@ -170,6 +170,7 @@ export interface QuoteItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  menuId?: string;
 }
 
 export interface Quote {

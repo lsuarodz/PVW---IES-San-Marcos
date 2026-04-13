@@ -7,10 +7,12 @@ import { useToast } from '../context/ToastContext';
 import { Plus, Trash2, Edit2, FileText, Printer, PlusCircle, MinusCircle } from 'lucide-react';
 import { Quote, QuoteItem } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
+import { ALLERGENS } from '../constants/allergens';
+import { getMenuAllergens } from '../utils/calculations';
 
 export default function Quotes() {
   const { appUser } = useAuth();
-  const { quotes, clients, menus } = useData();
+  const { quotes, clients, menus, recipes, ingredients } = useData();
   const { showToast } = useToast();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
@@ -32,9 +34,9 @@ export default function Quotes() {
 
   const calculateTotals = (items: QuoteItem[], taxRate: number) => {
     const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const tax = subtotal * (taxRate / 100);
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
+    const taxAmount = subtotal * (taxRate / 100);
+    const total = subtotal + taxAmount;
+    return { subtotal, taxAmount, total };
   };
 
   const handleItemChange = (index: number, field: keyof QuoteItem, value: string | number) => {
@@ -51,7 +53,8 @@ export default function Quotes() {
     setFormData({
       ...formData,
       items: newItems,
-      ...totals
+      subtotal: totals.subtotal,
+      total: totals.total
     });
   };
 
@@ -71,7 +74,8 @@ export default function Quotes() {
       description: `Menú: ${menu.nameES}`,
       quantity: quantity,
       unitPrice: menu.price,
-      total: quantity * menu.price
+      total: quantity * menu.price,
+      menuId: menu.id
     };
 
     const newItems = [...(formData.items || []), newItem];
@@ -80,7 +84,8 @@ export default function Quotes() {
     setFormData({
       ...formData,
       items: newItems,
-      ...totals
+      subtotal: totals.subtotal,
+      total: totals.total
     });
     showToast('Menú añadido al presupuesto', 'success');
   };
@@ -92,7 +97,8 @@ export default function Quotes() {
     setFormData({
       ...formData,
       items: newItems,
-      ...totals
+      subtotal: totals.subtotal,
+      total: totals.total
     });
   };
 
@@ -187,13 +193,118 @@ export default function Quotes() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const quoteMenus = quote.items
+      .filter(item => item.menuId)
+      .map(item => menus.find(m => m.id === item.menuId))
+      .filter(Boolean);
+
+    const menusHtml = quoteMenus.map(menu => {
+      if (!menu) return '';
+      
+      const recipesHtml = menu.recipes.map((recipeId, index) => {
+        const recipe = recipes.find(r => r.id === recipeId);
+        if (!recipe) return '';
+        const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
+        const allergensHtml = recipeAllergens.length > 0 ? `
+          <div class="flex justify-center gap-2 mt-2 opacity-60">
+            ${recipeAllergens.map(a => {
+              const allergen = ALLERGENS.find(al => al.id === a);
+              return allergen ? `<span title="${allergen.name}" class="text-xs">${allergen.icon}</span>` : '';
+            }).join('')}
+          </div>
+        ` : '';
+
+        const separatorHtml = index < menu.recipes.length - 1 ? `
+          <div class="mt-6 flex justify-center">
+            <div class="w-12 h-px bg-stone-300"></div>
+          </div>
+        ` : '';
+
+        return `
+          <div class="text-center w-full">
+            <h3 class="text-xl font-serif font-bold mb-1 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
+            ${recipe.descriptionES ? `<p class="text-stone-600 text-xs italic mb-2 leading-relaxed px-12 max-w-md mx-auto">${recipe.descriptionES}</p>` : ''}
+            ${allergensHtml}
+            ${separatorHtml}
+          </div>
+        `;
+      }).join('');
+
+      const menuTypeStr = menu.type === 'brunch' ? 'Menú Brunch' : 
+                     menu.type === 'cocktail' ? 'Menú Cóctel' :
+                     menu.type === 'navidad' ? 'Menú Navidad Solidario' :
+                     menu.type === 'coffee' ? 'Coffee Break' :
+                     menu.type === 'cafeteria' ? 'Cafetería' :
+                     'Menú Pedagógico';
+
+      return `
+        <div style="page-break-before: always;"></div>
+        <div class="px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden" style="box-sizing: border-box;">
+          <div class="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
+          <div class="absolute inset-6 border border-stone-300 pointer-events-none"></div>
+          
+          <div class="z-10 w-full flex flex-col items-center h-full">
+            <div class="text-center mb-6 w-full pt-6">
+              <div class="flex justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+              </div>
+              <div class="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
+              <h1 class="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">${menu.nameES}</h1>
+              ${menu.eventDate ? `<h2 class="text-lg text-stone-600 font-serif mb-1">${menu.eventDate}${menu.eventTime ? ` a las ${menu.eventTime}` : ''}</h2>` : ''}
+              ${menu.eventPlace ? `<h2 class="text-lg text-stone-600 font-serif mb-3">${menu.eventPlace}</h2>` : ''}
+              
+              <div class="flex items-center justify-center gap-6 mt-6">
+                <div class="h-px w-16 bg-stone-300"></div>
+                <div class="text-[11px] tracking-[0.3em] uppercase text-stone-800 font-sans font-semibold">
+                  ${menuTypeStr}
+                </div>
+                <div class="h-px w-16 bg-stone-300"></div>
+              </div>
+            </div>
+
+            <div class="space-y-6 mb-8 w-full flex flex-col items-center max-w-2xl flex-1 justify-center">
+              ${recipesHtml}
+            </div>
+
+            <div class="mt-auto w-full flex flex-col items-center pb-6">
+              <div class="text-center mb-6">
+                <div class="text-3xl font-serif font-bold text-stone-900 mb-2">${menu.price.toFixed(2)} €</div>
+                <div class="text-[9px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
+              </div>
+
+              <div class="pt-6 border-t border-stone-300 w-full max-w-md text-center">
+                <p class="text-[8px] text-stone-500 uppercase tracking-[0.25em] font-sans leading-loose px-4">
+                  Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Presupuesto - ${client?.name || 'Cliente'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+          tailwind.config = {
+            theme: {
+              extend: {
+                fontFamily: {
+                  serif: ['"Cormorant Garamond"', 'serif'],
+                  sans: ['system-ui', '-apple-system', 'sans-serif'],
+                }
+              }
+            }
+          }
+        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
         <style>
-          body { font-family: system-ui, -apple-system, sans-serif; color: #1c1917; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
+          body { font-family: system-ui, -apple-system, sans-serif; color: #1c1917; line-height: 1.5; margin: 0; padding: 0; }
+          .quote-page { padding: 40px; max-width: 800px; margin: 0 auto; }
           .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #e7e5e4; padding-bottom: 20px; }
           .title { font-size: 24px; font-weight: bold; color: #0f766e; margin: 0; }
           .meta { text-align: right; color: #57534e; }
@@ -201,7 +312,7 @@ export default function Quotes() {
           .client-info h3 { margin-top: 0; color: #0f766e; }
           .event-info { display: flex; gap: 20px; margin-bottom: 30px; }
           .event-info div { flex: 1; }
-          table { w-full; border-collapse: collapse; margin-bottom: 30px; width: 100%; }
+          table { border-collapse: collapse; margin-bottom: 30px; width: 100%; }
           th { text-align: left; padding: 12px; border-bottom: 2px solid #e7e5e4; color: #57534e; font-weight: 600; }
           td { padding: 12px; border-bottom: 1px solid #e7e5e4; }
           .text-right { text-align: right; }
@@ -210,87 +321,100 @@ export default function Quotes() {
           .total-row.final { font-weight: bold; font-size: 1.2em; border-top: 2px solid #1c1917; margin-top: 8px; padding-top: 16px; }
           .notes { margin-top: 50px; padding-top: 20px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 0.9em; }
           @media print {
-            body { padding: 0; }
+            body { padding: 0; background: white; }
             button { display: none; }
+            .quote-page { padding: 20mm; max-width: none; min-height: 100vh; box-sizing: border-box; }
+            @page { margin: 0; size: A4; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <h1 class="title">PRESUPUESTO</h1>
-            <p>Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
+        <div class="quote-page">
+          <div class="header">
+            <div>
+              <h1 class="title">PRESUPUESTO</h1>
+              <p>Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
+            </div>
+            <div class="meta">
+              <p><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</p>
+              <p><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</p>
+            </div>
           </div>
-          <div class="meta">
-            <p><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</p>
-            <p><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</p>
+
+          <div class="client-info">
+            <h3>Datos del Cliente</h3>
+            <p><strong>${client?.name || 'Cliente no encontrado'}</strong></p>
+            ${client?.company ? `<p>${client.company}</p>` : ''}
+            ${client?.email ? `<p>${client.email}</p>` : ''}
+            ${client?.phone ? `<p>${client.phone}</p>` : ''}
           </div>
-        </div>
 
-        <div class="client-info">
-          <h3>Datos del Cliente</h3>
-          <p><strong>${client?.name || 'Cliente no encontrado'}</strong></p>
-          ${client?.company ? `<p>${client.company}</p>` : ''}
-          ${client?.email ? `<p>${client.email}</p>` : ''}
-          ${client?.phone ? `<p>${client.phone}</p>` : ''}
-        </div>
+          ${(quote.eventDate || quote.eventType || quote.guests) ? `
+          <div class="event-info">
+            ${quote.eventDate ? `<div><strong>Fecha del Evento:</strong><br>${new Date(quote.eventDate).toLocaleDateString('es-ES')}</div>` : ''}
+            ${quote.eventType ? `<div><strong>Tipo de Evento:</strong><br>${quote.eventType}</div>` : ''}
+            ${quote.guests ? `<div><strong>Comensales:</strong><br>${quote.guests} pax</div>` : ''}
+          </div>
+          ` : ''}
 
-        ${(quote.eventDate || quote.eventType || quote.guests) ? `
-        <div class="event-info">
-          ${quote.eventDate ? `<div><strong>Fecha del Evento:</strong><br>${new Date(quote.eventDate).toLocaleDateString('es-ES')}</div>` : ''}
-          ${quote.eventType ? `<div><strong>Tipo de Evento:</strong><br>${quote.eventType}</div>` : ''}
-          ${quote.guests ? `<div><strong>Comensales:</strong><br>${quote.guests} pax</div>` : ''}
-        </div>
-        ` : ''}
-
-        <table>
-          <thead>
-            <tr>
-              <th>Descripción</th>
-              <th class="text-right">Cant.</th>
-              <th class="text-right">Precio Ud.</th>
-              <th class="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${quote.items.map(item => `
+          <table>
+            <thead>
               <tr>
-                <td>${item.description}</td>
-                <td class="text-right">${item.quantity}</td>
-                <td class="text-right">${item.unitPrice.toFixed(2)} €</td>
-                <td class="text-right">${item.total.toFixed(2)} €</td>
+                <th>Descripción</th>
+                <th class="text-right">Cant.</th>
+                <th class="text-right">Precio Ud.</th>
+                <th class="text-right">Total</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${quote.items.map(item => `
+                <tr>
+                  <td>${item.description}</td>
+                  <td class="text-right">${item.quantity}</td>
+                  <td class="text-right">${item.unitPrice.toFixed(2)} €</td>
+                  <td class="text-right">${item.total.toFixed(2)} €</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
 
-        <div class="totals">
-          <div class="total-row">
-            <span>Subtotal:</span>
-            <span>${quote.subtotal.toFixed(2)} €</span>
+          <div class="totals">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>${quote.subtotal.toFixed(2)} €</span>
+            </div>
+            <div class="total-row">
+              <span>IGIC (${quote.tax}%):</span>
+              <span>${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
+            </div>
+            <div class="total-row final">
+              <span>TOTAL:</span>
+              <span>${quote.total.toFixed(2)} €</span>
+            </div>
           </div>
-          <div class="total-row">
-            <span>IGIC (${quote.tax}%):</span>
-            <span>${quote.tax.toFixed(2)} €</span>
+
+          ${quote.notes ? `
+          <div class="notes">
+            <strong>Notas y Condiciones:</strong><br>
+            ${quote.notes.replace(/\n/g, '<br>')}
           </div>
-          <div class="total-row final">
-            <span>TOTAL:</span>
-            <span>${quote.total.toFixed(2)} €</span>
+          ` : ''}
+
+          <div style="margin-top: 40px; text-align: center;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+              Imprimir Presupuesto
+            </button>
           </div>
         </div>
-
-        ${quote.notes ? `
-        <div class="notes">
-          <strong>Notas y Condiciones:</strong><br>
-          ${quote.notes.replace(/\n/g, '<br>')}
-        </div>
-        ` : ''}
-
-        <div style="margin-top: 40px; text-align: center;">
-          <button onclick="window.print()" style="padding: 10px 20px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-            Imprimir Presupuesto
-          </button>
-        </div>
+        
+        ${menusHtml}
+        
+        <script>
+          // Esperar a que Tailwind procese las clases antes de imprimir
+          setTimeout(() => {
+            window.print();
+          }, 1000);
+        </script>
       </body>
       </html>
     `;
@@ -628,13 +752,14 @@ export default function Quotes() {
                             onChange={e => {
                               const tax = Number(e.target.value);
                               const totals = calculateTotals(formData.items || [], tax);
-                              setFormData({...formData, tax, ...totals});
+                              setFormData({...formData, tax, subtotal: totals.subtotal, total: totals.total});
                             }}
-                            className="w-16 px-2 py-1 text-sm bg-white border border-stone-200 rounded text-right"
+                            disabled={appUser?.role !== 'admin'}
+                            className="w-16 px-2 py-1 text-sm bg-white border border-stone-200 rounded text-right disabled:bg-stone-100 disabled:text-stone-500 disabled:cursor-not-allowed"
                           />
                           <span>%</span>
                         </div>
-                        <span>{(formData.tax || 0).toFixed(2)} €</span>
+                        <span>{((formData.subtotal || 0) * (formData.tax || 0) / 100).toFixed(2)} €</span>
                       </div>
                       <div className="pt-3 border-t border-stone-200 flex justify-between items-center font-bold text-lg text-stone-900">
                         <span>Total</span>

@@ -204,7 +204,8 @@
               "description": { "type": "string" },
               "quantity": { "type": "number" },
               "unitPrice": { "type": "number" },
-              "total": { "type": "number" }
+              "total": { "type": "number" },
+              "menuId": { "type": "string" }
             },
             "required": ["description", "quantity", "unitPrice", "total"]
           }

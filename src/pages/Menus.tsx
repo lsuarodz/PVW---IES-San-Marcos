@@ -446,24 +446,24 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+          <div ref={printRef} className="px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
             {/* Elegant Borders */}
-            <div className="absolute inset-6 border-2 border-stone-800 pointer-events-none"></div>
-            <div className="absolute inset-8 border border-stone-300 pointer-events-none"></div>
+            <div className="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
+            <div className="absolute inset-6 border border-stone-300 pointer-events-none"></div>
             
-            <div className="z-10 w-full flex flex-col items-center flex-1">
-              <div className="text-center mb-12 w-full pt-12">
-                <div className="flex justify-center mb-8">
-                  <Utensils className="text-stone-800" size={32} strokeWidth={1.5} />
+            <div className="z-10 w-full flex flex-col items-center h-full">
+              <div className="text-center mb-6 w-full pt-6">
+                <div className="flex justify-center mb-4">
+                  <Utensils className="text-stone-800" size={28} strokeWidth={1.5} />
                 </div>
-                <div className="text-stone-500 text-[11px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Propuesta Gastronómica</div>
-                <h1 className="text-5xl font-serif font-bold mb-4 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
-                {printingMenu.eventDate && <h2 className="text-xl text-stone-600 font-serif mb-2">{printingMenu.eventDate}{printingMenu.eventTime ? ` a las ${printingMenu.eventTime}` : ''}</h2>}
-                {printingMenu.eventPlace && <h2 className="text-xl text-stone-600 font-serif mb-4">{printingMenu.eventPlace}</h2>}
+                <div className="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
+                <h1 className="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
+                {printingMenu.eventDate && <h2 className="text-lg text-stone-600 font-serif mb-1">{printingMenu.eventDate}{printingMenu.eventTime ? ` a las ${printingMenu.eventTime}` : ''}</h2>}
+                {printingMenu.eventPlace && <h2 className="text-lg text-stone-600 font-serif mb-3">{printingMenu.eventPlace}</h2>}
                 
-                <div className="flex items-center justify-center gap-6 mt-8">
+                <div className="flex items-center justify-center gap-6 mt-6">
                   <div className="h-px w-16 bg-stone-300"></div>
-                  <div className="text-[12px] tracking-[0.3em] uppercase text-stone-800 font-sans font-semibold">
+                  <div className="text-[11px] tracking-[0.3em] uppercase text-stone-800 font-sans font-semibold">
                     {printingMenu.type === 'brunch' ? 'Menú Brunch' : 
                      printingMenu.type === 'cocktail' ? 'Menú Cóctel' :
                      printingMenu.type === 'navidad' ? 'Menú Navidad Solidario' :
@@ -475,29 +475,29 @@ export default function Menus() {
                 </div>
               </div>
 
-              <div className="space-y-10 mb-16 w-full flex flex-col items-center max-w-2xl">
+              <div className="space-y-6 mb-8 w-full flex flex-col items-center max-w-2xl flex-1 justify-center">
                 {printingMenu.recipes.map((recipeId, index) => {
                   const recipe = recipes.find(r => r.id === recipeId);
                   if (!recipe) return null;
                   const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
                   return (
                     <div key={recipe.id} className="text-center w-full">
-                      <h3 className="text-2xl font-serif font-bold mb-2 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
+                      <h3 className="text-xl font-serif font-bold mb-1 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
                       {recipe.descriptionES && (
-                        <p className="text-stone-600 text-sm italic mb-3 leading-relaxed px-12 max-w-md mx-auto">{recipe.descriptionES}</p>
+                        <p className="text-stone-600 text-xs italic mb-2 leading-relaxed px-12 max-w-md mx-auto">{recipe.descriptionES}</p>
                       )}
                       {recipeAllergens.length > 0 && (
-                        <div className="flex justify-center gap-2 mt-3 opacity-60">
+                        <div className="flex justify-center gap-2 mt-2 opacity-60">
                           {recipeAllergens.map(a => {
                             const allergen = ALLERGENS.find(al => al.id === a);
                             return allergen ? (
-                              <span key={a} title={allergen.name} className="text-sm">{allergen.icon}</span>
+                              <span key={a} title={allergen.name} className="text-xs">{allergen.icon}</span>
                             ) : null;
                           })}
                         </div>
                       )}
                       {index < printingMenu.recipes.length - 1 && (
-                        <div className="mt-10 flex justify-center">
+                        <div className="mt-6 flex justify-center">
                           <div className="w-12 h-px bg-stone-300"></div>
                         </div>
                       )}
@@ -506,14 +506,14 @@ export default function Menus() {
                 })}
               </div>
 
-              <div className="mt-auto w-full flex flex-col items-center pb-12">
-                <div className="text-center mb-10">
-                  <div className="text-4xl font-serif font-bold text-stone-900 mb-2">{printingMenu.price.toFixed(2)} €</div>
-                  <div className="text-[10px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
+              <div className="mt-auto w-full flex flex-col items-center pb-6">
+                <div className="text-center mb-6">
+                  <div className="text-3xl font-serif font-bold text-stone-900 mb-2">{printingMenu.price.toFixed(2)} €</div>
+                  <div className="text-[9px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
                 </div>
 
-                <div className="pt-8 border-t border-stone-300 w-full max-w-md text-center">
-                  <p className="text-[9px] text-stone-500 uppercase tracking-[0.25em] font-sans leading-loose px-4">
+                <div className="pt-6 border-t border-stone-300 w-full max-w-md text-center">
+                  <p className="text-[8px] text-stone-500 uppercase tracking-[0.25em] font-sans leading-loose px-4">
                     Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
                   </p>
                 </div>
