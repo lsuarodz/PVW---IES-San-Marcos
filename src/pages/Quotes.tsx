@@ -18,7 +18,7 @@ export default function Quotes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Quote>>({
     items: [],
-    tax: 21,
+    tax: 7,
     status: 'draft',
     date: new Date().toISOString().split('T')[0]
   });
@@ -46,7 +46,7 @@ export default function Quotes() {
       newItems[index].total = Number(newItems[index].quantity) * Number(newItems[index].unitPrice);
     }
 
-    const totals = calculateTotals(newItems, formData.tax || 21);
+    const totals = calculateTotals(newItems, formData.tax || 7);
     
     setFormData({
       ...formData,
@@ -75,7 +75,7 @@ export default function Quotes() {
     };
 
     const newItems = [...(formData.items || []), newItem];
-    const totals = calculateTotals(newItems, formData.tax || 21);
+    const totals = calculateTotals(newItems, formData.tax || 7);
 
     setFormData({
       ...formData,
@@ -88,7 +88,7 @@ export default function Quotes() {
   const removeItem = (index: number) => {
     const newItems = [...(formData.items || [])];
     newItems.splice(index, 1);
-    const totals = calculateTotals(newItems, formData.tax || 21);
+    const totals = calculateTotals(newItems, formData.tax || 7);
     setFormData({
       ...formData,
       items: newItems,
@@ -127,7 +127,7 @@ export default function Quotes() {
       guests: Number(formData.guests) || 0,
       items: formData.items || [],
       subtotal: formData.subtotal || 0,
-      tax: formData.tax || 21,
+      tax: formData.tax || 7,
       total: formData.total || 0,
       notes: formData.notes || '',
       status: formData.status as any || 'draft',
@@ -138,7 +138,7 @@ export default function Quotes() {
     try {
       await setDoc(doc(db, 'quotes', id), quoteData);
       setIsModalOpen(false);
-      setFormData({ items: [], tax: 21, status: 'draft', date: new Date().toISOString().split('T')[0] });
+      setFormData({ items: [], tax: 7, status: 'draft', date: new Date().toISOString().split('T')[0] });
       setEditingId(null);
       showToast(editingId ? 'Presupuesto actualizado' : 'Presupuesto guardado', 'success');
     } catch (error) {
@@ -270,7 +270,7 @@ export default function Quotes() {
             <span>${quote.subtotal.toFixed(2)} €</span>
           </div>
           <div class="total-row">
-            <span>IVA (${quote.tax}%):</span>
+            <span>IGIC (${quote.tax}%):</span>
             <span>${quote.tax.toFixed(2)} €</span>
           </div>
           <div class="total-row final">
@@ -317,7 +317,7 @@ export default function Quotes() {
           </div>
           <button
             onClick={() => {
-              setFormData({ items: [], tax: 21, status: 'draft', date: new Date().toISOString().split('T')[0] });
+              setFormData({ items: [], tax: 7, status: 'draft', date: new Date().toISOString().split('T')[0] });
               setEditingId(null);
               setIsModalOpen(true);
             }}
@@ -619,7 +619,7 @@ export default function Quotes() {
                       </div>
                       <div className="flex justify-between items-center text-stone-600">
                         <div className="flex items-center gap-2">
-                          <span>IVA</span>
+                          <span>IGIC</span>
                           <input
                             type="number"
                             min="0"

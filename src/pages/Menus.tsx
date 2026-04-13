@@ -509,7 +509,7 @@ export default function Menus() {
               <div className="mt-auto w-full flex flex-col items-center pb-12">
                 <div className="text-center mb-10">
                   <div className="text-4xl font-serif font-bold text-stone-900 mb-2">{printingMenu.price.toFixed(2)} €</div>
-                  <div className="text-[10px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IVA incluido</div>
+                  <div className="text-[10px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
                 </div>
 
                 <div className="pt-8 border-t border-stone-300 w-full max-w-md text-center">
