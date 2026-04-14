@@ -1,9 +1,11 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 
 export default function Login() {
   // Obtenemos las funciones y estados del contexto de autenticación
   const { login, user, appUser, loading } = useAuth();
+  const { settings } = useData();
 
   // Mientras se comprueba si hay una sesión activa, mostramos un indicador de carga
   if (loading) {
@@ -17,7 +19,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-stone-100 text-center">
-        <h1 className="text-3xl font-bold text-stone-900 mb-2 tracking-tight">Proyecto Intermodular 2025-2026</h1>
+        {settings?.logoUrl ? (
+          <img src={settings.logoUrl} alt="Logo" className="h-24 object-contain mx-auto mb-6" crossOrigin="anonymous" />
+        ) : null}
         <p className="text-stone-500 mb-8">
           Plataforma colaborativa para la gestión de escandallos y menús.
         </p>

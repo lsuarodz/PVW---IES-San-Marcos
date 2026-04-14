@@ -168,11 +168,11 @@ export default function Admin() {
               URL del Logo del Centro
             </label>
             <input
-              type="url"
+              type="text"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="https://ejemplo.com/logo.png"
+              placeholder="https://ejemplo.com/logo.png o /logo.png"
             />
             <p className="text-xs text-stone-500 mt-1">Esta imagen aparecerá en la cabecera de los presupuestos y menús impresos.</p>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { 
   ChefHat, 
   BookOpen, 
@@ -26,6 +27,7 @@ import {
 export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
   const { appUser, logout } = useAuth();
+  const { settings } = useData();
   // Obtenemos la ruta actual para saber qué menú está activo
   const location = useLocation();
   
@@ -94,7 +96,11 @@ export default function Layout() {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-3 text-teal-700">
-          <h1 className="text-lg font-bold tracking-tight">Proyecto Intermodular</h1>
+          {settings?.logoUrl ? (
+            <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain" crossOrigin="anonymous" />
+          ) : (
+            <h1 className="text-lg font-bold tracking-tight">Proyecto Intermodular</h1>
+          )}
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -120,7 +126,11 @@ export default function Layout() {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="h-16 lg:h-auto p-6 border-b border-stone-200 flex items-center gap-3 text-teal-700">
-          <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
+          {settings?.logoUrl ? (
+            <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain hidden lg:block" crossOrigin="anonymous" />
+          ) : (
+            <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
+          )}
           <h1 className="text-xl font-bold tracking-tight lg:hidden">Menú</h1>
         </div>
         

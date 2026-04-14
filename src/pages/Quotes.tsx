@@ -113,7 +113,10 @@ export default function Quotes() {
 
     const id = editingId || doc(collection(db, 'quotes')).id;
     
-    let reference = quotes.find(q => q.id === editingId)?.reference;
+    let reference = formData.reference;
+    if (!reference) {
+      reference = quotes.find(q => q.id === editingId)?.reference;
+    }
     if (!reference) {
       const client = clients.find(c => c.id === formData.clientId);
       const clientPrefix = client ? client.name.substring(0, 3).toUpperCase() : 'CLI';
@@ -594,6 +597,18 @@ export default function Quotes() {
                         className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
+                    {isAdmin && (
+                      <div>
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Referencia</label>
+                        <input
+                          type="text"
+                          value={formData.reference || ''}
+                          onChange={e => setFormData({...formData, reference: e.target.value})}
+                          placeholder="Autogenerada si vacío"
+                          className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">Fecha del Evento</label>
                       <input
