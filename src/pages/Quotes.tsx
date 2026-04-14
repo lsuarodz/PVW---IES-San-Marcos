@@ -394,10 +394,12 @@ export default function Quotes() {
               <span>Subtotal:</span>
               <span>${quote.subtotal.toFixed(2)} €</span>
             </div>
+            ${quote.tax > 0 ? `
             <div class="total-row">
               <span>IGIC (${quote.tax}%):</span>
               <span>${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
             </div>
+            ` : ''}
             <div class="total-row final">
               <span>TOTAL:</span>
               <span>${quote.total.toFixed(2)} €</span>
@@ -764,25 +766,41 @@ export default function Quotes() {
                         <span>Subtotal</span>
                         <span>{(formData.subtotal || 0).toFixed(2)} €</span>
                       </div>
-                      <div className="flex justify-between items-center text-stone-600">
-                        <div className="flex items-center gap-2">
-                          <span>IGIC</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={formData.tax}
-                            onChange={e => {
-                              const tax = Number(e.target.value);
-                              const totals = calculateTotals(formData.items || [], tax);
-                              setFormData({...formData, tax, subtotal: totals.subtotal, total: totals.total});
-                            }}
-                            disabled={appUser?.role !== 'admin'}
-                            className="w-16 px-2 py-1 text-sm bg-white border border-stone-200 rounded text-right disabled:bg-stone-100 disabled:text-stone-500 disabled:cursor-not-allowed"
-                          />
-                          <span>%</span>
+                      {formData.tax !== 0 && (
+                        <div className="flex justify-between items-center text-stone-600">
+                          <div className="flex items-center gap-2">
+                            <span>IGIC</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={formData.tax}
+                              onChange={e => {
+                                const tax = Number(e.target.value);
+                                const totals = calculateTotals(formData.items || [], tax);
+                                setFormData({...formData, tax, subtotal: totals.subtotal, total: totals.total});
+                              }}
+                              disabled={appUser?.role !== 'admin'}
+                              className="w-16 px-2 py-1 text-sm bg-white border border-stone-200 rounded text-right disabled:bg-stone-100 disabled:text-stone-500 disabled:cursor-not-allowed"
+                            />
+                            <span>%</span>
+                          </div>
+                          <span>{((formData.subtotal || 0) * (formData.tax || 0) / 100).toFixed(2)} €</span>
                         </div>
-                        <span>{((formData.subtotal || 0) * (formData.tax || 0) / 100).toFixed(2)} €</span>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-stone-500">
+                        <input
+                          type="checkbox"
+                          id="include-tax"
+                          checked={formData.tax !== 0}
+                          onChange={(e) => {
+                            const tax = e.target.checked ? 7 : 0;
+                            const totals = calculateTotals(formData.items || [], tax);
+                            setFormData({...formData, tax, subtotal: totals.subtotal, total: totals.total});
+                          }}
+                          className="rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        <label htmlFor="include-tax">Aplicar IGIC al presupuesto</label>
                       </div>
                       <div className="pt-3 border-t border-stone-200 flex justify-between items-center font-bold text-lg text-stone-900">
                         <span>Total</span>
