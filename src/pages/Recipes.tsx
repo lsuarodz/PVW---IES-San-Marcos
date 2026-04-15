@@ -6,7 +6,7 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
@@ -61,7 +61,6 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Referencias y estados para la funcionalidad de impresión a PDF
   const printRef = useRef<HTMLDivElement>(null);
   const [printingRecipe, setPrintingRecipe] = useState<Recipe | null>(null);
-  const [printWithoutImage, setPrintWithoutImage] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   
   // Estado para almacenar los datos del formulario del escandallo
@@ -264,10 +263,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
-  const exportPDF = (recipe: Recipe, withoutImage: boolean = false) => {
+  const exportPDF = (recipe: Recipe) => {
     if (isPrinting) return;
     setIsPrinting(true);
-    setPrintWithoutImage(withoutImage);
     setPrintingRecipe(recipe);
     showToast('Generando PDF...', 'info');
     
@@ -295,18 +293,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           .then(() => {
             setPrintingRecipe(null);
             setIsPrinting(false);
-            setPrintWithoutImage(false);
           })
           .catch((err: any) => {
             console.error('Error generating PDF:', err);
             setPrintingRecipe(null);
             setIsPrinting(false);
-            setPrintWithoutImage(false);
             showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
-        setPrintWithoutImage(false);
       }
     }, 300);
   };
@@ -394,23 +389,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 )}
                 <div className={`flex gap-1 ${recipe.imageUrl ? 'w-full justify-end' : ''}`}>
                   <button 
-                    onClick={() => exportPDF(recipe, false)} 
+                    onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
                     className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
                     title="Imprimir"
                   >
                     <Printer size={18} />
                   </button>
-                  {recipe.imageUrl && (
-                    <button 
-                      onClick={() => exportPDF(recipe, true)} 
-                      disabled={isPrinting}
-                      className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
-                      title="Imprimir sin foto"
-                    >
-                      <ImageOff size={18} />
-                    </button>
-                  )}
                   <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
                     <Edit2 size={18} />
                   </button>
@@ -984,17 +969,6 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 </div>
               </div>
-
-              {!printWithoutImage && printingRecipe.imageUrl && (
-                <div className="mb-6 w-full h-48 bg-stone-100 rounded-xl overflow-hidden border border-stone-200">
-                  <img 
-                    src={printingRecipe.imageUrl} 
-                    alt={printingRecipe.nameES} 
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                  />
-                </div>
-              )}
 
               <div className="grid grid-cols-1 gap-8">
                 <div>
