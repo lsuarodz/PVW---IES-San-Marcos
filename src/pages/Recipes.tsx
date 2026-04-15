@@ -605,13 +605,6 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     >
                       <Plus size={16} /> Crear nuevo ingrediente
                     </button>
-                    <button
-                      type="button"
-                      onClick={addIngredientToRecipe}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
-                    >
-                      <Plus size={16} /> Añadir ingrediente
-                    </button>
                   </div>
                   
                   <div className="space-y-3">
@@ -622,12 +615,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       
                       return (
                         <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex-1 flex gap-2">
+                          <div className="flex-1 min-w-0 flex gap-2">
                             <select
                               required
                               value={ri.ingredientId}
                               onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              className="flex-1 min-w-0 truncate px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                             >
                               <option value="">Selecciona un ingrediente o receta...</option>
                               <optgroup label="Ingredientes">
@@ -699,19 +692,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         No hay ingredientes añadidos.
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={addIngredientToRecipe}
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Plus size={18} /> Añadir ingrediente
+                    </button>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Pasos de Elaboración</label>
-                    <button
-                      type="button"
-                      onClick={addStep}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
-                    >
-                      <Plus size={16} /> Añadir paso
-                    </button>
                   </div>
                   
                   <div className="space-y-3">
@@ -740,19 +733,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         No hay pasos añadidos.
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={addStep}
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Plus size={18} /> Añadir paso
+                    </button>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Material y Equipamiento</label>
-                    <button
-                      type="button"
-                      onClick={addEquipment}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
-                    >
-                      <Plus size={16} /> Añadir material
-                    </button>
                   </div>
                   
                   <div className="space-y-3">
@@ -763,7 +756,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           type="text"
                           required
                           value={eq}
+                          data-equipment-input={index}
                           onChange={e => updateEquipment(index, e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addEquipment();
+                              setTimeout(() => {
+                                const nextInput = document.querySelector(`[data-equipment-input="${index + 1}"]`) as HTMLInputElement;
+                                if (nextInput) nextInput.focus();
+                              }, 0);
+                            }
+                          }}
                           className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="Ej: 1 sartén, 1 batidora..."
                         />
@@ -781,6 +785,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         No hay material añadido.
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={addEquipment}
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Plus size={18} /> Añadir material
+                    </button>
                   </div>
                 </div>
 
