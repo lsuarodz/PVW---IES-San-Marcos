@@ -6,7 +6,7 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
@@ -61,6 +61,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Referencias y estados para la funcionalidad de impresión a PDF
   const printRef = useRef<HTMLDivElement>(null);
   const [printingRecipe, setPrintingRecipe] = useState<Recipe | null>(null);
+  const [printWithoutImage, setPrintWithoutImage] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   
   // Estado para almacenar los datos del formulario del escandallo
@@ -263,19 +264,28 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
-  const exportPDF = (recipe: Recipe) => {
+  const exportPDF = (recipe: Recipe, withoutImage: boolean = false) => {
     if (isPrinting) return;
     setIsPrinting(true);
+    setPrintWithoutImage(withoutImage);
     setPrintingRecipe(recipe);
+    showToast('Generando PDF...', 'info');
     
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
           margin: 0,
           filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+          image: { type: 'jpeg' as const, quality: 0.95 },
+          html2canvas: { 
+            scale: 1.5, 
+            useCORS: true, 
+            logging: false,
+            letterRendering: true,
+            useOverflow: true
+          },
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+          pagebreak: { mode: 'avoid-all' }
         };
         
         html2pdf()
@@ -285,17 +295,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           .then(() => {
             setPrintingRecipe(null);
             setIsPrinting(false);
+            setPrintWithoutImage(false);
           })
           .catch((err: any) => {
             console.error('Error generating PDF:', err);
             setPrintingRecipe(null);
             setIsPrinting(false);
+            setPrintWithoutImage(false);
             showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
           });
       } else {
         setIsPrinting(false);
+        setPrintWithoutImage(false);
       }
-    }, 500);
+    }, 300);
   };
 
   const filteredRecipes = filteredByType.filter(r => 
@@ -381,13 +394,23 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 )}
                 <div className={`flex gap-1 ${recipe.imageUrl ? 'w-full justify-end' : ''}`}>
                   <button 
-                    onClick={() => exportPDF(recipe)} 
+                    onClick={() => exportPDF(recipe, false)} 
                     disabled={isPrinting}
                     className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
                     title="Imprimir"
                   >
                     <Printer size={18} />
                   </button>
+                  {recipe.imageUrl && (
+                    <button 
+                      onClick={() => exportPDF(recipe, true)} 
+                      disabled={isPrinting}
+                      className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
+                      title="Imprimir sin foto"
+                    >
+                      <ImageOff size={18} />
+                    </button>
+                  )}
                   <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
                     <Edit2 size={18} />
                   </button>
@@ -913,20 +936,41 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="px-12 py-16 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+          <div ref={printRef} className="print-container px-10 py-10 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col relative overflow-hidden">
+            <style>{`
+              .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
+              .print-container .text-stone-900 { color: #1c1917 !important; }
+              .print-container .text-stone-800 { color: #292524 !important; }
+              .print-container .text-stone-700 { color: #44403c !important; }
+              .print-container .text-stone-600 { color: #57534e !important; }
+              .print-container .text-stone-500 { color: #78716c !important; }
+              .print-container .text-stone-400 { color: #a8a29e !important; }
+              .print-container .text-teal-900 { color: #134e4a !important; }
+              .print-container .text-teal-800 { color: #115e59 !important; }
+              .print-container .text-teal-700 { color: #0f766e !important; }
+              .print-container .bg-white { background-color: #ffffff !important; }
+              .print-container .bg-stone-100 { background-color: #f5f5f4 !important; }
+              .print-container .bg-teal-50 { background-color: #f0fdfa !important; }
+              .print-container .bg-teal-50\\/50 { background-color: rgba(240, 253, 250, 0.5) !important; }
+              .print-container .border-stone-200 { border-color: #e7e5e4 !important; }
+              .print-container .border-stone-100 { border-color: #f5f5f4 !important; }
+              .print-container .border-stone-50 { border-color: #fafaf9 !important; }
+              .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
+              .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
+            `}</style>
             <div className="z-10 w-full">
-              <div className="border-b border-stone-200 pb-8 mb-10">
+              <div className="border-b border-stone-200 pb-4 mb-6">
                 {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain mb-6" crossOrigin="anonymous" />
+                  <img src={settings.logoUrl} alt="Logo" className="h-10 object-contain mb-4" crossOrigin="anonymous" />
                 )}
-                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Ficha Técnica de Producción</div>
-                <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-3">{printingRecipe.nameES}</h1>
-                {printingRecipe.nameEN && <h2 className="text-xl text-stone-500 italic mb-4">{printingRecipe.nameEN}</h2>}
+                <div className="text-stone-400 text-[9px] tracking-[0.4em] uppercase mb-2 font-sans font-medium">Ficha Técnica de Producción</div>
+                <h1 className="text-3xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingRecipe.nameES}</h1>
+                {printingRecipe.nameEN && <h2 className="text-lg text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
                 
-                <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-stone-500 text-xs font-sans mt-6">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[10px] font-sans mt-4">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
-                    <span className="text-teal-700 font-bold text-sm">{printingRecipe.totalCost.toFixed(2)} €</span>
+                    <span className="text-teal-700 font-bold text-xs">{printingRecipe.totalCost.toFixed(2)} €</span>
                   </div>
                   {printingRecipe.portions && (
                     <div className="flex items-center gap-2">
@@ -941,8 +985,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
               </div>
 
-              {printingRecipe.imageUrl && (
-                <div className="mb-10 w-full h-64 bg-stone-100 rounded-xl overflow-hidden border border-stone-200">
+              {!printWithoutImage && printingRecipe.imageUrl && (
+                <div className="mb-6 w-full h-48 bg-stone-100 rounded-xl overflow-hidden border border-stone-200">
                   <img 
                     src={printingRecipe.imageUrl} 
                     alt={printingRecipe.nameES} 
@@ -952,16 +996,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-12">
+              <div className="grid grid-cols-1 gap-8">
                 <div>
-                  <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Escandallo Detallado</h3>
-                  <table className="w-full text-[11px] text-left mb-4 font-sans">
+                  <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
+                  <table className="w-full text-[10px] text-left mb-2 font-sans">
                     <thead>
                       <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-100">
-                        <th className="py-2 font-medium">Ingrediente</th>
-                        <th className="py-2 font-medium text-right">Cantidad</th>
-                        <th className="py-2 font-medium text-right">Coste/Ud</th>
-                        <th className="py-2 font-medium text-right">Total</th>
+                        <th className="py-1 font-medium">Ingrediente</th>
+                        <th className="py-1 font-medium text-right">Cantidad</th>
+                        <th className="py-1 font-medium text-right">Coste/Ud</th>
+                        <th className="py-1 font-medium text-right">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-50">
@@ -982,55 +1026,55 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
                         return (
                           <tr key={idx}>
-                            <td className="py-2 font-medium text-stone-800">{name}</td>
-                            <td className="py-2 text-right text-stone-600">{ri.quantity} {unit}</td>
-                            <td className="py-2 text-right text-stone-500">{realCostPerUnit.toFixed(2)} €</td>
-                            <td className="py-2 text-right font-bold text-stone-800">{itemTotalCost.toFixed(2)} €</td>
+                            <td className="py-1.5 font-medium text-stone-800">{name}</td>
+                            <td className="py-1.5 text-right text-stone-600">{ri.quantity} {unit}</td>
+                            <td className="py-1.5 text-right text-stone-500">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-1.5 text-right font-bold text-stone-800">{itemTotalCost.toFixed(2)} €</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-stone-100 font-bold text-stone-900">
-                        <td colSpan={3} className="py-4 text-right uppercase tracking-widest text-[10px] text-stone-400">Coste Total de la Receta</td>
-                        <td className="py-4 text-right text-teal-700 text-lg">{printingRecipe.totalCost.toFixed(2)} €</td>
+                      <tr className="border-t border-stone-100 font-bold text-stone-900">
+                        <td colSpan={3} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
+                        <td className="py-2 text-right text-teal-700 text-base">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
 
-                <div className="grid grid-cols-2 gap-12">
+                <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Elaboración</h3>
+                    <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Elaboración</h3>
                     {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                      <ol className="space-y-3 list-decimal pl-4 text-[11px] text-stone-700 font-sans">
+                      <ol className="space-y-2 list-decimal pl-4 text-[10px] text-stone-700 font-sans">
                         {printingRecipe.steps.map((step, idx) => (
-                          <li key={idx} className="leading-relaxed pl-2">{step}</li>
+                          <li key={idx} className="leading-relaxed pl-1">{step}</li>
                         ))}
                       </ol>
                     ) : (
-                      <p className="text-xs text-stone-400 italic font-sans">No hay pasos de elaboración definidos.</p>
+                      <p className="text-[10px] text-stone-400 italic font-sans">No hay pasos definidos.</p>
                     )}
                   </div>
 
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2 font-sans">Material</h3>
-                        <ul className="space-y-2 list-disc pl-4 text-[11px] text-stone-700 font-sans">
+                        <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Material</h3>
+                        <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
                           {printingRecipe.equipment.map((eq, idx) => (
-                            <li key={idx} className="leading-relaxed pl-2">{eq}</li>
+                            <li key={idx} className="leading-relaxed pl-1">{eq}</li>
                           ))}
                         </ul>
                       </div>
                     )}
 
                     {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                      <div className="bg-teal-50/50 p-4 rounded-xl border border-teal-100">
-                        <h3 className="text-[10px] font-bold mb-3 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
+                      <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                        <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                           <span>🌱</span> Sostenibilidad
                         </h3>
-                        <ul className="space-y-2 text-[10px] text-teal-900 font-sans">
+                        <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
                           {printingRecipe.sustainabilityTips.map((tip, idx) => (
                             <li key={idx} className="leading-relaxed">• {tip}</li>
                           ))}
@@ -1041,8 +1085,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
               </div>
 
-              <div className="mt-auto pt-12 text-center">
-                <p className="text-[9px] text-stone-400 uppercase tracking-[0.3em] font-sans">
+              <div className="mt-auto pt-8 text-center">
+                <p className="text-[8px] text-stone-400 uppercase tracking-[0.3em] font-sans">
                   Ficha Técnica · Proyecto Intermodular Gastronómico
                 </p>
               </div>

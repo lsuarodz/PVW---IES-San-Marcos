@@ -156,14 +156,21 @@ export default function Menus() {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingMenu(menu);
+    showToast('Generando PDF...', 'info');
     
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
           margin: 0,
           filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          image: { type: 'jpeg' as const, quality: 0.95 },
+          html2canvas: { 
+            scale: 1.5, 
+            useCORS: true, 
+            logging: false,
+            letterRendering: true,
+            useOverflow: true
+          },
           jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
@@ -184,21 +191,28 @@ export default function Menus() {
       } else {
         setIsPrinting(false);
       }
-    }, 500);
+    }, 300);
   };
 
   const exportEquipmentPDF = (menu: Menu) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingEquipmentMenu(menu);
+    showToast('Generando PDF...', 'info');
     
     setTimeout(() => {
       if (printEquipmentRef.current) {
         const opt = {
           margin: 0,
           filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          image: { type: 'jpeg' as const, quality: 0.95 },
+          html2canvas: { 
+            scale: 1.5, 
+            useCORS: true, 
+            logging: false,
+            letterRendering: true,
+            useOverflow: true
+          },
           jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
         };
         
@@ -219,7 +233,7 @@ export default function Menus() {
       } else {
         setIsPrinting(false);
       }
-    }, 500);
+    }, 300);
   };
 
   const filteredMenus = menus.filter(m => 
@@ -446,7 +460,20 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+            <style>{`
+              .print-container { background-color: #ffffff !important; color: #1c1917 !important; }
+              .print-container .text-stone-900 { color: #1c1917 !important; }
+              .print-container .text-stone-800 { color: #292524 !important; }
+              .print-container .text-stone-700 { color: #44403c !important; }
+              .print-container .text-stone-600 { color: #57534e !important; }
+              .print-container .text-stone-500 { color: #78716c !important; }
+              .print-container .text-stone-400 { color: #a8a29e !important; }
+              .print-container .bg-white { background-color: #ffffff !important; }
+              .print-container .bg-stone-300 { background-color: #d6d3d1 !important; }
+              .print-container .border-stone-800 { border-color: #292524 !important; }
+              .print-container .border-stone-300 { border-color: #d6d3d1 !important; }
+            `}</style>
             {/* Elegant Borders */}
             <div className="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
             <div className="absolute inset-6 border border-stone-300 pointer-events-none"></div>
@@ -530,7 +557,28 @@ export default function Menus() {
       {/* Hidden PDF Template for Equipment */}
       {printingEquipmentMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printEquipmentRef} className="px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+          <div ref={printEquipmentRef} className="print-container px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+            <style>{`
+              .print-container { background-color: #ffffff !important; color: #1c1917 !important; }
+              .print-container .text-stone-900 { color: #1c1917 !important; }
+              .print-container .text-stone-800 { color: #292524 !important; }
+              .print-container .text-stone-700 { color: #44403c !important; }
+              .print-container .text-stone-600 { color: #57534e !important; }
+              .print-container .text-stone-500 { color: #78716c !important; }
+              .print-container .text-stone-400 { color: #a8a29e !important; }
+              .print-container .text-stone-300 { color: #d6d3d1 !important; }
+              .print-container .text-teal-900 { color: #134e4a !important; }
+              .print-container .text-teal-800 { color: #115e59 !important; }
+              .print-container .bg-white { background-color: #ffffff !important; }
+              .print-container .bg-stone-300 { background-color: #d6d3d1 !important; }
+              .print-container .bg-stone-50\\/50 { background-color: rgba(250, 250, 249, 0.5) !important; }
+              .print-container .bg-teal-50\\/50 { background-color: rgba(240, 253, 250, 0.5) !important; }
+              .print-container .border-stone-800 { border-color: #292524 !important; }
+              .print-container .border-stone-300 { border-color: #d6d3d1 !important; }
+              .print-container .border-stone-200 { border-color: #e7e5e4 !important; }
+              .print-container .border-stone-100 { border-color: #f5f5f4 !important; }
+              .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
+            `}</style>
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-8 mb-12">
                 <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
