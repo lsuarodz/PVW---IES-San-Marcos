@@ -527,7 +527,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             <div className="p-6 overflow-y-auto flex-1">
               <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className={type === 'elaborado' ? 'md:col-span-2' : ''}>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
                     <input
                       type="text" required
@@ -537,31 +537,54 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     />
                   </div>
                   {type === 'elaborado' ? (
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
-                        <input
-                          type="number" min="0" step="0.01" required
-                          value={formData.yieldQuantity || ''}
-                          onChange={e => setFormData({...formData, yieldQuantity: parseFloat(e.target.value) || null})}
-                          onFocus={e => e.target.select()}
-                          className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Ej: 1.5"
-                        />
+                    <>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
+                          <input
+                            type="number" min="0" step="0.01" required
+                            value={formData.yieldQuantity || ''}
+                            onChange={e => setFormData({...formData, yieldQuantity: parseFloat(e.target.value) || null})}
+                            onFocus={e => e.target.select()}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            placeholder="Ej: 1.5"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+                          <select
+                            value={formData.yieldUnit}
+                            onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          >
+                            <option value="kg">kg</option>
+                            <option value="L">L</option>
+                            <option value="ud">ud</option>
+                          </select>
+                        </div>
                       </div>
-                      <div className="w-24">
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
-                        <select
-                          value={formData.yieldUnit}
-                          onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
-                          className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        >
-                          <option value="kg">kg</option>
-                          <option value="L">L</option>
-                          <option value="ud">ud</option>
-                        </select>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+                          <input
+                            type="number" min="1" step="1"
+                            value={formData.portions || ''}
+                            onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
+                            onFocus={e => e.target.select()}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            placeholder="Ej: 10"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-stone-700 mb-1">Peso por ración</label>
+                          <div className="w-full px-4 py-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
+                            {formData.yieldQuantity && formData.portions 
+                              ? `${(formData.yieldQuantity / formData.portions).toFixed(3)} ${formData.yieldUnit}`
+                              : '-'}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">Raciones (para cuántas personas)</label>
@@ -924,7 +947,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     src={printingRecipe.imageUrl} 
                     alt={printingRecipe.nameES} 
                     className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                   />
                 </div>
               )}
