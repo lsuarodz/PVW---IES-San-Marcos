@@ -10,6 +10,7 @@ interface AppUser {
   role: 'admin' | 'student' | 'docente';
   name: string;
   group?: string;
+  commission?: string;
 }
 
 // Definición de lo que va a proveer nuestro contexto de autenticación
@@ -17,6 +18,8 @@ interface AuthContextType {
   user: User | null; // Usuario de Firebase Auth
   appUser: AppUser | null; // Datos extendidos del usuario desde Firestore
   loading: boolean; // Estado de carga mientras verificamos la sesión
+  viewAsStudent: boolean;
+  setViewAsStudent: (value: boolean) => void;
   login: () => Promise<void>; // Función para iniciar sesión
   logout: () => Promise<void>; // Función para cerrar sesión
 }
@@ -29,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewAsStudent, setViewAsStudent] = useState(false);
 
   // Efecto que se ejecuta al cargar la aplicación para verificar si hay una sesión activa
   useEffect(() => {
@@ -102,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Proveemos los valores y funciones al resto de la aplicación
   return (
-    <AuthContext.Provider value={{ user, appUser, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, appUser, loading, viewAsStudent, setViewAsStudent, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

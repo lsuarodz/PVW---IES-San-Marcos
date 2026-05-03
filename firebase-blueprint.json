@@ -219,9 +219,25 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["clientId", "date", "items", "subtotal", "tax", "total", "status", "createdBy", "createdAt"]
+    },
+    "CommissionTask": {
+      "title": "CommissionTask",
+      "description": "An idea or responsibility for a commission",
+      "type": "object",
+      "properties": {
+        "commission": { "type": "string" },
+        "idea": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["commission", "idea", "createdBy", "createdAt"]
     }
   },
   "firestore": {
+    "commission_tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/CommissionTask" },
+      "description": "Ideas and responsibilities per commission"
+    },
     "users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Users collection"

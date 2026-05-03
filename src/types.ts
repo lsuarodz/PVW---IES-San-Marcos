@@ -39,6 +39,9 @@ export interface Recipe {
   totalCost: number;
   imageUrl?: string;
   createdBy: string;
+  group?: string;
+  score?: number;
+  feedback?: string;
   createdAt: string;
 }
 
@@ -58,6 +61,9 @@ export interface Menu {
   totalCost: number;
   price: number;
   createdBy: string;
+  group?: string;
+  score?: number;
+  feedback?: string;
   createdAt: string;
 }
 
@@ -76,6 +82,15 @@ export interface AppUser {
   role: 'admin' | 'student' | 'docente';
   name: string;
   group?: string;
+  commission?: string;
+}
+
+export interface CommissionTask {
+  id: string;
+  commission: string;
+  idea: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 export interface BenchmarkingCompany {

@@ -96,12 +96,13 @@ service cloud.firestore {
     // ===============================================================
     function isValidUser() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'createdAt']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'commission', 'createdAt']) &&
              isValidString(data.email, 3, 100) &&
              data.role in ['admin', 'student', 'docente'] &&
              isValidString(data.name, 1, 100) &&
              (!('course' in data) || data.course == "" || isValidString(data.course, 1, 50)) &&
              (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
+             (!('commission' in data) || data.commission == "" || isValidString(data.commission, 1, 50)) &&
              data.createdAt is string;
     }
 
@@ -126,7 +127,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -143,13 +144,16 @@ service cloud.firestore {
              data.ingredients is list && data.ingredients.size() <= 100 &&
              data.totalCost is number && data.totalCost >= 0 &&
              isValidString(data.createdBy, 1, 100) &&
+             (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
+             (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 10)) &&
+             (!('feedback' in data) || data.feedback == "" || isValidString(data.feedback, 1, 2000)) &&
              data.createdAt is string &&
              (!('portions' in data) || data.portions == null || (data.portions is number && data.portions > 0));
     }
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'createdAt', 'diners']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
@@ -163,6 +167,9 @@ service cloud.firestore {
              data.totalCost is number && data.totalCost >= 0 &&
              data.price is number && data.price >= 0 &&
              isValidString(data.createdBy, 1, 100) &&
+             (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
+             (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 10)) &&
+             (!('feedback' in data) || data.feedback == "" || isValidString(data.feedback, 1, 2000)) &&
              data.createdAt is string &&
              (!('diners' in data) || data.diners == null || (data.diners is number && data.diners > 0));
     }
@@ -246,6 +253,15 @@ service cloud.firestore {
              isValidString(data.menuId, 1, 100) &&
              isValidString(data.idea, 1, 2000) &&
              (!('referenceLink' in data) || data.referenceLink == null || data.referenceLink == "" || isValidString(data.referenceLink, 1, 2000)) &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
+    function isValidCommissionTask() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['commission', 'idea', 'createdBy', 'createdAt']) &&
+             isValidString(data.commission, 1, 50) &&
+             isValidString(data.idea, 1, 1000) &&
              isValidString(data.createdBy, 1, 100) &&
              data.createdAt is string;
     }
@@ -356,6 +372,12 @@ service cloud.firestore {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidQuote();
       allow delete: if isSuperAdmin() || isAdmin();
+    }
+
+    match /commission_tasks/{taskId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidCommissionTask();
+      allow delete: if isAdmin();
     }
 
     match /settings/{settingId} {

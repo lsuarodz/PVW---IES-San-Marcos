@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -15,7 +15,7 @@ import { Menu, Recipe, Ingredient } from '../types';
 
 export default function Menus() {
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser } = useAuth();
+  const { appUser, viewAsStudent } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Verificamos si el usuario es el administrador principal
@@ -23,7 +23,7 @@ export default function Menus() {
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { menus, recipes, ingredients, clients, settings } = useData();
+  const { menus, recipes, ingredients, clients, settings, users } = useData();
   
   // Estado para el buscador y paginación
   const [search, setSearch] = useState('');
@@ -50,6 +50,19 @@ export default function Menus() {
     title: '',
     message: '',
     onConfirm: () => {}
+  });
+
+  // Estados para la evaluación
+  const [evaluateModal, setEvaluateModal] = useState<{
+    isOpen: boolean;
+    menuId: string | null;
+    score: number;
+    feedback: string;
+  }>({
+    isOpen: false,
+    menuId: null,
+    score: 0,
+    feedback: ''
   });
   
   // Estado para almacenar los datos del formulario del menú
@@ -82,15 +95,23 @@ export default function Menus() {
     const id = editingId || doc(collection(db, 'menus')).id;
     const totalCost = calculateMenuTotalCost(formData.recipes, recipes);
 
+    const existing = editingId ? menus.find(m => m.id === editingId) : null;
+
     const menuData = {
       ...formData,
       nameES: formData.nameES.trim() || 'Menú sin nombre',
       diners: formData.diners || null,
-      nameEN: editingId ? menus.find(m => m.id === editingId)?.nameEN || '' : '',
+      nameEN: existing?.nameEN || '',
       totalCost,
-      createdBy: appUser.group || appUser.name,
-      createdAt: editingId ? menus.find(m => m.id === editingId)?.createdAt : new Date().toISOString(),
+      createdBy: existing?.createdBy || appUser.name,
+      group: existing?.group !== undefined ? existing.group : (appUser.group || ''),
+      score: existing?.score || null,
+      feedback: existing?.feedback || '',
+      createdAt: existing?.createdAt || new Date().toISOString(),
     };
+
+    if (menuData.score === null) delete menuData.score;
+    if (menuData.feedback === null) delete menuData.feedback;
 
     try {
       await setDoc(doc(db, 'menus', id), menuData);
@@ -100,6 +121,31 @@ export default function Menus() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `menus/${id}`);
     }
+  };
+
+  const handleSubmitEvaluation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!evaluateModal.menuId) return;
+
+    try {
+      await updateDoc(doc(db, 'menus', evaluateModal.menuId), {
+        score: evaluateModal.score,
+        feedback: evaluateModal.feedback.trim()
+      });
+      showToast('Evaluación guardada', 'success');
+      setEvaluateModal({ isOpen: false, menuId: null, score: 0, feedback: '' });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `menus/${evaluateModal.menuId}`);
+    }
+  };
+
+  const openEvaluation = (menu: Menu) => {
+    setEvaluateModal({
+      isOpen: true,
+      menuId: menu.id,
+      score: menu.score || 0,
+      feedback: menu.feedback || ''
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -152,94 +198,113 @@ export default function Menus() {
     }));
   };
 
-  const exportPDF = (menu: Menu) => {
+  const exportPDF = async (menu: Menu) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingMenu(menu);
     showToast('Generando PDF...', 'info');
     
-    setTimeout(() => {
+    // Safety timeout to unblock UI if something goes wrong
+    const safetyTimeout = setTimeout(() => {
+      if (isPrinting) {
+        setIsPrinting(false);
+        setPrintingMenu(null);
+        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+      }
+    }, 15000);
+
+    setTimeout(async () => {
       if (printRef.current) {
-        const opt = {
-          margin: 0,
-          filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.95 },
-          html2canvas: { 
-            scale: 1.5, 
-            useCORS: true, 
-            logging: false,
-            letterRendering: true,
-            useOverflow: true
-          },
-          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
-        };
-        
-        html2pdf()
-          .set(opt)
-          .from(printRef.current)
-          .save()
-          .then(() => {
-            setPrintingMenu(null);
-            setIsPrinting(false);
-          })
-          .catch((err: any) => {
-            console.error('Error generating PDF:', err);
-            setPrintingMenu(null);
-            setIsPrinting(false);
-            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
-          });
+        try {
+          const opt = {
+            margin: 0,
+            filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.95 },
+            html2canvas: { 
+              scale: 1, 
+              useCORS: true, 
+              logging: false,
+              useOverflow: true
+            },
+            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+          };
+          
+          await html2pdf().set(opt).from(printRef.current).save();
+        } catch (err: any) {
+          console.error('Error generating PDF:', err);
+          showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
+        } finally {
+          clearTimeout(safetyTimeout);
+          setPrintingMenu(null);
+          setIsPrinting(false);
+        }
       } else {
+        clearTimeout(safetyTimeout);
         setIsPrinting(false);
       }
-    }, 300);
+    }, 500);
   };
 
-  const exportEquipmentPDF = (menu: Menu) => {
+  const exportEquipmentPDF = async (menu: Menu) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingEquipmentMenu(menu);
     showToast('Generando PDF...', 'info');
     
-    setTimeout(() => {
+    // Safety timeout to unblock UI if something goes wrong
+    const safetyTimeout = setTimeout(() => {
+      if (isPrinting) {
+        setIsPrinting(false);
+        setPrintingEquipmentMenu(null);
+        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+      }
+    }, 15000);
+
+    setTimeout(async () => {
       if (printEquipmentRef.current) {
-        const opt = {
-          margin: 0,
-          filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.95 },
-          html2canvas: { 
-            scale: 1.5, 
-            useCORS: true, 
-            logging: false,
-            letterRendering: true,
-            useOverflow: true
-          },
-          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
-        };
-        
-        html2pdf()
-          .set(opt)
-          .from(printEquipmentRef.current)
-          .save()
-          .then(() => {
-            setPrintingEquipmentMenu(null);
-            setIsPrinting(false);
-          })
-          .catch((err: any) => {
-            console.error('Error generating PDF:', err);
-            setPrintingEquipmentMenu(null);
-            setIsPrinting(false);
-            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
-          });
+        try {
+          const opt = {
+            margin: 0,
+            filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.95 },
+            html2canvas: { 
+              scale: 1, 
+              useCORS: true, 
+              logging: false,
+              useOverflow: true
+            },
+            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+          };
+          
+          await html2pdf().set(opt).from(printEquipmentRef.current).save();
+        } catch (err: any) {
+          console.error('Error generating PDF:', err);
+          showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
+        } finally {
+          clearTimeout(safetyTimeout);
+          setPrintingEquipmentMenu(null);
+          setIsPrinting(false);
+        }
       } else {
+        clearTimeout(safetyTimeout);
         setIsPrinting(false);
       }
-    }, 300);
+    }, 500);
   };
 
-  const filteredMenus = menus.filter(m => 
-    m.nameES.toLowerCase().includes(search.toLowerCase()) || 
-    m.nameEN?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredMenus = menus.filter(m => {
+    const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
+    if (isStudentView) {
+      if (appUser?.role === 'student') {
+        const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
+        if (!matchesGroup) return false;
+      } else {
+        if (!m.group) return false;
+      }
+    }
+    return m.nameES.toLowerCase().includes(search.toLowerCase()) || 
+           m.nameEN?.toLowerCase().includes(search.toLowerCase());
+  });
 
   // Calcular paginación
   const totalPages = Math.ceil(filteredMenus.length / itemsPerPage);
@@ -291,6 +356,15 @@ export default function Menus() {
                   <Utensils size={24} />
                 </div>
                 <div className="flex gap-1">
+                  {isAdmin && !viewAsStudent && menu.group && (
+                    <button 
+                      onClick={() => openEvaluation(menu)} 
+                      className={`p-2 rounded-lg transition-colors text-xs font-medium ${menu.score !== undefined && menu.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                      title="Evaluar"
+                    >
+                      {menu.score !== undefined && menu.score !== null ? `Nota: ${menu.score}` : 'Evaluar'}
+                    </button>
+                  )}
                   <button 
                     onClick={() => exportEquipmentPDF(menu)} 
                     disabled={isPrinting}
@@ -388,11 +462,18 @@ export default function Menus() {
                 </div>
               </div>
               
-              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex items-center justify-between">
-                <span>Creado por</span>
-                <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(menu.createdBy)}`}>
-                  {menu.createdBy}
-                </span>
+              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span>Creado por</span>
+                  <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(menu.createdBy)}`}>
+                    {menu.group ? `Grupo ${menu.group}` : menu.createdBy}
+                  </span>
+                </div>
+                {menu.group && (
+                  <div className="text-[10px] text-stone-500 text-right leading-tight">
+                    {users.filter(u => u.group === menu.group).map(u => u.name).join(', ')}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -914,6 +995,59 @@ export default function Menus() {
         }}
       />
     </div>
+      {/* Modal Evaluation */}
+      {evaluateModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-stone-100 overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-stone-900 mb-4 tracking-tight">Evaluar Menú</h2>
+              <p className="text-stone-500 text-sm mb-6">Asigna una puntuación y da una retroalimentación a los alumnos sobre su menú.</p>
+              
+              <form onSubmit={handleSubmitEvaluation} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Nota (0-10)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    required
+                    value={evaluateModal.score}
+                    onChange={(e) => setEvaluateModal({ ...evaluateModal, score: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Feedback / Observaciones</label>
+                  <textarea
+                    rows={4}
+                    value={evaluateModal.feedback}
+                    onChange={(e) => setEvaluateModal({ ...evaluateModal, feedback: e.target.value })}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors resize-none"
+                    placeholder="Escribe tus comentarios para el grupo..."
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setEvaluateModal({ isOpen: false, menuId: null, score: 0, feedback: '' })}
+                    className="px-4 py-2 text-stone-600 hover:bg-stone-50 rounded-xl transition-colors font-medium text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors font-medium text-sm shadow-sm opacity-90"
+                  >
+                    Guardar Evaluación
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -35,6 +35,8 @@ import WorkTeam from './pages/WorkTeam';
 import Benchmarking from './pages/Benchmarking';
 import Sources from './pages/Sources';
 import Brainstorming from './pages/Brainstorming';
+import Commissions from './pages/Commissions';
+import TestRecipe from './pages/TestRecipe';
 import Providers from './pages/Providers';
 import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
@@ -114,6 +116,8 @@ function AppRoutes() {
         <Route path="benchmarking" element={<Benchmarking />} />
         <Route path="sources" element={<Sources />} />
         <Route path="brainstorming" element={<Brainstorming />} />
+        <Route path="commissions" element={<Commissions />} />
+        <Route path="test-recipe" element={<TestRecipe />} />
         <Route path="providers" element={<Providers />} />
         <Route path="clients" element={<Clients />} />
         <Route path="quotes" element={<Quotes />} />

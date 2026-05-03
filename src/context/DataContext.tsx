@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings } from '../types';
+import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings, AppUser } from '../types';
 
 // ============================================================================
 // INTERFACES (Definición de Tipos)
@@ -19,6 +19,7 @@ interface DataContextType {
   clients: Client[];
   quotes: Quote[];
   productionIdeas: ProductionIdea[];
+  users: AppUser[];
   settings: AppSettings | null;
   loadingData: boolean;
 }
@@ -49,6 +50,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [productionIdeas, setProductionIdeas] = useState<ProductionIdea[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   
   // Estado para saber si seguimos descargando datos de internet.
@@ -158,6 +160,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       checkLoading();
     });
 
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const data: AppUser[] = [];
+      snapshot.forEach((doc) => data.push({ uid: doc.id, ...doc.data() } as AppUser));
+      setUsers(data);
+    });
+
     // 4. LIMPIEZA (Cleanup)
     // Cuando el componente se destruye o el usuario cierra sesión, 
     // debemos "desuscribirnos" de Firebase para no gastar memoria ni internet.
@@ -171,6 +179,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       unsubQuotes();
       unsubProductionIdeas();
       unsubSettings();
+      unsubUsers();
     };
   }, [appUser]); // El array [appUser] le dice a useEffect: "Solo vuelve a ejecutar esto si appUser cambia".
 
@@ -178,7 +187,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Aquí devolvemos el "Context.Provider" envolviendo a los "children" (nuestra app).
   // En la propiedad "value" metemos todos los datos que queremos compartir.
   return (
-    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, settings, loadingData }}>
+    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, users, settings, loadingData }}>
       {children}
     </DataContext.Provider>
   );

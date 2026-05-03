@@ -26,7 +26,7 @@ import {
 
 export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
-  const { appUser, logout } = useAuth();
+  const { appUser, viewAsStudent, setViewAsStudent, logout } = useAuth();
   const { settings } = useData();
   // Obtenemos la ruta actual para saber qué menú está activo
   const location = useLocation();
@@ -35,6 +35,7 @@ export default function Layout() {
   const [openSections, setOpenSections] = useState({
     jornada1: false,
     jornada2: true,
+    jornada3: true,
     produccion: true,
     comercial: true,
     otros: true
@@ -61,6 +62,12 @@ export default function Layout() {
     { name: 'Matriz Benchmarking', path: '/benchmarking', icon: <FileText size={20} /> },
     { name: 'Fuentes', path: '/sources', icon: <LinkIcon size={20} /> },
     { name: 'Brainstorming', path: '/brainstorming', icon: <Lightbulb size={20} /> },
+  ];
+
+  // Definición de los elementos del menú para la Jornada 3
+  const jornada3Items = [
+    { name: 'Comisiones', path: '/commissions', icon: <Users size={20} /> },
+    { name: 'Receta de Prueba', path: '/test-recipe', icon: <ChefHat size={20} /> },
   ];
 
   // Definición de los elementos del menú para Producción
@@ -192,7 +199,40 @@ export default function Layout() {
                           ? 'bg-violet-50 text-violet-700 font-medium' 
                           : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                       }`}
-                    >
+                     >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Sección Jornada 3 */}
+          <div>
+            <button 
+              onClick={() => toggleSection('jornada3')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+            >
+              <span>Jornada 3</span>
+              {openSections.jornada3 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.jornada3 && (
+              <div className="space-y-1 mt-2">
+                {jornada3Items.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-amber-50 text-amber-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                     >
                       {item.icon}
                       {item.name}
                     </Link>
@@ -316,6 +356,24 @@ export default function Layout() {
               </p>
             </div>
           </div>
+          {appUser?.role === 'admin' && (
+            <button
+              onClick={() => setViewAsStudent(!viewAsStudent)}
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl transition-colors mb-2 ${
+                viewAsStudent 
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                  : 'text-stone-600 hover:bg-stone-50 border border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users size={18} />
+                <span>Vista Alumno</span>
+              </div>
+              <div className={`w-8 h-4 rounded-full relative transition-colors ${viewAsStudent ? 'bg-amber-500' : 'bg-stone-300'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${viewAsStudent ? 'left-[18px]' : 'left-0.5'}`} />
+              </div>
+            </button>
+          )}
           {/* Botón para cerrar sesión */}
           <button
             onClick={logout}

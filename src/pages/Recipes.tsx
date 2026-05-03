@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +18,7 @@ import { Recipe, RecipeIngredient, Ingredient } from '../types';
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser } = useAuth();
+  const { appUser, viewAsStudent } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Verificamos si el usuario es el administrador principal
@@ -26,7 +26,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const { showToast } = useToast();
   
   // Estados para almacenar los datos de la base de datos
-  const { recipes, ingredients, menus, settings } = useData();
+  const { recipes, ingredients, menus, settings, users } = useData();
   
   // Filtrar recetas por tipo (las que no tienen tipo se consideran 'plato')
   const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === 'elaborado');
@@ -56,6 +56,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     title: '',
     message: '',
     onConfirm: () => {}
+  });
+
+  // Estados para la evaluación
+  const [evaluateModal, setEvaluateModal] = useState<{
+    isOpen: boolean;
+    recipeId: string | null;
+    score: number;
+    feedback: string;
+  }>({
+    isOpen: false,
+    recipeId: null,
+    score: 0,
+    feedback: ''
   });
   
   // Referencias y estados para la funcionalidad de impresión a PDF
@@ -105,6 +118,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     const id = editingId || doc(collection(db, 'recipes')).id;
     const totalCost = calculateRecipeTotalCost(formData.ingredients, ingredients, recipes);
 
+    const existing = editingId ? recipes.find(r => r.id === editingId) : null;
+    
     const recipeData = {
       ...formData,
       type,
@@ -112,14 +127,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       yieldQuantity: formData.yieldQuantity || null,
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
-      nameEN: editingId ? recipes.find(r => r.id === editingId)?.nameEN || '' : '',
-      descriptionES: editingId ? recipes.find(r => r.id === editingId)?.descriptionES || '' : '',
-      descriptionEN: editingId ? recipes.find(r => r.id === editingId)?.descriptionEN || '' : '',
-      stepsEN: editingId ? recipes.find(r => r.id === editingId)?.stepsEN || [] : [],
+      nameEN: existing?.nameEN || '',
+      descriptionES: existing?.descriptionES || '',
+      descriptionEN: existing?.descriptionEN || '',
+      stepsEN: existing?.stepsEN || [],
       totalCost,
-      createdBy: appUser.group || appUser.name,
-      createdAt: editingId ? recipes.find(r => r.id === editingId)?.createdAt : new Date().toISOString(),
+      createdBy: existing?.createdBy || appUser.name,
+      group: existing?.group !== undefined ? existing.group : (appUser.group || ''),
+      score: existing?.score || null,
+      feedback: existing?.feedback || '',
+      createdAt: existing?.createdAt || new Date().toISOString(),
     };
+
+    if (recipeData.score === null) delete recipeData.score;
+    if (recipeData.feedback === null) delete recipeData.feedback;
 
     try {
       await setDoc(doc(db, 'recipes', id), recipeData);
@@ -129,6 +150,31 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `recipes/${id}`);
     }
+  };
+
+  const handleSubmitEvaluation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!evaluateModal.recipeId) return;
+
+    try {
+      await updateDoc(doc(db, 'recipes', evaluateModal.recipeId), {
+        score: evaluateModal.score,
+        feedback: evaluateModal.feedback.trim()
+      });
+      showToast('Evaluación guardada', 'success');
+      setEvaluateModal({ isOpen: false, recipeId: null, score: 0, feedback: '' });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `recipes/${evaluateModal.recipeId}`);
+    }
+  };
+
+  const openEvaluation = (recipe: Recipe) => {
+    setEvaluateModal({
+      isOpen: true,
+      recipeId: recipe.id,
+      score: recipe.score || 0,
+      feedback: recipe.feedback || ''
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -263,53 +309,70 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
-  const exportPDF = (recipe: Recipe) => {
+  const exportPDF = async (recipe: Recipe) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingRecipe(recipe);
     showToast('Generando PDF...', 'info');
     
-    setTimeout(() => {
+    // Safety timeout to unblock UI if something goes wrong
+    const safetyTimeout = setTimeout(() => {
+      if (isPrinting) {
+        setIsPrinting(false);
+        setPrintingRecipe(null);
+        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+      }
+    }, 15000);
+
+    setTimeout(async () => {
       if (printRef.current) {
-        const opt = {
-          margin: 0,
-          filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.95 },
-          html2canvas: { 
-            scale: 1.5, 
-            useCORS: true, 
-            logging: false,
-            letterRendering: true,
-            useOverflow: true
-          },
-          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
-          pagebreak: { mode: 'avoid-all' }
-        };
-        
-        html2pdf()
-          .set(opt)
-          .from(printRef.current)
-          .save()
-          .then(() => {
-            setPrintingRecipe(null);
-            setIsPrinting(false);
-          })
-          .catch((err: any) => {
-            console.error('Error generating PDF:', err);
-            setPrintingRecipe(null);
-            setIsPrinting(false);
-            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
-          });
+        try {
+          const opt = {
+            margin: 0,
+            filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.95 },
+            html2canvas: { 
+              scale: 1, 
+              useCORS: true, 
+              logging: false,
+              useOverflow: true
+            },
+            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            pagebreak: { mode: 'avoid-all' }
+          };
+          
+          await html2pdf().set(opt).from(printRef.current).save();
+        } catch (err: any) {
+          console.error('Error generating PDF:', err);
+          showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
+        } finally {
+          clearTimeout(safetyTimeout);
+          setPrintingRecipe(null);
+          setIsPrinting(false);
+        }
       } else {
+        clearTimeout(safetyTimeout);
         setIsPrinting(false);
       }
-    }, 300);
+    }, 500);
   };
 
-  const filteredRecipes = filteredByType.filter(r => 
-    r.nameES.toLowerCase().includes(search.toLowerCase()) || 
-    r.nameEN?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredRecipes = filteredByType.filter(r => {
+    // Determine visibility based on student view
+    const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
+    if (isStudentView) {
+      if (appUser?.role === 'student') {
+        const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
+        if (!matchesGroup) return false;
+      } else {
+        // Admin viewing as student: show ONLY recipes that have a group (students' recipes)
+        if (!r.group) return false;
+      }
+    }
+
+    return r.nameES.toLowerCase().includes(search.toLowerCase()) || 
+           r.nameEN?.toLowerCase().includes(search.toLowerCase());
+  });
 
   // Calcular paginación
   const totalPages = Math.ceil(filteredRecipes.length / itemsPerPage);
@@ -388,6 +451,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 )}
                 <div className={`flex gap-1 ${recipe.imageUrl ? 'w-full justify-end' : ''}`}>
+                  {isAdmin && !viewAsStudent && recipe.group && (
+                    <button 
+                      onClick={() => openEvaluation(recipe)} 
+                      className={`p-2 rounded-lg transition-colors text-xs font-medium ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                      title="Evaluar"
+                    >
+                      {recipe.score !== undefined && recipe.score !== null ? `Nota: ${recipe.score}` : 'Evaluar'}
+                    </button>
+                  )}
                   <button 
                     onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
@@ -450,11 +522,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
               </div>
               
-              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex items-center justify-between">
-                <span>Creado por</span>
-                <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(recipe.createdBy)}`}>
-                  {recipe.createdBy}
-                </span>
+              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span>Creado por</span>
+                  <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(recipe.createdBy)}`}>
+                    {recipe.group ? `Grupo ${recipe.group}` : recipe.createdBy}
+                  </span>
+                </div>
+                {recipe.group && (
+                  <div className="text-[10px] text-stone-500 text-right leading-tight">
+                    {users.filter(u => u.group === recipe.group).map(u => u.name).join(', ')}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1069,6 +1148,59 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </div>
       )}
     </div>
+      {/* Modal Evaluation */}
+      {evaluateModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-stone-100 overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-stone-900 mb-4 tracking-tight">Evaluar Receta</h2>
+              <p className="text-stone-500 text-sm mb-6">Asigna una puntuación y da una retroalimentación a los alumnos sobre su receta o elaborado.</p>
+              
+              <form onSubmit={handleSubmitEvaluation} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Nota (0-10)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    required
+                    value={evaluateModal.score}
+                    onChange={(e) => setEvaluateModal({ ...evaluateModal, score: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Feedback / Observaciones</label>
+                  <textarea
+                    rows={4}
+                    value={evaluateModal.feedback}
+                    onChange={(e) => setEvaluateModal({ ...evaluateModal, feedback: e.target.value })}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors resize-none"
+                    placeholder="Escribe tus comentarios para el grupo..."
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setEvaluateModal({ isOpen: false, recipeId: null, score: 0, feedback: '' })}
+                    className="px-4 py-2 text-stone-600 hover:bg-stone-50 rounded-xl transition-colors font-medium text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors font-medium text-sm shadow-sm opacity-90"
+                  >
+                    Guardar Evaluación
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

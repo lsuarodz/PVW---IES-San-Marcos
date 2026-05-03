@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trash2, UserPlus, Settings as SettingsIcon, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,7 @@ interface User {
   name: string;
   course?: string;
   group?: string;
+  commission?: string;
   createdAt: string;
 }
 
@@ -30,6 +31,7 @@ export default function Admin() {
   const [newRole, setNewRole] = useState<'admin' | 'student' | 'docente'>('student');
   const [newCourse, setNewCourse] = useState('2ºCOCINA');
   const [newGroup, setNewGroup] = useState('1');
+  const [newCommission, setNewCommission] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Estado para el logo
@@ -106,6 +108,17 @@ export default function Admin() {
       showToast('Error al añadir usuario', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para eliminar el acceso de un usuario
+  const handleUpdateCommission = async (uid: string, commission: string) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { commission });
+      showToast('Comisión actualizada correctamente', 'success');
+    } catch (error) {
+      console.error('Error updating commission:', error);
+      showToast('Error al actualizar la comisión', 'error');
     }
   };
 
@@ -280,6 +293,7 @@ export default function Admin() {
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Rol</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Curso</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Grupo</th>
+              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Comisión</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900 text-right">Acciones</th>
             </tr>
           </thead>
@@ -299,6 +313,23 @@ export default function Admin() {
                 </td>
                 <td className="px-6 py-4 text-sm text-stone-600">{user.course || '-'}</td>
                 <td className="px-6 py-4 text-sm text-stone-600">{user.group ? `Grupo ${user.group}` : '-'}</td>
+                <td className="px-6 py-4 text-sm text-stone-600">
+                  {user.role === 'student' ? (
+                    <select
+                      value={user.commission || ''}
+                      onChange={(e) => handleUpdateCommission(user.uid, e.target.value)}
+                      className="px-2 py-1 bg-stone-50 border border-stone-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    >
+                      <option value="">Sin comisión</option>
+                      <option value="GASTOS">Gastos</option>
+                      <option value="LOGÍSTICA">Logística</option>
+                      <option value="DISEÑO Y MARKETING">Diseño y Marketing</option>
+                      <option value="SOSTENIBILIDAD">Sostenibilidad</option>
+                    </select>
+                  ) : (
+                    '-'
+                  )}
+                </td>
                 <td className="px-6 py-4 text-sm text-right">
                   {appUser?.role === 'admin' && user.email !== appUser?.email && (
                     <button
