@@ -12,7 +12,7 @@ import { Ingredient } from '../types';
 
 export default function Ingredients() {
   // Obtenemos el usuario actual y sus permisos desde el contexto de autenticación
-  const { appUser } = useAuth();
+  const { appUser, commissionMode } = useAuth();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const isSuperAdmin = appUser?.role === 'admin';
   const { showToast } = useToast();
@@ -25,7 +25,7 @@ export default function Ingredients() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
+  const isKaled = (appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled')) && commissionMode;
 
   // Mapeo de ingredientes usados en recetas para mostrar enlaces
   const ingredientUsage = useMemo(() => {
@@ -124,7 +124,7 @@ export default function Ingredients() {
           showToast(`${idsToDelete.length} ingredientes eliminados correctamente`, 'success');
         } catch (error) {
           console.error('Error deleting ingredients:', error);
-          showToast('Error al eliminar. Solo el tutor puede eliminar ingredientes.', 'error');
+          showToast('Error al eliminar. Comprueba tus permisos.', 'error');
         }
       }
     });
@@ -239,7 +239,7 @@ export default function Ingredients() {
           showToast('Ingrediente eliminado', 'success');
         } catch (error) {
           console.error('Error deleting ingredient:', error);
-          showToast('Error al eliminar. Solo el tutor puede eliminar ingredientes.', 'error');
+          showToast('Error al eliminar. Comprueba tus permisos.', 'error');
         }
       }
     });
@@ -534,6 +534,7 @@ export default function Ingredients() {
                         step="0.01"
                         min="0"
                         value={ing.purchasePrice || ing.costPerUnit}
+                        disabled={!isAdmin && !isKaled}
                         onChange={(e) => {
                           const newPrice = Number(e.target.value) || 0;
                           const waste = ing.wastePercentage || 0;
@@ -554,6 +555,7 @@ export default function Ingredients() {
                         min="0"
                         max="99"
                         value={ing.wastePercentage || 0}
+                        disabled={!isAdmin && !isKaled}
                         onChange={(e) => {
                           const newWaste = Number(e.target.value) || 0;
                           const safeWaste = Math.min(Math.max(newWaste, 0), 99);
@@ -690,7 +692,7 @@ export default function Ingredients() {
                       >
                         <Edit2 size={18} />
                       </button>
-                      {isAdmin && (
+                      {(isAdmin || isKaled) && (
                         <button
                           onClick={() => handleWasteDelete(waste.id)}
                           className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

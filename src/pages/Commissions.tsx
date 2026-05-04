@@ -14,7 +14,7 @@ const COMMISSIONS = [
 ];
 
 export default function Commissions() {
-  const { appUser } = useAuth();
+  const { appUser, commissionMode } = useAuth();
   const { showToast } = useToast();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [tasks, setTasks] = useState<CommissionTask[]>([]);
@@ -146,7 +146,7 @@ export default function Commissions() {
                   )}
                 </div>
                 
-                {appUser && (appUser.role === 'admin' || appUser.role === 'docente' || appUser.commission === commission || appUser.commission === '') && (
+                {appUser && (appUser.role === 'admin' || appUser.role === 'docente' || (commissionMode && (appUser.commission === commission || appUser.commission === ''))) && (
                   <div className="mt-auto pt-4 border-t border-stone-100">
                     <div className="flex gap-2 relative">
                       <textarea

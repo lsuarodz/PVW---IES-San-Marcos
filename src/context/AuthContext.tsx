@@ -20,6 +20,8 @@ interface AuthContextType {
   loading: boolean; // Estado de carga mientras verificamos la sesión
   viewAsStudent: boolean;
   setViewAsStudent: (value: boolean) => void;
+  commissionMode: boolean;
+  setCommissionMode: (value: boolean) => void;
   login: () => Promise<void>; // Función para iniciar sesión
   logout: () => Promise<void>; // Función para cerrar sesión
 }
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewAsStudent, setViewAsStudent] = useState(false);
+  const [commissionMode, setCommissionMode] = useState(true);
 
   // Efecto que se ejecuta al cargar la aplicación para verificar si hay una sesión activa
   useEffect(() => {
@@ -106,7 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Proveemos los valores y funciones al resto de la aplicación
   return (
-    <AuthContext.Provider value={{ user, appUser, loading, viewAsStudent, setViewAsStudent, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      appUser, 
+      loading, 
+      viewAsStudent, 
+      setViewAsStudent, 
+      commissionMode, 
+      setCommissionMode, 
+      login, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

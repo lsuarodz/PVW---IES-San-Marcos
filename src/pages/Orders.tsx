@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer } from 'lucide-react';
@@ -22,8 +23,10 @@ interface AggregatedIngredient {
 }
 
 export default function Orders() {
+  const { appUser, commissionMode } = useAuth();
+  const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Estados para almacenar recetas e ingredientes desde la base de datos
-  const { recipes, ingredients, settings } = useData();
+  const { recipes, ingredients, menus, settings } = useData();
   const { showToast } = useToast();
   
   // Estado para el buscador de recetas
@@ -128,17 +131,27 @@ export default function Orders() {
     return Object.values(aggregation).sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  const { menus } = useData();
+  const filteredRecipes = recipes.filter(r => {
+    // Si es estudiante y no está en modo comisión, solo ve sus propias recetas
+    if (appUser?.role === 'student' && !commissionMode) {
+      const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
+      if (!matchesGroup) return false;
+    }
+    
+    return r.nameES.toLowerCase().includes(search.toLowerCase()) &&
+           !orderItems.find(item => item.id === r.id && item.type === 'recipe');
+  });
 
-  const filteredRecipes = recipes.filter(r => 
-    r.nameES.toLowerCase().includes(search.toLowerCase()) &&
-    !orderItems.find(item => item.id === r.id && item.type === 'recipe')
-  );
+  const filteredMenus = menus.filter(m => {
+    // Si es estudiante y no está en modo comisión, solo ve sus propios menús
+    if (appUser?.role === 'student' && !commissionMode) {
+      const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
+      if (!matchesGroup) return false;
+    }
 
-  const filteredMenus = menus.filter(m => 
-    m.nameES.toLowerCase().includes(search.toLowerCase()) &&
-    !orderItems.find(item => item.id === m.id && item.type === 'menu')
-  );
+    return m.nameES.toLowerCase().includes(search.toLowerCase()) &&
+           !orderItems.find(item => item.id === m.id && item.type === 'menu');
+  });
 
   const aggregatedList = getAggregatedIngredients();
   const totalOrderCost = aggregatedList.reduce((sum, item) => sum + item.totalCost, 0);

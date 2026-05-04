@@ -19,7 +19,7 @@ import { Recipe, RecipeIngredient, Ingredient } from '../types';
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser, viewAsStudent } = useAuth();
+  const { appUser, viewAsStudent, commissionMode } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Verificamos si el usuario es el administrador principal
@@ -39,7 +39,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
   const itemsPerPage = 12;
 
-  const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
+  const isKaled = (appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled')) && commissionMode;
   
   // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -115,7 +115,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     // Kaled (Jefe Gastos) tiene permisos totales sobre escandallos
     if (isKaled && fieldType === 'escandallo') return true;
 
-    // Si no es dueño, comprobamos comisiones transversales
+    // Si no es dueño, comprobamos comisiones transversales (solo si el modo comisión está activo)
+    if (!commissionMode) return false;
+    
     const commission = appUser.commission?.toLowerCase();
     if (fieldType === 'escandallo' && commission === 'gastos') return true;
     if (fieldType === 'logistica' && commission === 'logística') return true;
@@ -192,17 +194,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           const patch: Record<string, any> = {};
           const commission = appUser.commission?.toLowerCase();
           
-          if (commission === 'gastos') {
+          if (commission === 'gastos' && commissionMode) {
             patch.ingredients = recipeData.ingredients;
             patch.yieldQuantity = recipeData.yieldQuantity;
             patch.yieldUnit = recipeData.yieldUnit;
             patch.portions = recipeData.portions;
             patch.totalCost = recipeData.totalCost;
           }
-          if (commission === 'logística') {
+          if (commission === 'logística' && commissionMode) {
             patch.equipment = recipeData.equipment;
           }
-          if (commission === 'sostenibilidad') {
+          if (commission === 'sostenibilidad' && commissionMode) {
             patch.sustainabilityTips = recipeData.sustainabilityTips;
           }
 
@@ -440,13 +442,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
     
     if (isStudentView) {
-      // Si no estamos viendo "Otros Grupos", mostramos solo el grupo del alumno (excepto si es Kaled, que puede elegir)
-      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled) {
+      // Si el modo comisión está desactivado (estamos en modo alumno), restringir estrictamente al propio grupo
+      if (appUser?.role === 'student' && !commissionMode) {
+        const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
+        if (!matchesGroup) return false;
+      }
+      
+      // Si estamos viendo "Otros Grupos" y el modo comisión está activo o somos admin
+      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled && commissionMode) {
         const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
         if (!matchesGroup) return false;
       } 
       
-      // Filtro de grupo específico (disponible para todos cuando ven otros grupos, o para admin/Kaled siempre)
+      // Filtro de grupo específico (disponible cuando ven otros grupos en modo comisión o admin)
       if (viewOtherGroups && selectedGroup !== 'todos') {
         if (r.group !== selectedGroup) return false;
       }
@@ -515,7 +523,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           />
         </div>
 
-        {appUser?.role === 'student' && (
+        {(appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
           <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
             <div className="flex bg-stone-100 p-1 rounded-xl">
               <button
@@ -540,7 +548,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </button>
             </div>
 
-            {viewOtherGroups && (
+            {viewOtherGroups && (commissionMode || isAdmin) && (
               <select
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
@@ -743,7 +751,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             
             <div className="p-6 overflow-y-auto flex-1">
               <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
-                {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && (
+                {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && commissionMode && (
                   <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
                     Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
                   </div>

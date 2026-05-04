@@ -26,7 +26,14 @@ import {
 
 export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
-  const { appUser, viewAsStudent, setViewAsStudent, logout } = useAuth();
+    const { 
+    appUser, 
+    viewAsStudent, 
+    setViewAsStudent, 
+    commissionMode, 
+    setCommissionMode, 
+    logout 
+  } = useAuth();
   const { settings } = useData();
   // Obtenemos la ruta actual para saber qué menú está activo
   const location = useLocation();
@@ -356,6 +363,25 @@ export default function Layout() {
               </p>
             </div>
           </div>
+          {appUser?.commission && (
+            <button
+              onClick={() => setCommissionMode(!commissionMode)}
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl transition-colors mb-2 ${
+                commissionMode 
+                  ? 'bg-teal-100 text-teal-800 border border-teal-200' 
+                  : 'text-stone-600 hover:bg-stone-50 border border-transparent'
+              }`}
+              title={commissionMode ? "Modo Comisión Activo" : "Cambiar a Modo Comisión"}
+            >
+              <div className="flex items-center gap-3">
+                <UserCog size={18} />
+                <span>Modo Comisión</span>
+              </div>
+              <div className={`w-8 h-4 rounded-full relative transition-colors ${commissionMode ? 'bg-teal-500' : 'bg-stone-300'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${commissionMode ? 'left-[18px]' : 'left-0.5'}`} />
+              </div>
+            </button>
+          )}
           {appUser?.role === 'admin' && (
             <button
               onClick={() => setViewAsStudent(!viewAsStudent)}
