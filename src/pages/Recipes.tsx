@@ -10,6 +10,7 @@ import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRig
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
+import CreateElaboradoModal from '../components/CreateElaboradoModal';
 import ConfirmModal from '../components/ConfirmModal';
 import html2pdf from 'html2pdf.js';
 import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
@@ -39,6 +40,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
+  const [isElaboradoModalOpen, setIsElaboradoModalOpen] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
   
   // Estado para saber si estamos editando un escandallo existente
@@ -120,10 +122,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
     const existing = editingId ? recipes.find(r => r.id === editingId) : null;
     
-    const recipeData = {
+    const recipeData: Record<string, any> = {
       ...formData,
       type,
-      portions: formData.portions || null,
+      portions: type === 'plato' ? 1 : (formData.portions || null),
       yieldQuantity: formData.yieldQuantity || null,
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
@@ -131,8 +133,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       descriptionES: existing?.descriptionES || '',
       descriptionEN: existing?.descriptionEN || '',
       stepsEN: existing?.stepsEN || [],
-      totalCost,
-      createdBy: existing?.createdBy || appUser.name,
+      totalCost: isNaN(totalCost) || !isFinite(totalCost) ? 0 : totalCost,
+      createdBy: existing?.createdBy || appUser.name || appUser.email || 'Usuario',
       group: existing?.group !== undefined ? existing.group : (appUser.group || ''),
       score: existing?.score || null,
       feedback: existing?.feedback || '',
@@ -140,7 +142,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     };
 
     if (recipeData.score === null) delete recipeData.score;
-    if (recipeData.feedback === null) delete recipeData.feedback;
+    if (recipeData.feedback === null || recipeData.feedback === '') delete recipeData.feedback;
+    if (recipeData.portions === null) delete recipeData.portions;
+    if (recipeData.yieldQuantity === null || recipeData.yieldQuantity === '') delete recipeData.yieldQuantity;
+    if (!recipeData.imageUrl) delete recipeData.imageUrl;
 
     try {
       await setDoc(doc(db, 'recipes', id), recipeData);
@@ -674,14 +679,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-1">Raciones (para cuántas personas)</label>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
                       <input
-                        type="number" min="1" step="1"
-                        value={formData.portions || ''}
-                        onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
-                        onFocus={e => e.target.select()}
-                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="Opcional"
+                        type="number"
+                        value={1}
+                        disabled
+                        className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-stone-200 rounded-xl cursor-not-allowed"
                       />
                     </div>
                   )}
@@ -708,13 +711,22 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Ingredientes (Escandallo)</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsIngredientModalOpen(true)}
-                      className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1 mr-4"
-                    >
-                      <Plus size={16} /> Crear nuevo ingrediente
-                    </button>
+                    <div className="flex items-center gap-4 mr-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsIngredientModalOpen(true)}
+                        className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1"
+                      >
+                        <Plus size={16} /> Nuevo ingrediente
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsElaboradoModalOpen(true)}
+                        className="text-sm text-stone-500 hover:text-indigo-600 font-medium flex items-center gap-1"
+                      >
+                        <Plus size={16} /> Nuevo elaborado
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="space-y-3">
@@ -753,17 +765,26 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 type="button"
                                 onClick={() => {
                                   // We need to trigger the edit ingredient modal.
-                                  // We can use a custom event or pass a prop if we had a global state.
-                                  // For now, since we have CreateIngredientModal, we can pass the ID to it.
                                   // Let's add an editingIngredientId state.
                                   setEditingIngredientId(selectedIng.id);
                                   setIsIngredientModalOpen(true);
                                 }}
-                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg"
+                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0"
                                 title="Editar ingrediente"
                               >
                                 <Edit2 size={16} />
                               </button>
+                            )}
+                            {isRecipe && (
+                              <a
+                                href={`/elaborados?edit=${ri.ingredientId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0"
+                                title="Editar elaborado en nueva pestaña"
+                              >
+                                <Edit2 size={16} />
+                              </a>
                             )}
                           </div>
                           <div className="w-24 shrink-0">
@@ -994,6 +1015,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               ingredients: [...prev.ingredients, { ingredientId: newId, quantity: 0 }]
             }));
           }
+        }}
+      />
+
+      <CreateElaboradoModal
+        isOpen={isElaboradoModalOpen}
+        onClose={() => setIsElaboradoModalOpen(false)}
+        onSuccess={(newId) => {
+          setFormData(prev => ({
+            ...prev,
+            ingredients: [...prev.ingredients, { ingredientId: newId, quantity: 0 }]
+          }));
         }}
       />
 

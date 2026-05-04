@@ -147,19 +147,40 @@ export default function Ingredients() {
 
     // Si estamos editando usamos el ID existente, si no, generamos uno nuevo
     const id = editingId || doc(collection(db, 'ingredients')).id;
-    const ingredientData = {
+    const ingredientData: Record<string, any> = {
       ...formData,
       purchasePrice,
-      formatPrice: formatPrice > 0 ? formatPrice : null,
-      weightPerUnit: weightPerUnit > 0 ? weightPerUnit : null,
+      formatPrice: formatPrice > 0 ? formatPrice : undefined,
+      weightPerUnit: weightPerUnit > 0 ? weightPerUnit : undefined,
       nameEN: editingId ? ingredients.find(i => i.id === editingId)?.nameEN || '' : '',
       wastePercentage: safeWaste,
       costPerUnit,
       createdBy: appUser.group || appUser.name,
-      createdAt: editingId ? ingredients.find(i => i.id === editingId)?.createdAt : new Date().toISOString(),
+      createdAt: editingId ? (ingredients.find(i => i.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     };
 
+    if (ingredientData.formatPrice === undefined) delete ingredientData.formatPrice;
+    if (ingredientData.weightPerUnit === undefined) delete ingredientData.weightPerUnit;
+
     try {
+      // Create provider if it doesn't exist
+      if (formData.provider) {
+        const providerName = formData.provider.trim();
+        const providerExists = providers.some(p => p.name.toLowerCase() === providerName.toLowerCase());
+        
+        if (!providerExists && providerName) {
+          const newProviderId = doc(collection(db, 'providers')).id;
+          await setDoc(doc(db, 'providers', newProviderId), {
+            id: newProviderId,
+            name: providerName,
+            createdBy: appUser.name,
+            createdAt: new Date().toISOString()
+          });
+          // Update the formData provider with the exactly typed name just in case
+          ingredientData.provider = providerName;
+        }
+      }
+
       // Guardamos en Firestore
       await setDoc(doc(db, 'ingredients', id), ingredientData);
       setIsModalOpen(false);
@@ -684,11 +705,17 @@ export default function Ingredients() {
                     <label className="block text-sm font-medium text-stone-700 mb-1">Proveedor</label>
                     <input
                       type="text"
+                      list="providers-list"
                       value={formData.provider}
                       onChange={e => setFormData({...formData, provider: e.target.value})}
-                      placeholder="Ej. Makro, Mercamadrid..."
+                      placeholder="Busca o escribe un nuevo proveedor..."
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
+                    <datalist id="providers-list">
+                      {providers.map(p => (
+                        <option key={p.id} value={p.name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
 
@@ -730,7 +757,9 @@ export default function Ingredients() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">Peso del formato (kg o L)</label>
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        {formData.unit === 'ud' ? 'Unidades por formato' : `Peso del formato (${formData.unit})`}
+                      </label>
                       <input
                         type="number"
                         step="0.001"

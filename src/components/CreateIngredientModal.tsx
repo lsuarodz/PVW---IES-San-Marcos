@@ -29,6 +29,9 @@ interface IngredientFormData {
   unit: 'kg' | 'L' | 'ud';
   purchasePrice: number;
   wastePercentage: number;
+  purchaseFormat?: string;
+  formatPrice?: number;
+  weightPerUnit?: number;
 }
 
 // ============================================================================
@@ -64,6 +67,9 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
       unit: 'kg',
       purchasePrice: 0,
       wastePercentage: 0,
+      purchaseFormat: '',
+      formatPrice: 0,
+      weightPerUnit: 0,
     }
   });
 
@@ -82,6 +88,9 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
           unit: initialData.unit || 'kg',
           purchasePrice: initialData.purchasePrice || 0,
           wastePercentage: initialData.wastePercentage || 0,
+          purchaseFormat: initialData.purchaseFormat || '',
+          formatPrice: initialData.formatPrice || 0,
+          weightPerUnit: initialData.weightPerUnit || 0,
         });
       } else {
         // Si NO hay editingId, significa que vamos a CREAR uno nuevo. Vaciamos el formulario.
@@ -92,6 +101,9 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
           unit: 'kg',
           purchasePrice: 0,
           wastePercentage: 0,
+          purchaseFormat: '',
+          formatPrice: 0,
+          weightPerUnit: 0,
         });
       }
     }
@@ -116,7 +128,14 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
     // 1. Cálculos de seguridad
     const waste = Number(data.wastePercentage) || 0;
     const safeWaste = Math.min(Math.max(waste, 0), 99); // Evitamos mermas mayores a 99% o menores a 0%
-    const price = Number(data.purchasePrice) || 0;
+    
+    let price = Number(data.purchasePrice) || 0;
+    const formatPrice = Number(data.formatPrice) || 0;
+    const weightPerUnit = Number(data.weightPerUnit) || 0;
+    
+    if (formatPrice > 0 && weightPerUnit > 0) {
+      price = formatPrice / weightPerUnit;
+    }
     
     // 2. Cálculo del coste real por unidad (Precio / (1 - Merma%))
     const costPerUnit = price / (1 - (safeWaste / 100));
@@ -126,9 +145,12 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
     const id = editingId || doc(collection(db, 'ingredients')).id;
     
     // 4. Preparamos el objeto final que se guardará en la base de datos
-    const ingredientData = {
+    const ingredientData: Record<string, any> = {
       ...data,
       purchasePrice: price,
+      formatPrice: formatPrice > 0 ? formatPrice : undefined,
+      weightPerUnit: weightPerUnit > 0 ? weightPerUnit : undefined,
+      purchaseFormat: data.purchaseFormat || '',
       nameEN: initialData?.nameEN || '', // Mantenemos el nombre en inglés si existía
       wastePercentage: safeWaste,
       costPerUnit,
@@ -136,7 +158,26 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
       createdAt: initialData?.createdAt || new Date().toISOString(),
     };
 
+    if (ingredientData.formatPrice === undefined) delete ingredientData.formatPrice;
+    if (ingredientData.weightPerUnit === undefined) delete ingredientData.weightPerUnit;
+
     try {
+      if (data.provider) {
+        const providerName = data.provider.trim();
+        const providerExists = providers.some(p => p.name.toLowerCase() === providerName.toLowerCase());
+        
+        if (!providerExists && providerName) {
+          const newProviderId = doc(collection(db, 'providers')).id;
+          await setDoc(doc(db, 'providers', newProviderId), {
+            id: newProviderId,
+            name: providerName,
+            createdBy: appUser.name,
+            createdAt: new Date().toISOString()
+          });
+          ingredientData.provider = providerName;
+        }
+      }
+
       // 5. Guardamos en Firebase. "setDoc" crea el documento si no existe, o lo sobrescribe si ya existe.
       await setDoc(doc(db, 'ingredients', id), ingredientData);
       
@@ -189,15 +230,81 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Proveedor</label>
-                <select
+                <input
+                  type="text"
+                  list="providers-list-modal"
                   {...register('provider')}
+                  placeholder="Busca o escribe un nuevo proveedor..."
                   className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="">Sin proveedor</option>
+                />
+                <datalist id="providers-list-modal">
                   {providers.map(p => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
+                    <option key={p.id} value={p.name} />
                   ))}
-                </select>
+                </datalist>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-4">
+              <h3 className="text-sm font-bold text-stone-900 border-b border-stone-200 pb-2">Opcional: Formato de compra</h3>
+              <p className="text-xs text-stone-500">Si compras por paquete/caja, introduce aquí los datos para que el sistema calcule el precio base automáticamente.</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 mb-1">Formato</label>
+                  <input
+                    type="text"
+                    {...register('purchaseFormat')}
+                    placeholder="Ej. Paquete de cilantro"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 mb-1">Precio del formato (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register('formatPrice', { 
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        const newFormatPrice = Number(e.target.value) || 0;
+                        // Use getValues() since watch causes problems inside callbacks if not destructured
+                        // Actually we didn't extract getValues, but watch() without args might not be what we want,
+                        // Wait, I can't use getValues because I didn't extract it from useForm.
+                        // I already extracted watch() though, let's see. 
+                        const weightPerUnitNum = Number((document.querySelector('input[name="weightPerUnit"]') as HTMLInputElement)?.value) || 0;
+                        if (newFormatPrice > 0 && weightPerUnitNum > 0) {
+                          setValue('purchasePrice', Number((newFormatPrice / weightPerUnitNum).toFixed(3)), { shouldValidate: true });
+                        }
+                      }
+                    })}
+                    onFocus={e => e.target.select()}
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 mb-1">
+                    {unit === 'ud' ? 'Unidades por formato' : `Peso del formato (${unit})`}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    {...register('weightPerUnit', { 
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        const newWeight = Number(e.target.value) || 0;
+                        const formatPriceNum = Number((document.querySelector('input[name="formatPrice"]') as HTMLInputElement)?.value) || 0;
+                        if (formatPriceNum > 0 && newWeight > 0) {
+                          setValue('purchasePrice', Number((formatPriceNum / newWeight).toFixed(3)), { shouldValidate: true });
+                        }
+                      }
+                    })}
+                    onFocus={e => e.target.select()}
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                  />
+                </div>
               </div>
             </div>
 

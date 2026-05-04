@@ -77,7 +77,7 @@ service cloud.firestore {
     }
 
     function hasOnlyAllowedFields(allowedFields) {
-      return request.resource.data.keys().hasOnly(allowedFields);
+      return request.resource.data.removeAll(allowedFields).size() == 0;
     }
 
     function isValidString(val, minLen, maxLen) {
