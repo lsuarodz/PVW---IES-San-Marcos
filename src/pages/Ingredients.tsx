@@ -23,6 +23,8 @@ export default function Ingredients() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
   
   // Estados para controlar el modal de creación/edición
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -347,7 +349,7 @@ export default function Ingredients() {
           <p className="text-stone-500 text-lg">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
         <div className="flex gap-3">
-          {activeTab === 'ingredients' && selectedIds.size > 0 && isSuperAdmin && (
+          {activeTab === 'ingredients' && selectedIds.size > 0 && (isSuperAdmin || isKaled) && (
             <button
               onClick={handleBulkDelete}
               className="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 border border-red-200"
@@ -536,14 +538,16 @@ export default function Ingredients() {
                 </td>
                 <td className="px-6 py-2 text-sm text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => openEdit(ing)}
-                      className="text-stone-400 hover:text-teal-600 p-2 hover:bg-teal-50 rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    {isSuperAdmin && (
+                    {(isAdmin || isKaled) && (
+                      <button
+                        onClick={() => openEdit(ing)}
+                        className="text-stone-400 hover:text-teal-600 p-2 hover:bg-teal-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                    )}
+                    {(isSuperAdmin || isKaled) && (
                       <button
                         onClick={() => handleDelete(ing.id)}
                         className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

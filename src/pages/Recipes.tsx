@@ -32,10 +32,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Filtrar recetas por tipo (las que no tienen tipo se consideran 'plato')
   const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === 'elaborado');
   
-  // Estado para el buscador y paginación
+  // Estado para el buscador, paginación y filtro de grupos
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewOtherGroups, setViewOtherGroups] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>('todos');
   const itemsPerPage = 12;
+
+  const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
   
   // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -94,6 +98,39 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Funciones de ayuda para permisos transversales
+  const isOwner = (recipe: Recipe) => {
+    if (!appUser) return false;
+    if (isAdmin && !viewAsStudent) return true;
+    return recipe.group === appUser.group;
+  };
+
+  const canEditField = (recipe: Recipe | null, fieldType: 'escandallo' | 'logistica' | 'sostenibilidad' | 'general') => {
+    if (!appUser || !recipe) return false;
+    if (isAdmin && !viewAsStudent) return true;
+    
+    const isRecipeOwner = recipe.group === appUser.group;
+    if (isRecipeOwner) return true;
+
+    // Kaled (Jefe Gastos) tiene permisos totales sobre escandallos
+    if (isKaled && fieldType === 'escandallo') return true;
+
+    // Si no es dueño, comprobamos comisiones transversales
+    const commission = appUser.commission?.toLowerCase();
+    if (fieldType === 'escandallo' && commission === 'gastos') return true;
+    if (fieldType === 'logistica' && commission === 'logística') return true;
+    if (fieldType === 'sostenibilidad' && commission === 'sostenibilidad') return true;
+    
+    return false;
+  };
+
+  const canEditAnyPartOfRecipe = (recipe: Recipe) => {
+    return isOwner(recipe) || 
+           canEditField(recipe, 'escandallo') || 
+           canEditField(recipe, 'logistica') || 
+           canEditField(recipe, 'sostenibilidad');
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -148,7 +185,42 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     if (!recipeData.imageUrl) delete recipeData.imageUrl;
 
     try {
-      await setDoc(doc(db, 'recipes', id), recipeData);
+      if (editingId) {
+        const existing = recipes.find(r => r.id === editingId);
+        if (existing && !isOwner(existing)) {
+          // Actualización parcial basada en comisiones
+          const patch: Record<string, any> = {};
+          const commission = appUser.commission?.toLowerCase();
+          
+          if (commission === 'gastos') {
+            patch.ingredients = recipeData.ingredients;
+            patch.yieldQuantity = recipeData.yieldQuantity;
+            patch.yieldUnit = recipeData.yieldUnit;
+            patch.portions = recipeData.portions;
+            patch.totalCost = recipeData.totalCost;
+          }
+          if (commission === 'logística') {
+            patch.equipment = recipeData.equipment;
+          }
+          if (commission === 'sostenibilidad') {
+            patch.sustainabilityTips = recipeData.sustainabilityTips;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await updateDoc(doc(db, 'recipes', editingId), patch);
+          } else {
+            showToast('No tienes permisos para editar esta receta', 'error');
+            return;
+          }
+        } else {
+          // Dueño o Admin: Actualización completa
+          await setDoc(doc(db, 'recipes', id), recipeData);
+        }
+      } else {
+        // Creación nueva: Siempre permitida para el grupo propio
+        await setDoc(doc(db, 'recipes', id), recipeData);
+      }
+      
       setIsModalOpen(false);
       resetForm();
       showToast('Receta guardada correctamente', 'success');
@@ -364,15 +436,22 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const filteredRecipes = filteredByType.filter(r => {
-    // Determine visibility based on student view
+    // Determine visibility based on student view and the "View Other Groups" toggle
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
+    
     if (isStudentView) {
-      if (appUser?.role === 'student') {
+      // Kaled siempre ve todo si activa "Otros Grupos"
+      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled) {
         const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
         if (!matchesGroup) return false;
-      } else {
+      } else if (appUser?.role === 'admin' && viewAsStudent) {
         // Admin viewing as student: show ONLY recipes that have a group (students' recipes)
         if (!r.group) return false;
+      }
+      
+      // Filtro de grupo específico para Kaled
+      if (isKaled && viewOtherGroups && selectedGroup !== 'todos') {
+        if (r.group !== selectedGroup) return false;
       }
     }
 
@@ -421,8 +500,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6">
-        <div className="relative max-w-md">
+      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
           <input
             type="text"
@@ -432,6 +511,46 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
+
+        {appUser?.role === 'student' && (
+          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+            <div className="flex bg-stone-100 p-1 rounded-xl">
+              <button
+                onClick={() => setViewOtherGroups(false)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  !viewOtherGroups 
+                    ? 'bg-white text-teal-700 shadow-sm' 
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Mi Grupo
+              </button>
+              <button
+                onClick={() => setViewOtherGroups(true)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  viewOtherGroups 
+                    ? 'bg-white text-teal-700 shadow-sm' 
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Otros Grupos
+              </button>
+            </div>
+
+            {isKaled && viewOtherGroups && (
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+              >
+                <option value="todos">Todos los grupos</option>
+                {[...new Set(recipes.map(r => r.group).filter(Boolean))].sort().map(group => (
+                  <option key={group} value={group!}>{group}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -474,9 +593,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   >
                     <Printer size={18} />
                   </button>
-                  <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
-                    <Edit2 size={18} />
-                  </button>
+                  {canEditAnyPartOfRecipe(recipe) && (
+                    <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
+                      <Edit2 size={18} />
+                    </button>
+                  )}
                   {isSuperAdmin && (
                     <button onClick={() => handleDelete(recipe.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
                       <Trash2 size={18} />
@@ -619,14 +740,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             
             <div className="p-6 overflow-y-auto flex-1">
               <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
+                {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
+                    Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className={type === 'elaborado' ? 'md:col-span-2' : ''}>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
                     <input
                       type="text" required
                       value={formData.nameES}
+                      disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   {type === 'elaborado' ? (
@@ -637,9 +764,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <input
                             type="number" min="0" step="0.01" required
                             value={formData.yieldQuantity || ''}
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, yieldQuantity: parseFloat(e.target.value) || null})}
                             onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 1.5"
                           />
                         </div>
@@ -647,8 +775,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
                           <select
                             value={formData.yieldUnit}
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="kg">kg</option>
                             <option value="L">L</option>
@@ -662,9 +791,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <input
                             type="number" min="1" step="1"
                             value={formData.portions || ''}
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
                             onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 10"
                           />
                         </div>
@@ -701,7 +831,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         type="file"
                         accept="image/*"
                         onChange={handleImageUpload}
-                        disabled={uploadingImage}
+                        disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
                         className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
                       />
                       {uploadingImage && <p className="text-xs text-teal-600 mt-1">Subiendo imagen...</p>}
@@ -715,15 +845,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <div className="flex items-center gap-4 mr-2">
                       <button
                         type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                         onClick={() => setIsIngredientModalOpen(true)}
-                        className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1"
+                        className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Plus size={16} /> Nuevo ingrediente
                       </button>
                       <button
                         type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                         onClick={() => setIsElaboradoModalOpen(true)}
-                        className="text-sm text-stone-500 hover:text-indigo-600 font-medium flex items-center gap-1"
+                        className="text-sm text-stone-500 hover:text-indigo-600 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Plus size={16} /> Nuevo elaborado
                       </button>
@@ -753,8 +885,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             <select
                               required
                               value={ri.ingredientId}
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                               onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                              className="flex-1 min-w-0 truncate px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              className="flex-1 min-w-0 truncate px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <option value="">Selecciona un ingrediente o receta...</option>
                               <optgroup label="Ingredientes">
@@ -810,14 +943,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 min="0"
                                 required
                                 value={ri.quantity}
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                                 onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                                 onFocus={e => e.target.select()}
-                                className="w-full pl-2 pr-10 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className="w-full pl-2 pr-10 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                 placeholder="Cant."
                               />
                               <button
                                 type="button"
-                                disabled={!subRecipe || !subRecipe.portions}
+                                disabled={(!subRecipe || !subRecipe.portions) || (editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false)}
                                 onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
                                 title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
                                 className={`absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
@@ -835,8 +969,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           </div>
                           <button
                             type="button"
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onClick={() => removeRecipeIngredient(index)}
-                            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -850,8 +985,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     )}
                     <button
                       type="button"
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                       onClick={addIngredientToRecipe}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Plus size={18} /> Añadir ingrediente
                     </button>
@@ -871,14 +1007,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           required
                           rows={2}
                           value={step}
+                          disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                           onChange={e => updateStep(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder="Describe este paso de la elaboración..."
                         />
                         <button
                           type="button"
+                          disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                           onClick={() => removeStep(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -891,8 +1029,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     )}
                     <button
                       type="button"
+                      disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                       onClick={addStep}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Plus size={18} /> Añadir paso
                     </button>
@@ -912,6 +1051,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           type="text"
                           required
                           value={eq}
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'logistica') : false}
                           data-equipment-input={index}
                           onChange={e => updateEquipment(index, e.target.value)}
                           onKeyDown={e => {
@@ -924,13 +1064,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               }, 0);
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder="Ej: 1 sartén, 1 batidora..."
                         />
                         <button
                           type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'logistica') : false}
                           onClick={() => removeEquipment(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -943,8 +1084,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     )}
                     <button
                       type="button"
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'logistica') : false}
                       onClick={addEquipment}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Plus size={18} /> Añadir material
                     </button>
@@ -956,8 +1098,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <textarea
                     rows={3}
                     value={formData.miseEnPlace}
+                    disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                     onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Describe la mise en place necesaria..."
                   />
                 </div>
@@ -967,8 +1110,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <label className="block text-sm font-medium text-stone-900">Tips de Sostenibilidad</label>
                     <button
                       type="button"
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
                       onClick={addTip}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Plus size={16} /> Añadir tip
                     </button>
@@ -982,14 +1126,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           required
                           rows={2}
                           value={tip}
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
                           onChange={e => updateTip(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder="Ej: Encender los hornos solo 5 minutos antes..."
                         />
                         <button
                           type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
                           onClick={() => removeTip(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={18} />
                         </button>

@@ -25,11 +25,15 @@ export default function Menus() {
   // Estados para almacenar los datos de la base de datos
   const { menus, recipes, ingredients, clients, settings, users } = useData();
   
-  // Estado para el buscador y paginación
+  // Estado para el buscador, paginación y filtro de grupos
   const [search, setSearch] = useState('');
   const [recipeSearch, setRecipeSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewOtherGroups, setViewOtherGroups] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>('todos');
   const itemsPerPage = 10;
+  
+  const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
   
   // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,6 +92,34 @@ export default function Menus() {
   const [printingEquipmentMenu, setPrintingEquipmentMenu] = useState<Menu | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // Funciones de ayuda para permisos transversales
+  const isOwner = (menu: Menu) => {
+    if (!appUser) return false;
+    if (isAdmin && !viewAsStudent) return true;
+    return menu.group === appUser.group;
+  };
+
+  const canEditMenuField = (menu: Menu | null, fieldType: 'gastos' | 'general') => {
+    if (!appUser || !menu) return false;
+    if (isAdmin && !viewAsStudent) return true;
+    
+    const isMenuOwner = menu.group === appUser.group;
+    if (isMenuOwner) return true;
+
+    // Kaled (Jefe Gastos) tiene permisos sobre campos de precio/gastos en todos los menús
+    if (isKaled && fieldType === 'gastos') return true;
+
+    // Si no es dueño, comprobamos comisiones transversales
+    const commission = appUser.commission?.toLowerCase();
+    if (fieldType === 'gastos' && commission === 'gastos') return true;
+    
+    return false;
+  };
+
+  const canEditAnyPartOfMenu = (menu: Menu) => {
+    return isOwner(menu) || canEditMenuField(menu, 'gastos');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
@@ -114,7 +146,32 @@ export default function Menus() {
     if (menuData.feedback === null) delete menuData.feedback;
 
     try {
-      await setDoc(doc(db, 'menus', id), menuData);
+      if (editingId) {
+        const existing = menus.find(m => m.id === editingId);
+        if (existing && !isOwner(existing)) {
+          // Actualización parcial basada en comisiones
+          const patch: Record<string, any> = {};
+          const commission = appUser.commission?.toLowerCase();
+          
+          if (commission === 'gastos') {
+            patch.price = menuData.price;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await updateDoc(doc(db, 'menus', editingId), patch);
+          } else {
+            showToast('No tienes permisos para editar este menú', 'error');
+            return;
+          }
+        } else {
+          // Dueño o Admin: Actualización completa
+          await setDoc(doc(db, 'menus', id), menuData);
+        }
+      } else {
+        // Creación nueva
+        await setDoc(doc(db, 'menus', id), menuData);
+      }
+      
       setIsModalOpen(false);
       resetForm();
       showToast('Menú guardado correctamente', 'success');
@@ -299,11 +356,16 @@ export default function Menus() {
   const filteredMenus = menus.filter(m => {
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
     if (isStudentView) {
-      if (appUser?.role === 'student') {
+      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled) {
         const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
         if (!matchesGroup) return false;
-      } else {
+      } else if (appUser?.role === 'admin' && viewAsStudent) {
         if (!m.group) return false;
+      }
+
+      // Filtro de grupo específico para Kaled
+      if (isKaled && viewOtherGroups && selectedGroup !== 'todos') {
+        if (m.group !== selectedGroup) return false;
       }
     }
     return m.nameES.toLowerCase().includes(search.toLowerCase()) || 
@@ -349,6 +411,59 @@ export default function Menus() {
         </button>
       </div>
 
+      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar menús..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
+        {appUser?.role === 'student' && (
+          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+            <div className="flex bg-stone-100 p-1 rounded-xl">
+              <button
+                onClick={() => setViewOtherGroups(false)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  !viewOtherGroups 
+                    ? 'bg-white text-teal-700 shadow-sm' 
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Mi Grupo
+              </button>
+              <button
+                onClick={() => setViewOtherGroups(true)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  viewOtherGroups 
+                    ? 'bg-white text-teal-700 shadow-sm' 
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Otros Grupos
+              </button>
+            </div>
+
+            {isKaled && viewOtherGroups && (
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+              >
+                <option value="todos">Todos los grupos</option>
+                {[...new Set(menus.map(m => m.group).filter(Boolean))].sort().map(group => (
+                  <option key={group} value={group!}>{group}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {paginatedMenus.map((menu) => {
           const menuAllergens = getMenuAllergens(menu.recipes, ingredients, recipes);
@@ -385,9 +500,11 @@ export default function Menus() {
                   >
                     <Download size={18} />
                   </button>
-                  <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
-                    <Edit2 size={18} />
-                  </button>
+                  {canEditAnyPartOfMenu(menu) && (
+                    <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
+                      <Edit2 size={18} />
+                    </button>
+                  )}
                   {isSuperAdmin && (
                     <button onClick={() => handleDelete(menu.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
@@ -738,14 +855,20 @@ export default function Menus() {
             
             <div className="p-6 overflow-y-auto flex-1">
               <form id="menu-form" onSubmit={handleSubmit} className="space-y-6">
+                {editingId && menus.find(m => m.id === editingId)?.group !== appUser?.group && !isAdmin && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
+                    Estás editando un menú de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre</label>
                     <input
                       type="text"
                       value={formData.nameES}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -756,8 +879,9 @@ export default function Menus() {
                     <input
                       type="text"
                       value={formData.eventDate}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, eventDate: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Ej. 15 de Mayo de 2026"
                     />
                   </div>
@@ -766,8 +890,9 @@ export default function Menus() {
                     <input
                       type="time"
                       value={formData.eventTime || ''}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, eventTime: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -775,8 +900,9 @@ export default function Menus() {
                     <input
                       type="text"
                       value={formData.eventPlace}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, eventPlace: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Ej. Salón Principal"
                     />
                   </div>
@@ -787,8 +913,9 @@ export default function Menus() {
                     <label className="block text-sm font-medium text-stone-700 mb-1">Cliente</label>
                     <select
                       value={formData.clientId}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, clientId: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">-- Selecciona un cliente --</option>
                       {clients.map(client => (
@@ -801,8 +928,9 @@ export default function Menus() {
                     <input
                       type="text"
                       value={formData.occasion}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, occasion: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Ej. Graduación, Reunión..."
                     />
                   </div>
@@ -810,8 +938,9 @@ export default function Menus() {
                     <label className="block text-sm font-medium text-stone-700 mb-1">Lugar</label>
                     <select
                       value={formData.location}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, location: e.target.value as 'centro' | 'fuera'})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="centro">En el centro</option>
                       <option value="fuera">Fuera del centro</option>
@@ -824,8 +953,9 @@ export default function Menus() {
                     <label className="block text-sm font-medium text-stone-700 mb-1">Tipo de Menú *</label>
                     <select
                       value={formData.type}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, type: e.target.value as any})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="brunch">Brunch</option>
                       <option value="cocktail">Cóctel</option>
@@ -842,9 +972,10 @@ export default function Menus() {
                       step="0.01"
                       min="0"
                       value={formData.price === 0 ? '' : formData.price}
+                      disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
                       onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -855,9 +986,10 @@ export default function Menus() {
                     <input
                       type="number" min="1" step="1"
                       value={formData.diners || ''}
+                      disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
                       onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || null})}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Opcional"
                     />
                   </div>
@@ -866,98 +998,107 @@ export default function Menus() {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Recetas / Elaboraciones</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsRecipeModalOpen(true)}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
-                    >
-                      <Plus size={16} /> Crear receta
-                    </button>
-                  </div>
-                  
-                  <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Buscar receta para añadir..."
-                      value={recipeSearch}
-                      onChange={(e) => setRecipeSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                    />
-                    {recipeSearch && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).map(recipe => (
-                          <button
-                            key={recipe.id}
-                            type="button"
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, recipes: [...prev.recipes, recipe.id] }));
-                              setRecipeSearch('');
-                            }}
-                            className="w-full text-left px-4 py-2 hover:bg-stone-50 text-sm flex justify-between items-center"
-                          >
-                            <span className="font-medium text-stone-900">{recipe.nameES}</span>
-                            <span className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} €</span>
-                          </button>
-                        ))}
-                        {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).length === 0 && (
-                          <div className="px-4 py-2 text-sm text-stone-500 text-center">No hay más recetas que coincidan</div>
-                        )}
-                      </div>
+                    {(!editingId || isOwner(menus.find(m => m.id === editingId)!)) && (
+                      <button
+                        type="button"
+                        onClick={() => setIsRecipeModalOpen(true)}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                      >
+                        <Plus size={16} /> Crear receta
+                      </button>
                     )}
                   </div>
+                  
+                  {(!editingId || isOwner(menus.find(m => m.id === editingId)!)) && (
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Buscar receta para añadir..."
+                        value={recipeSearch}
+                        onChange={(e) => setRecipeSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-sans"
+                      />
+                      {recipeSearch && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                          {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).map(recipe => (
+                            <button
+                              key={recipe.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, recipes: [...prev.recipes, recipe.id] }));
+                                setRecipeSearch('');
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-stone-50 text-sm flex justify-between items-center"
+                            >
+                              <span className="font-medium text-stone-900">{recipe.nameES}</span>
+                              <span className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} €</span>
+                            </button>
+                          ))}
+                          {recipes.filter(r => r.nameES.toLowerCase().includes(recipeSearch.toLowerCase()) && !formData.recipes.includes(r.id)).length === 0 && (
+                            <div className="px-4 py-2 text-sm text-stone-500 text-center">No hay más recetas que coincidan</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
                     {formData.recipes.length === 0 ? (
                       <p className="text-sm text-stone-500 text-center py-4">No hay recetas añadidas a este menú.</p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2 font-sans">
                         {formData.recipes.map((recipeId, index) => {
                           const recipe = recipes.find(r => r.id === recipeId);
                           if (!recipe) return null;
+                          const isMenuOwner = !editingId || isOwner(menus.find(m => m.id === editingId)!);
                           return (
-                            <div key={recipeId} className="flex items-center gap-3 p-2 bg-white border border-stone-200 rounded-lg">
-                              <div className="flex flex-col gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (index > 0) {
-                                      const newRecipes = [...formData.recipes];
-                                      [newRecipes[index - 1], newRecipes[index]] = [newRecipes[index], newRecipes[index - 1]];
-                                      setFormData(prev => ({ ...prev, recipes: newRecipes }));
-                                    }
-                                  }}
-                                  disabled={index === 0}
-                                  className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (index < formData.recipes.length - 1) {
-                                      const newRecipes = [...formData.recipes];
-                                      [newRecipes[index + 1], newRecipes[index]] = [newRecipes[index], newRecipes[index + 1]];
-                                      setFormData(prev => ({ ...prev, recipes: newRecipes }));
-                                    }
-                                  }}
-                                  disabled={index === formData.recipes.length - 1}
-                                  className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                              </div>
+                            <div key={recipeId} className="flex items-center gap-3 p-2 bg-white border border-stone-200 rounded-lg shadow-sm">
+                              {isMenuOwner && (
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (index > 0) {
+                                        const newRecipes = [...formData.recipes];
+                                        [newRecipes[index - 1], newRecipes[index]] = [newRecipes[index], newRecipes[index - 1]];
+                                        setFormData(prev => ({ ...prev, recipes: newRecipes }));
+                                      }
+                                    }}
+                                    disabled={index === 0}
+                                    className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (index < formData.recipes.length - 1) {
+                                        const newRecipes = [...formData.recipes];
+                                        [newRecipes[index + 1], newRecipes[index]] = [newRecipes[index], newRecipes[index + 1]];
+                                        setFormData(prev => ({ ...prev, recipes: newRecipes }));
+                                      }
+                                    }}
+                                    disabled={index === formData.recipes.length - 1}
+                                    className="text-stone-400 hover:text-teal-600 disabled:opacity-30"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                  </button>
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div className="text-sm font-medium text-stone-900">{recipe.nameES}</div>
                                 <div className="text-xs text-stone-500">{recipe.totalCost.toFixed(2)} € coste</div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleRecipe(recipe.id)}
-                                className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              {isMenuOwner && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRecipe(recipe.id)}
+                                  className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
                             </div>
                           );
                         })}
