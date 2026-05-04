@@ -359,13 +359,16 @@ export default function Menus() {
       if (appUser?.role === 'student' && !viewOtherGroups && !isKaled) {
         const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
         if (!matchesGroup) return false;
-      } else if (appUser?.role === 'admin' && viewAsStudent) {
-        if (!m.group) return false;
       }
 
-      // Filtro de grupo específico para Kaled
-      if (isKaled && viewOtherGroups && selectedGroup !== 'todos') {
+      // Filtro de grupo específico
+      if (viewOtherGroups && selectedGroup !== 'todos') {
         if (m.group !== selectedGroup) return false;
+      }
+
+      if (appUser?.role === 'admin' && viewAsStudent) {
+        if (!m.group) return false;
+        if (selectedGroup !== 'todos' && m.group !== selectedGroup) return false;
       }
     }
     return m.nameES.toLowerCase().includes(search.toLowerCase()) || 
@@ -448,7 +451,7 @@ export default function Menus() {
               </button>
             </div>
 
-            {isKaled && viewOtherGroups && (
+            {viewOtherGroups && (
               <select
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}

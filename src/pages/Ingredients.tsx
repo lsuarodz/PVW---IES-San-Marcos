@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -25,6 +26,21 @@ export default function Ingredients() {
   const itemsPerPage = 20;
 
   const isKaled = appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled');
+
+  // Mapeo de ingredientes usados en recetas para mostrar enlaces
+  const ingredientUsage = useMemo(() => {
+    const usage: Record<string, typeof recipes> = {};
+    recipes.forEach(recipe => {
+      recipe.ingredients?.forEach((ing: any) => {
+        if (!usage[ing.ingredientId]) usage[ing.ingredientId] = [];
+        // Evitar duplicados si el ingrediente está varias veces en la misma receta (poco probable pero posible)
+        if (!usage[ing.ingredientId].some(r => r.id === recipe.id)) {
+          usage[ing.ingredientId].push(recipe);
+        }
+      });
+    });
+    return usage;
+  }, [recipes]);
   
   // Estados para controlar el modal de creación/edición
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -440,6 +456,7 @@ export default function Ingredients() {
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Proveedor</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Alérgenos</th>
+              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Usado en</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Coste Real / Unidad</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900 text-right">Acciones</th>
             </tr>
@@ -488,6 +505,24 @@ export default function Ingredients() {
                       })
                     ) : (
                       <span className="text-xs text-stone-400">Ninguno</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-2">
+                  <div className="flex flex-wrap gap-1 max-w-[250px]">
+                    {ingredientUsage[ing.id] && ingredientUsage[ing.id].length > 0 ? (
+                      ingredientUsage[ing.id].map(recipe => (
+                        <Link
+                          key={recipe.id}
+                          to={`${recipe.type === 'elaborado' ? '/elaborados' : '/recipes'}?edit=${recipe.id}`}
+                          className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-teal-50 text-teal-700 border border-teal-100 hover:bg-teal-100 transition-colors truncate max-w-full"
+                          title={`Editar receta: ${recipe.nameES}`}
+                        >
+                          {recipe.nameES}
+                        </Link>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-stone-400 italic">Sin usar</span>
                     )}
                   </div>
                 </td>

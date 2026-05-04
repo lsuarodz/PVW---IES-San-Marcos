@@ -440,18 +440,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
     
     if (isStudentView) {
-      // Kaled siempre ve todo si activa "Otros Grupos"
+      // Si no estamos viendo "Otros Grupos", mostramos solo el grupo del alumno (excepto si es Kaled, que puede elegir)
       if (appUser?.role === 'student' && !viewOtherGroups && !isKaled) {
         const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
         if (!matchesGroup) return false;
-      } else if (appUser?.role === 'admin' && viewAsStudent) {
+      } 
+      
+      // Filtro de grupo específico (disponible para todos cuando ven otros grupos, o para admin/Kaled siempre)
+      if (viewOtherGroups && selectedGroup !== 'todos') {
+        if (r.group !== selectedGroup) return false;
+      }
+
+      if (appUser?.role === 'admin' && viewAsStudent) {
         // Admin viewing as student: show ONLY recipes that have a group (students' recipes)
         if (!r.group) return false;
-      }
-      
-      // Filtro de grupo específico para Kaled
-      if (isKaled && viewOtherGroups && selectedGroup !== 'todos') {
-        if (r.group !== selectedGroup) return false;
+        if (selectedGroup !== 'todos' && r.group !== selectedGroup) return false;
       }
     }
 
@@ -537,7 +540,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </button>
             </div>
 
-            {isKaled && viewOtherGroups && (
+            {viewOtherGroups && (
               <select
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
