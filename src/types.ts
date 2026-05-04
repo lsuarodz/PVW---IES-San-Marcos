@@ -18,6 +18,7 @@ export interface Ingredient {
 export interface RecipeIngredient {
   ingredientId: string;
   quantity: number;
+  usePortions?: boolean;
 }
 
 export interface Recipe {

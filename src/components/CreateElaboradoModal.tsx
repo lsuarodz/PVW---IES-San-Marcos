@@ -17,6 +17,8 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   const [loading, setLoading] = useState(false);
   const [nameES, setNameES] = useState('');
   const [yieldUnit, setYieldUnit] = useState<'kg' | 'L' | 'ud'>('kg');
+  const [yieldQuantity, setYieldQuantity] = useState<number>(1);
+  const [portions, setPortions] = useState<number>(1);
 
   if (!isOpen) return null;
 
@@ -36,6 +38,8 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       descriptionES: '',
       descriptionEN: '',
       yieldUnit,
+      yieldQuantity,
+      portions,
       steps: [],
       stepsEN: [],
       equipment: [],
@@ -54,6 +58,8 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       showToast('Elaborado creado. Puedes ir a añadirle detalle luego.', 'success');
       setNameES('');
       setYieldUnit('kg');
+      setYieldQuantity(1);
+      setPortions(1);
       onClose();
     } catch (error) {
       console.error('Error saving elaborado:', error);
@@ -86,17 +92,40 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
                 placeholder="Ej. Salsa Brava, Caldo de pollo..."
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Rendimiento (Cant.)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={yieldQuantity}
+                  onChange={(e) => setYieldQuantity(Number(e.target.value))}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+                <select
+                  value={yieldUnit}
+                  onChange={(e) => setYieldUnit(e.target.value as 'kg' | 'L' | 'ud')}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="kg">Kilogramos (kg)</option>
+                  <option value="L">Litros (L)</option>
+                  <option value="ud">Unidades (ud)</option>
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Unidad de medida (Rendimiento)</label>
-              <select
-                value={yieldUnit}
-                onChange={(e) => setYieldUnit(e.target.value as 'kg' | 'L' | 'ud')}
+              <label className="block text-sm font-medium text-stone-700 mb-1">Raciones/Unidades finales</label>
+              <input
+                type="number"
+                value={portions}
+                onChange={(e) => setPortions(Number(e.target.value))}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="kg">Kilogramos (kg)</option>
-                <option value="L">Litros (L)</option>
-                <option value="ud">Unidades (ud)</option>
-              </select>
+                placeholder="Ej. 10"
+              />
+              <p className="text-[10px] text-stone-400 mt-1">¿Cuántas raciones se sirven de este total?</p>
             </div>
           </form>
         </div>

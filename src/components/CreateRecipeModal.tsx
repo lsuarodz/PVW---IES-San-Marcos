@@ -202,6 +202,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
               <div className="space-y-3">
                 {formData.ingredients.map((ri, index) => {
                   const selectedIng = ingredients.find(i => i.id === ri.ingredientId);
+                  const subRecipe = recipes.find(r => r.id === ri.ingredientId);
                   
                   return (
                     <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
@@ -258,9 +259,19 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                             placeholder="Cant."
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">
-                            {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId)?.yieldUnit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : ''))}
-                          </span>
+                          <button
+                            type="button"
+                            disabled={!subRecipe || !subRecipe.portions}
+                            onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
+                            title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
+                            className={`absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
+                              ri.usePortions 
+                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                                : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'
+                            }`}
+                          >
+                            {ri.usePortions ? 'ud' : (selectedIng?.unit || (subRecipe?.yieldUnit || 'ud'))}
+                          </button>
                         </div>
                       </div>
                       <button

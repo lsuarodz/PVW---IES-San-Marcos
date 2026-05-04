@@ -738,8 +738,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       if (selectedIng) {
                         cost = selectedIng.costPerUnit * (Number(ri.quantity) || 0);
                       } else if (subRecipe) {
-                        const unitCost = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
-                        cost = unitCost * (Number(ri.quantity) || 0);
+                        if (ri.usePortions && subRecipe.portions) {
+                          const costPerServing = subRecipe.totalCost / subRecipe.portions;
+                          cost = costPerServing * (Number(ri.quantity) || 0);
+                        } else {
+                          const unitCost = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+                          cost = unitCost * (Number(ri.quantity) || 0);
+                        }
                       }
                       
                       return (
@@ -807,12 +812,22 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 value={ri.quantity}
                                 onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                                 onFocus={e => e.target.select()}
-                                className="w-full pl-2 pr-8 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className="w-full pl-2 pr-10 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 placeholder="Cant."
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">
-                                {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId)?.yieldUnit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : ''))}
-                              </span>
+                              <button
+                                type="button"
+                                disabled={!subRecipe || !subRecipe.portions}
+                                onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
+                                title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
+                                className={`absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
+                                  ri.usePortions 
+                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'
+                                }`}
+                              >
+                                {ri.usePortions ? 'ud' : (selectedIng?.unit || (subRecipe?.yieldUnit || 'ud'))}
+                              </button>
                             </div>
                           </div>
                           <div className="w-24 text-right font-medium text-stone-700">
@@ -1108,13 +1123,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const ing = ingredients.find(i => i.id === ri.ingredientId);
                         const subRecipe = recipes.find(r => r.id === ri.ingredientId);
                         const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
-                        const unit = ing ? ing.unit : (subRecipe ? subRecipe.yieldUnit || 'ud' : 'ud');
+                        const unit = ri.usePortions ? 'ud' : (ing ? ing.unit : (subRecipe ? subRecipe.yieldUnit || 'ud' : 'ud'));
                         
                         let realCostPerUnit = 0;
                         if (ing) {
                           realCostPerUnit = ing.costPerUnit;
                         } else if (subRecipe) {
-                          realCostPerUnit = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+                          if (ri.usePortions && subRecipe.portions) {
+                            realCostPerUnit = subRecipe.totalCost / subRecipe.portions;
+                          } else {
+                            realCostPerUnit = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+                          }
                         }
                         
                         const itemTotalCost = realCostPerUnit * ri.quantity;
