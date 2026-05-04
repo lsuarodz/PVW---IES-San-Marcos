@@ -15,8 +15,13 @@ export default function Manual() {
           margin: 0.5,
           filename: 'Manual_Instrucciones_Proyecto_Intermodular.pdf',
           image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2 }, // Mayor escala para mejor calidad de texto
-          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const }
+          html2canvas: { 
+            scale: 2,
+            scrollY: 0,
+            y: 0
+          }, // Mayor escala para mejor calidad de texto
+          jsPDF: { unit: 'in' as const, format: 'a4' as const, orientation: 'portrait' as const },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
       // Ejecutamos la conversión
       html2pdf().set(opt).from(printRef.current).save();

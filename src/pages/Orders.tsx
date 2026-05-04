@@ -152,8 +152,15 @@ export default function Orders() {
           margin: 0,
           filename: `Pedido_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+          html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollY: 0,
+            y: 0
+          },
+          jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
         html2pdf()

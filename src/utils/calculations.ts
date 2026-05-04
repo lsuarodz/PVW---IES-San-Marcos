@@ -15,7 +15,8 @@ export const calculateRecipeTotalCost = (
     // Si no es un ingrediente, podría ser un sub-escandallo (receta dentro de receta)
     const subRecipe = allRecipes.find(r => r.id === ri.ingredientId);
     if (subRecipe) {
-      return total + (subRecipe.totalCost * (Number(ri.quantity) || 0));
+      const unitCost = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+      return total + (unitCost * (Number(ri.quantity) || 0));
     }
     return total;
   }, 0);

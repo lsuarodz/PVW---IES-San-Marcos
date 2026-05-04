@@ -16,6 +16,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [nameES, setNameES] = useState('');
+  const [yieldUnit, setYieldUnit] = useState<'kg' | 'L' | 'ud'>('kg');
 
   if (!isOpen) return null;
 
@@ -34,7 +35,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       nameEN: '',
       descriptionES: '',
       descriptionEN: '',
-      yieldUnit: 'kg',
+      yieldUnit,
       steps: [],
       stepsEN: [],
       equipment: [],
@@ -52,6 +53,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       if (onSuccess) onSuccess(id);
       showToast('Elaborado creado. Puedes ir a añadirle detalle luego.', 'success');
       setNameES('');
+      setYieldUnit('kg');
       onClose();
     } catch (error) {
       console.error('Error saving elaborado:', error);
@@ -83,6 +85,18 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="Ej. Salsa Brava, Caldo de pollo..."
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Unidad de medida (Rendimiento)</label>
+              <select
+                value={yieldUnit}
+                onChange={(e) => setYieldUnit(e.target.value as 'kg' | 'L' | 'ud')}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="kg">Kilogramos (kg)</option>
+                <option value="L">Litros (L)</option>
+                <option value="ud">Unidades (ud)</option>
+              </select>
             </div>
           </form>
         </div>

@@ -221,12 +221,14 @@ export default function Menus() {
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
-              scale: 1, 
+              scale: 2, 
               useCORS: true, 
               logging: false,
-              useOverflow: true
+              scrollY: 0,
+              y: 0
             },
-            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
           await html2pdf().set(opt).from(printRef.current).save();
@@ -268,12 +270,14 @@ export default function Menus() {
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
-              scale: 1, 
+              scale: 2, 
               useCORS: true, 
               logging: false,
-              useOverflow: true
+              scrollY: 0,
+              y: 0
             },
-            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const }
+            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
           await html2pdf().set(opt).from(printEquipmentRef.current).save();
@@ -541,7 +545,7 @@ export default function Menus() {
       {/* Hidden PDF Template */}
       {printingMenu && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; }
               .print-container .text-stone-900 { color: #1c1917 !important; }

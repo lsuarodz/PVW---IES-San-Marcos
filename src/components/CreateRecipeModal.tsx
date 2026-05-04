@@ -221,11 +221,14 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             ))}
                           </optgroup>
                           <optgroup label="Escandallos / Recetas">
-                            {recipes.map(r => (
-                              <option key={r.id} value={r.id}>
-                                {r.nameES} ({r.totalCost.toFixed(2)}€/ud)
-                              </option>
-                            ))}
+                            {recipes.map(r => {
+                              const unitCost = r.totalCost / (r.yieldQuantity || 1);
+                              return (
+                                <option key={r.id} value={r.id}>
+                                  {r.nameES} ({unitCost.toFixed(2)}€/{r.yieldUnit || 'ud'})
+                                </option>
+                              );
+                            })}
                           </optgroup>
                         </select>
                         {selectedIng && (
@@ -256,7 +259,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             placeholder="Cant."
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">
-                            {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : '')}
+                            {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId)?.yieldUnit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : ''))}
                           </span>
                         </div>
                       </div>

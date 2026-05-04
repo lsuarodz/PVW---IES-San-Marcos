@@ -337,13 +337,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
-              scale: 1, 
+              scale: 2, 
               useCORS: true, 
               logging: false,
-              useOverflow: true
+              scrollY: 0,
+              y: 0
             },
             jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
-            pagebreak: { mode: 'avoid-all' }
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
           await html2pdf().set(opt).from(printRef.current).save();
@@ -732,8 +733,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <div className="space-y-3">
                     {formData.ingredients.map((ri, index) => {
                       const selectedIng = ingredients.find(i => i.id === ri.ingredientId);
-                      const isRecipe = recipes.some(r => r.id === ri.ingredientId);
-                      const cost = selectedIng ? (selectedIng.costPerUnit * (Number(ri.quantity) || 0)) : 0;
+                      const subRecipe = recipes.find(r => r.id === ri.ingredientId);
+                      let cost = 0;
+                      if (selectedIng) {
+                        cost = selectedIng.costPerUnit * (Number(ri.quantity) || 0);
+                      } else if (subRecipe) {
+                        const unitCost = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+                        cost = unitCost * (Number(ri.quantity) || 0);
+                      }
                       
                       return (
                         <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
@@ -753,11 +760,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 ))}
                               </optgroup>
                               <optgroup label="Escandallos / Recetas">
-                                {recipes.filter(r => r.id !== editingId).map(r => (
-                                  <option key={r.id} value={r.id}>
-                                    {r.nameES} ({r.totalCost.toFixed(2)}€/ud)
-                                  </option>
-                                ))}
+                                {recipes.filter(r => r.id !== editingId).map(r => {
+                                  const unitCost = r.totalCost / (r.yieldQuantity || 1);
+                                  return (
+                                    <option key={r.id} value={r.id}>
+                                      {r.nameES} ({unitCost.toFixed(2)}€/{r.yieldUnit || 'ud'})
+                                    </option>
+                                  );
+                                })}
                               </optgroup>
                             </select>
                             {selectedIng && (
@@ -775,7 +785,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 <Edit2 size={16} />
                               </button>
                             )}
-                            {isRecipe && (
+                            {subRecipe && (
                               <a
                                 href={`/elaborados?edit=${ri.ingredientId}`}
                                 target="_blank"
@@ -801,7 +811,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 placeholder="Cant."
                               />
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">
-                                {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : '')}
+                                {selectedIng?.unit || (recipes.find(r => r.id === ri.ingredientId)?.yieldUnit || (recipes.find(r => r.id === ri.ingredientId) ? 'ud' : ''))}
                               </span>
                             </div>
                           </div>
@@ -1098,13 +1108,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const ing = ingredients.find(i => i.id === ri.ingredientId);
                         const subRecipe = recipes.find(r => r.id === ri.ingredientId);
                         const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
-                        const unit = ing ? ing.unit : 'ud';
+                        const unit = ing ? ing.unit : (subRecipe ? subRecipe.yieldUnit || 'ud' : 'ud');
                         
                         let realCostPerUnit = 0;
                         if (ing) {
                           realCostPerUnit = ing.costPerUnit;
                         } else if (subRecipe) {
-                          realCostPerUnit = subRecipe.totalCost;
+                          realCostPerUnit = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
                         }
                         
                         const itemTotalCost = realCostPerUnit * ri.quantity;
