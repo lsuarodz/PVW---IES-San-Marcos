@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -40,7 +40,7 @@ interface IngredientFormData {
 export default function CreateIngredientModal({ isOpen, onClose, onSuccess, editingId, initialData }: CreateIngredientModalProps) {
   // Traemos el usuario actual y la lista de proveedores desde los contextos globales
   const { appUser } = useAuth();
-  const { providers } = useData();
+  const { providers, ingredients } = useData();
   const { showToast } = useToast(); // Para mostrar mensajes emergentes
   
   // Estado para saber si estamos guardando datos (para deshabilitar el botón y mostrar "Guardando...")
@@ -72,6 +72,20 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
       weightPerUnit: 0,
     }
   });
+
+  const watchNameES = watch('nameES');
+
+  // Buscar ingredientes muy similares (ignorando mayúsculas/minúsculas y espacios al inicio/final)
+  const similarIngredients = React.useMemo(() => {
+    if (!watchNameES || watchNameES.length < 3 || editingId) return [];
+    const searchString = watchNameES.trim().toLowerCase();
+    
+    return ingredients.filter(ing => {
+      const ingName = ing.nameES.toLowerCase();
+      // Mostramos una alerta si coincide gran parte del nombre
+      return ingName.includes(searchString) || searchString.includes(ingName);
+    }).slice(0, 3); // Mostramos solo los 3 primeros para no saturar
+  }, [watchNameES, ingredients, editingId]);
 
   // ============================================================================
   // EFECTO: LLENAR DATOS AL ABRIR
@@ -224,6 +238,21 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                   className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.nameES ? 'border-red-500' : 'border-stone-200'}`}
                 />
                 {errors.nameES && <p className="text-red-500 text-xs mt-1">{errors.nameES.message}</p>}
+                
+                {similarIngredients.length > 0 && (
+                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 text-amber-800">
+                    <AlertTriangle className="shrink-0 text-amber-600 mt-0.5" size={18} />
+                    <div>
+                      <p className="text-sm font-medium mb-1">Cuidado, es posible que el ingrediente ya exista:</p>
+                      <ul className="text-sm space-y-1">
+                        {similarIngredients.map(ing => (
+                          <li key={ing.id} className="font-semibold">{ing.nameES}</li>
+                        ))}
+                      </ul>
+                      <p className="text-sm mt-2 text-amber-700">Comprueba si puedes usar el existente en lugar de crear uno nuevo.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

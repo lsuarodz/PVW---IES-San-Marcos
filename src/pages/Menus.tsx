@@ -373,6 +373,20 @@ export default function Menus() {
   };
 
   const filteredMenus = menus.filter(m => {
+    const isFirstYearUser = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
+    const creator = users.find(u => u.name === m.createdBy);
+    const isFirstYearMenu = creator && (creator.course === '1ºCOCINA' || creator.course === '1ºPANADERÍA');
+
+    // Separación estricta entre 1º y los demás (excepto admin principal)
+    const isSuperAdmin = appUser?.role === 'admin';
+    if (!isSuperAdmin) {
+      if (isFirstYearUser && !isFirstYearMenu) {
+        if (creator) return false;
+      } else if (!isFirstYearUser && isFirstYearMenu) {
+        return false;
+      }
+    }
+
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
     if (isStudentView) {
       // Si el modo comisión está desactivado (estamos en modo alumno), restringir estrictamente al propio grupo

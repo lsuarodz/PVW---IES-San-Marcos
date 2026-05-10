@@ -88,9 +88,11 @@ export default function Admin() {
         createdAt: new Date().toISOString()
       };
       
-      // Solo guardamos curso y grupo si el rol es estudiante
-      if (newRole === 'student') {
+      // Solo guardamos curso y grupo
+      if (newRole === 'student' || newRole === 'docente') {
         userData.course = newCourse;
+      }
+      if (newRole === 'student') {
         userData.group = newGroup;
       }
 
@@ -245,21 +247,23 @@ export default function Admin() {
               <option value="admin">Administrador (Tutor)</option>
             </select>
           </div>
+          {(newRole === 'student' || newRole === 'docente') && (
+            <div className="w-40">
+              <label className="block text-sm font-medium text-stone-700 mb-1">Curso</label>
+              <select
+                value={newCourse}
+                onChange={(e) => setNewCourse(e.target.value)}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="2ºCOCINA">2º COCINA</option>
+                <option value="2ºPANADERÍA">2º PANADERÍA</option>
+                <option value="1ºCOCINA">1º COCINA</option>
+                <option value="1ºPANADERÍA">1º PANADERÍA</option>
+              </select>
+            </div>
+          )}
           {newRole === 'student' && (
             <>
-              <div className="w-40">
-                <label className="block text-sm font-medium text-stone-700 mb-1">Curso</label>
-                <select
-                  value={newCourse}
-                  onChange={(e) => setNewCourse(e.target.value)}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="2ºCOCINA">2º COCINA</option>
-                  <option value="2ºPANADERÍA">2º PANADERÍA</option>
-                  <option value="1ºCOCINA">1º COCINA</option>
-                  <option value="1ºPANADERÍA">1º PANADERÍA</option>
-                </select>
-              </div>
               <div className="w-32">
                 <label className="block text-sm font-medium text-stone-700 mb-1">Grupo</label>
                 <select

@@ -12,6 +12,7 @@ import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
 import CreateElaboradoModal from '../components/CreateElaboradoModal';
 import ConfirmModal from '../components/ConfirmModal';
+import IngredientSelect from '../components/IngredientSelect';
 import html2pdf from 'html2pdf.js';
 import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
@@ -446,10 +447,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const filteredRecipes = filteredByType.filter(r => {
-    // Si somos alumnos de 1º, SOLO podemos ver las recetas creadas por nosotros o por otros de 1º
-    if (appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA') {
-      const creator = users.find(u => u.name === r.createdBy);
-      if (creator && creator.course !== '1ºCOCINA' && creator.course !== '1ºPANADERÍA') {
+    const isFirstYearUser = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
+    const creator = users.find(u => u.name === r.createdBy);
+    const isFirstYearRecipe = creator && (creator.course === '1ºCOCINA' || creator.course === '1ºPANADERÍA');
+
+    // Separación estricta entre 1º y los demás (excepto admin principal)
+    const isSuperAdmin = appUser?.role === 'admin';
+    if (!isSuperAdmin) {
+      if (isFirstYearUser && !isFirstYearRecipe) {
+        if (creator) return false;
+      } else if (!isFirstYearUser && isFirstYearRecipe) {
         return false;
       }
     }
@@ -922,38 +929,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       return (
                         <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
                           <div className="flex-1 min-w-0 flex gap-2">
-                            <select
-                              required
+                            <IngredientSelect
                               value={ri.ingredientId}
+                              onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
+                              ingredients={ingredients}
+                              recipes={recipes}
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                              className="flex-1 min-w-0 truncate px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <option value="">
-                                {ri.itemType === 'elaborado' ? 'Selecciona un elaborado...' : 'Selecciona un ingrediente...'}
-                              </option>
-                              {ri.itemType !== 'elaborado' && (
-                                <optgroup label="Ingredientes">
-                                  {ingredients.map(ing => (
-                                    <option key={ing.id} value={ing.id}>
-                                      {ing.nameES} ({ing.costPerUnit.toFixed(2)}€/{ing.unit})
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {ri.itemType !== 'ingredient' && (
-                                <optgroup label="Elaborados">
-                                  {recipes.filter(r => r.id !== editingId && r.type === 'elaborado').map(r => {
-                                    const unitCost = r.totalCost / (r.yieldQuantity || 1);
-                                    return (
-                                      <option key={r.id} value={r.id}>
-                                        {r.nameES} ({unitCost.toFixed(2)}€/{r.yieldUnit || 'ud'})
-                                      </option>
-                                    );
-                                  })}
-                                </optgroup>
-                              )}
-                            </select>
+                              itemType={ri.itemType}
+                              currentRecipeId={editingId}
+                            />
                             {selectedIng && (
                               <button
                                 type="button"
