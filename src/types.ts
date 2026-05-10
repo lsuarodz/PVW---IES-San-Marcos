@@ -91,6 +91,7 @@ export interface AppUser {
   name: string;
   group?: string;
   commission?: string;
+  course?: '2ºPANADERÍA' | '1ºCOCINA' | '1ºPANADERÍA';
 }
 
 export interface CommissionTask {

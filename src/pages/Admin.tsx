@@ -256,6 +256,8 @@ export default function Admin() {
                 >
                   <option value="2ºCOCINA">2º COCINA</option>
                   <option value="2ºPANADERÍA">2º PANADERÍA</option>
+                  <option value="1ºCOCINA">1º COCINA</option>
+                  <option value="1ºPANADERÍA">1º PANADERÍA</option>
                 </select>
               </div>
               <div className="w-32">

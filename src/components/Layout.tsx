@@ -105,6 +105,8 @@ export default function Layout() {
     otherItems.push({ name: 'Usuarios', path: '/admin', icon: <UserCog size={20} /> });
   }
 
+  const isFirstYear = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
+
   return (
     <div className="flex h-screen bg-stone-100">
       {/* Mobile Header */}
@@ -150,9 +152,10 @@ export default function Layout() {
         
         <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
           {/* Sección Jornada 1 */}
-          <div>
-            <button 
-              onClick={() => toggleSection('jornada1')}
+          {!isFirstYear && (
+            <div>
+              <button 
+                onClick={() => toggleSection('jornada1')}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
             >
               <span>Jornada 1: Definición del Proyecto</span>
@@ -182,8 +185,10 @@ export default function Layout() {
               </div>
             )}
           </div>
+          )}
 
           {/* Sección Jornada 2 */}
+          {!isFirstYear && (
           <div>
             <button 
               onClick={() => toggleSection('jornada2')}
@@ -215,8 +220,10 @@ export default function Layout() {
               </div>
             )}
           </div>
+          )}
 
           {/* Sección Jornada 3 */}
+          {!isFirstYear && (
           <div>
             <button 
               onClick={() => toggleSection('jornada3')}
@@ -248,6 +255,7 @@ export default function Layout() {
               </div>
             )}
           </div>
+          )}
 
           {/* Gestión de Producción */}
           <div>
@@ -283,6 +291,7 @@ export default function Layout() {
           </div>
 
           {/* Gestión Comercial */}
+          {!isFirstYear && (
           <div>
             <button 
               onClick={() => toggleSection('comercial')}
@@ -314,8 +323,10 @@ export default function Layout() {
               </div>
             )}
           </div>
+          )}
 
           {/* Otros */}
+          {!isFirstYear && (
           <div>
             <button 
               onClick={() => toggleSection('otros')}
@@ -347,6 +358,7 @@ export default function Layout() {
               </div>
             )}
           </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-stone-200">
