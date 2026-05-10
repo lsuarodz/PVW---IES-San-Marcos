@@ -96,17 +96,32 @@
         "eventDate": { "type": "string" },
         "eventTime": { "type": "string" },
         "eventPlace": { "type": "string" },
-        "type": { "type": "string", "enum": ["brunch", "cocktail"] },
-        "targetClient": { "type": "string" },
+        "type": { "type": "string", "enum": ["brunch", "cocktail", "navidad", "coffee", "cafeteria", "pedagogico"] },
+        "clientId": { "type": "string" },
         "location": { "type": "string", "enum": ["centro", "fuera"] },
         "occasion": { "type": "string" },
+        "diners": { "type": "number" },
         "recipes": {
           "type": "array",
           "items": { "type": "string" }
         },
+        "extraConcepts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "cost": { "type": "number" }
+            },
+            "required": ["name", "cost"]
+          }
+        },
         "totalCost": { "type": "number" },
         "price": { "type": "number" },
         "createdBy": { "type": "string" },
+        "group": { "type": "string" },
+        "score": { "type": "number" },
+        "feedback": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["nameES", "type", "recipes", "totalCost", "price", "createdBy", "createdAt"]

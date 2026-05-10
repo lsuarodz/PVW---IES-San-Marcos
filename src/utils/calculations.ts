@@ -1,4 +1,4 @@
-import { Ingredient, Recipe, RecipeIngredient, Menu } from '../types';
+import { Ingredient, Recipe, RecipeIngredient, Menu, ExtraConcept } from '../types';
 
 // Calcula el coste total de una receta sumando el coste de sus ingredientes (y sub-recetas)
 export const calculateRecipeTotalCost = (
@@ -52,15 +52,22 @@ export const getRecipeAllergens = (
   return Array.from(allergenSet);
 };
 
-// Calcula el coste total de un menú sumando el coste de sus recetas
+// Calcula el coste total de un menú sumando el coste de sus recetas y conceptos extra
 export const calculateMenuTotalCost = (
   recipeIds: string[],
-  allRecipes: Recipe[]
+  allRecipes: Recipe[],
+  extraConcepts: ExtraConcept[] = []
 ): number => {
-  return recipeIds.reduce((total, id) => {
+  const recipesCost = recipeIds.reduce((total, id) => {
     const recipe = allRecipes.find(r => r.id === id);
     return total + (recipe ? recipe.totalCost : 0);
   }, 0);
+
+  const extrasCost = extraConcepts.reduce((total, concept) => {
+    return total + (Number(concept.cost) || 0);
+  }, 0);
+
+  return recipesCost + extrasCost;
 };
 
 // Extrae todos los alérgenos únicos de un menú

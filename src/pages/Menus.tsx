@@ -81,6 +81,7 @@ export default function Menus() {
     occasion: '',
     diners: null as number | null,
     recipes: [] as string[],
+    extraConcepts: [] as { name: string; cost: number }[],
     price: 0,
   });
 
@@ -127,7 +128,7 @@ export default function Menus() {
     if (!appUser) return;
 
     const id = editingId || doc(collection(db, 'menus')).id;
-    const totalCost = calculateMenuTotalCost(formData.recipes, recipes);
+    const totalCost = calculateMenuTotalCost(formData.recipes, recipes, formData.extraConcepts);
 
     const existing = editingId ? menus.find(m => m.id === editingId) : null;
 
@@ -158,6 +159,7 @@ export default function Menus() {
           if (commission === 'gastos' && commissionMode) {
             patch.price = menuData.price;
             patch.diners = menuData.diners;
+            patch.extraConcepts = menuData.extraConcepts;
           }
 
           if (Object.keys(patch).length > 0) {
@@ -237,6 +239,7 @@ export default function Menus() {
       occasion: menu.occasion || '',
       diners: menu.diners,
       recipes: menu.recipes,
+      extraConcepts: menu.extraConcepts || [],
       price: menu.price,
     });
     setEditingId(menu.id);
@@ -244,7 +247,20 @@ export default function Menus() {
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', eventDate: '', eventTime: '', eventPlace: '', type: 'brunch', clientId: '', location: 'centro', occasion: '', diners: null, recipes: [], price: 0 });
+    setFormData({ 
+      nameES: '', 
+      eventDate: '', 
+      eventTime: '', 
+      eventPlace: '', 
+      type: 'brunch', 
+      clientId: '', 
+      location: 'centro', 
+      occasion: '', 
+      diners: null, 
+      recipes: [], 
+      extraConcepts: [],
+      price: 0 
+    });
     setEditingId(null);
     setRecipeSearch('');
   };
@@ -580,6 +596,18 @@ export default function Menus() {
                     )}
                   </ul>
                 </div>
+                {menu.extraConcepts && menu.extraConcepts.length > 0 && (
+                  <div className="text-sm border-t border-stone-50 pt-2">
+                    <span className="text-stone-500 block mb-2">Conceptos extra:</span>
+                    <ul className="list-disc pl-5 space-y-1 font-sans">
+                      {menu.extraConcepts.map((concept, idx) => (
+                        <li key={idx} className="text-stone-700">
+                          {concept.name}: <span className="text-stone-500">{concept.cost.toFixed(2)} €</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm pt-3 border-t border-stone-100">
                   <span className="text-stone-500">Coste Total (Escandallos):</span>
                   <span className="font-medium text-stone-900">{menu.totalCost.toFixed(2)} €</span>
@@ -750,6 +778,21 @@ export default function Menus() {
                     </div>
                   );
                 })}
+                {printingMenu.extraConcepts && printingMenu.extraConcepts.map((concept, index) => (
+                  <div key={`extra-${index}`} className="text-center w-full">
+                    {index === 0 && printingMenu.recipes.length > 0 && (
+                      <div className="mb-6 flex justify-center">
+                        <div className="w-16 h-px bg-stone-300"></div>
+                      </div>
+                    )}
+                    <h3 className="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">{concept.name}</h3>
+                    {index < printingMenu.extraConcepts.length - 1 && (
+                      <div className="mt-2 flex justify-center">
+                        <div className="w-8 h-px bg-stone-300"></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <div className="mt-auto w-full flex flex-col items-center pb-6">
@@ -862,7 +905,7 @@ export default function Menus() {
                 {editingId ? 'Editar Menú' : 'Nuevo Menú'}
               </h2>
               <div className="text-lg font-bold text-teal-700">
-                Coste: {calculateMenuTotalCost(formData.recipes, recipes).toFixed(2)} €
+                Coste: {calculateMenuTotalCost(formData.recipes, recipes, formData.extraConcepts).toFixed(2)} €
               </div>
             </div>
             
@@ -1115,6 +1158,81 @@ export default function Menus() {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Otros conceptos (bebidas, café, etc.) */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-stone-900">Otros Conceptos (Bebidas, café, etc.)</label>
+                    {canEditMenuField(editingId ? menus.find(m => m.id === editingId)! : null, 'gastos') && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          extraConcepts: [...prev.extraConcepts, { name: '', cost: 0 }]
+                        }))}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                      >
+                        <Plus size={16} /> Añadir concepto
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
+                    {formData.extraConcepts.length === 0 ? (
+                      <p className="text-sm text-stone-500 text-center py-4">No hay conceptos extra añadidos.</p>
+                    ) : (
+                      <div className="space-y-3 font-sans">
+                        {formData.extraConcepts.map((concept, index) => (
+                          <div key={index} className="flex items-center gap-3 p-2 bg-white border border-stone-200 rounded-lg shadow-sm">
+                            <div className="flex-1 grid grid-cols-2 gap-3 font-sans">
+                              <input
+                                type="text"
+                                placeholder="Nombre (ej. Bebidas)"
+                                value={concept.name}
+                                disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
+                                onChange={(e) => {
+                                  const newExtras = [...formData.extraConcepts];
+                                  newExtras[index].name = e.target.value;
+                                  setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
+                                }}
+                                className="w-full px-3 py-1 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="Coste"
+                                  value={concept.cost === 0 ? '' : concept.cost}
+                                  disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
+                                  onChange={(e) => {
+                                    const newExtras = [...formData.extraConcepts];
+                                    newExtras[index].cost = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
+                                  }}
+                                  className="w-full px-3 py-1 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                />
+                                <span className="text-sm text-stone-400">€</span>
+                              </div>
+                            </div>
+                            {canEditMenuField(editingId ? menus.find(m => m.id === editingId)! : null, 'gastos') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newExtras = formData.extraConcepts.filter((_, i) => i !== index);
+                                  setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
+                                }}
+                                className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

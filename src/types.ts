@@ -46,6 +46,11 @@ export interface Recipe {
   createdAt: string;
 }
 
+export interface ExtraConcept {
+  name: string;
+  cost: number;
+}
+
 export interface Menu {
   id: string;
   nameES: string;
@@ -59,6 +64,7 @@ export interface Menu {
   occasion?: string;
   diners?: number | null;
   recipes: string[];
+  extraConcepts?: ExtraConcept[];
   totalCost: number;
   price: number;
   createdBy: string;

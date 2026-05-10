@@ -84,9 +84,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   
   // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
+    type: type as 'plato' | 'elaborado',
     nameES: '',
-    portions: null as number | null,
-    yieldQuantity: null as number | null,
+    portions: null as string | number | null,
+    yieldQuantity: null as string | number | null,
     yieldUnit: 'kg' as 'kg' | 'L' | 'ud',
     steps: [] as string[],
     equipment: [] as string[],
@@ -163,9 +164,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     
     const recipeData: Record<string, any> = {
       ...formData,
-      type,
-      portions: type === 'plato' ? 1 : (formData.portions || null),
-      yieldQuantity: formData.yieldQuantity || null,
+      portions: formData.type === 'plato' ? 1 : (Number(formData.portions) || null),
+      yieldQuantity: Number(formData.yieldQuantity) || null,
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: existing?.nameEN || '',
@@ -290,6 +290,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
   const openEdit = (recipe: Recipe) => {
     setFormData({
+      type: recipe.type === 'elaborado' ? 'elaborado' : 'plato',
       nameES: recipe.nameES,
       portions: recipe.portions,
       yieldQuantity: recipe.yieldQuantity || null,
@@ -306,7 +307,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
+    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
     setEditingId(null);
   };
 
@@ -757,26 +758,39 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={type === 'elaborado' ? 'md:col-span-2' : ''}>
+                  <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
                     <input
                       type="text" required
                       value={formData.nameES}
-                      disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder={`Ej: ${formData.type === 'elaborado' ? 'Sofrito tradicional' : 'Paella Valenciana'}`}
                     />
                   </div>
-                  {type === 'elaborado' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Tipo *</label>
+                    <select
+                      value={formData.type}
+                      onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado'})}
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="plato">Plato</option>
+                      <option value="elaborado">Elaborado</option>
+                    </select>
+                  </div>
+                  {formData.type === 'elaborado' ? (
                     <>
                       <div className="flex gap-2">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
                           <input
                             type="number" min="0" step="0.01" required
-                            value={formData.yieldQuantity || ''}
+                            value={formData.yieldQuantity ?? ''}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => setFormData({...formData, yieldQuantity: parseFloat(e.target.value) || null})}
+                            onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
                             onFocus={e => e.target.select()}
                             className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 1.5"
@@ -801,9 +815,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
                           <input
                             type="number" min="1" step="1"
-                            value={formData.portions || ''}
+                            value={formData.portions ?? ''}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
+                            onChange={e => setFormData({...formData, portions: e.target.value})}
                             onFocus={e => e.target.select()}
                             className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 10"
@@ -946,7 +960,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               </a>
                             )}
                           </div>
-                          <div className="w-24 shrink-0">
+                          <div className="w-32 shrink-0">
                             <div className="relative">
                               <input
                                 type="number"

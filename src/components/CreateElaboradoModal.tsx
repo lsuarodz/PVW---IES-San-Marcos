@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Recipe } from '../types';
 
@@ -13,6 +14,7 @@ interface CreateElaboradoModalProps {
 
 export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: CreateElaboradoModalProps) {
   const { appUser } = useAuth();
+  const { recipes } = useData();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [nameES, setNameES] = useState('');
@@ -21,6 +23,9 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   const [portions, setPortions] = useState<number>(1);
 
   if (!isOpen) return null;
+
+  const existingElaborados = recipes.filter(r => r.type === 'elaborado');
+  const exactMatchExists = existingElaborados.some(r => r.nameES.toLowerCase().trim() === nameES.toLowerCase().trim());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,12 +90,21 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
               <input
                 type="text"
                 required
+                list="existing-elaborados"
                 value={nameES}
                 onChange={(e) => setNameES(e.target.value)}
                 autoFocus
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="Ej. Salsa Brava, Caldo de pollo..."
               />
+              <datalist id="existing-elaborados">
+                {existingElaborados.map(r => (
+                  <option key={r.id} value={r.nameES} />
+                ))}
+              </datalist>
+              {exactMatchExists && (
+                <p className="mt-2 text-xs text-amber-600 font-medium">Cuidado: Ya existe un elaborado con este nombre. Puedes buscarlo directamente en el buscador de ingredientes de la receta.</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

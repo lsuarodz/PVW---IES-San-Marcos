@@ -775,29 +775,6 @@ export default function Ingredients() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">Precio del formato (€)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.formatPrice}
-                        onChange={e => {
-                          const newFormatPrice = e.target.value;
-                          setFormData(prev => {
-                            const newFormData = {...prev, formatPrice: newFormatPrice};
-                            const formatPriceNum = Number(newFormatPrice) || 0;
-                            const weightPerUnitNum = Number(prev.weightPerUnit) || 0;
-                            if (formatPriceNum > 0 && weightPerUnitNum > 0) {
-                              newFormData.purchasePrice = (formatPriceNum / weightPerUnitNum).toFixed(3);
-                            }
-                            return newFormData;
-                          });
-                        }}
-                        onFocus={e => e.target.select()}
-                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                      />
-                    </div>
-                    <div>
                       <label className="block text-xs font-medium text-stone-700 mb-1">
                         {formData.unit === 'ud' ? 'Unidades por formato' : `Peso del formato (${formData.unit})`}
                       </label>
@@ -812,6 +789,29 @@ export default function Ingredients() {
                             const newFormData = {...prev, weightPerUnit: newWeight};
                             const formatPriceNum = Number(prev.formatPrice) || 0;
                             const weightPerUnitNum = Number(newWeight) || 0;
+                            if (formatPriceNum > 0 && weightPerUnitNum > 0) {
+                              newFormData.purchasePrice = (formatPriceNum / weightPerUnitNum).toFixed(3);
+                            }
+                            return newFormData;
+                          });
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-stone-700 mb-1">Precio del formato (€)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.formatPrice}
+                        onChange={e => {
+                          const newFormatPrice = e.target.value;
+                          setFormData(prev => {
+                            const newFormData = {...prev, formatPrice: newFormatPrice};
+                            const formatPriceNum = Number(newFormatPrice) || 0;
+                            const weightPerUnitNum = Number(prev.weightPerUnit) || 0;
                             if (formatPriceNum > 0 && weightPerUnitNum > 0) {
                               newFormData.purchasePrice = (formatPriceNum / weightPerUnitNum).toFixed(3);
                             }
