@@ -286,8 +286,8 @@ export default function Admin() {
         </form>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-x-auto">
+        <table className="min-w-max w-full text-left border-collapse">
           <thead>
             <tr className="bg-stone-50 border-b border-stone-200">
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>
