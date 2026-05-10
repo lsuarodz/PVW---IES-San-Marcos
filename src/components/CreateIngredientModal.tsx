@@ -250,6 +250,18 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                         ))}
                       </ul>
                       <p className="text-sm mt-2 text-amber-700">Comprueba si puedes usar el existente en lugar de crear uno nuevo.</p>
+                      
+                      <div className="mt-3 flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          id="confirm-duplicate"
+                          required
+                          className="mt-1 w-4 h-4 text-amber-600 bg-white border-amber-300 rounded focus:ring-amber-500"
+                        />
+                        <label htmlFor="confirm-duplicate" className="text-sm font-medium text-amber-900">
+                          Confirmo que he revisado la lista y mi ingrediente NO existe.
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}

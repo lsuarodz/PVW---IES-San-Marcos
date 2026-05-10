@@ -95,17 +95,19 @@ export default function Layout() {
   ];
 
   // Definición de otros elementos del menú
-  const otherItems = [
+  const baseOtherItems = [
     { name: 'Traducciones', path: '/translations', icon: <Languages size={20} /> },
     { name: 'Manual', path: '/manual', icon: <ManualIcon size={20} /> },
   ];
+
+  const isFirstYear = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
+
+  const otherItems = isFirstYear ? [] : [...baseOtherItems];
 
   // Si el usuario es administrador o docente, añadimos la sección de gestión de usuarios
   if (appUser?.role === 'admin' || appUser?.role === 'docente') {
     otherItems.push({ name: 'Usuarios', path: '/admin', icon: <UserCog size={20} /> });
   }
-
-  const isFirstYear = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
 
   return (
     <div className="flex h-screen bg-stone-100">
@@ -326,7 +328,7 @@ export default function Layout() {
           )}
 
           {/* Otros */}
-          {!isFirstYear && (
+          {otherItems.length > 0 && (
           <div>
             <button 
               onClick={() => toggleSection('otros')}

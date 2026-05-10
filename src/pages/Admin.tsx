@@ -337,7 +337,7 @@ export default function Admin() {
                   )}
                 </td>
                 <td className="px-6 py-4 text-sm text-right">
-                  {appUser?.role === 'admin' && user.email !== appUser?.email && (
+                  {(appUser?.role === 'admin' || appUser?.role === 'docente') && user.email !== appUser?.email && (
                     <button
                       onClick={() => handleDelete(user.uid)}
                       className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
