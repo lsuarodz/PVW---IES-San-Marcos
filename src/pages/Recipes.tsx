@@ -374,7 +374,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const addIngredientToRecipe = () => {
     setFormData({
       ...formData,
-      ingredients: [...formData.ingredients, { ingredientId: '', quantity: 0 }]
+      ingredients: [...formData.ingredients, { ingredientId: '', quantity: 0, itemType: 'ingredient' }]
+    });
+  };
+
+  const addElaboradoToRecipe = () => {
+    setFormData({
+      ...formData,
+      ingredients: [...formData.ingredients, { ingredientId: '', quantity: 0, itemType: 'elaborado' }]
     });
   };
 
@@ -787,7 +794,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
                           <input
-                            type="number" min="0" step="0.01" required
+                            type="number" min="0" step="0.001" required
                             value={formData.yieldQuantity ?? ''}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
@@ -914,24 +921,30 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
                               className="flex-1 min-w-0 truncate px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <option value="">Selecciona un ingrediente o receta...</option>
-                              <optgroup label="Ingredientes">
-                                {ingredients.map(ing => (
-                                  <option key={ing.id} value={ing.id}>
-                                    {ing.nameES} ({ing.costPerUnit.toFixed(2)}€/{ing.unit})
-                                  </option>
-                                ))}
-                              </optgroup>
-                              <optgroup label="Escandallos / Recetas">
-                                {recipes.filter(r => r.id !== editingId).map(r => {
-                                  const unitCost = r.totalCost / (r.yieldQuantity || 1);
-                                  return (
-                                    <option key={r.id} value={r.id}>
-                                      {r.nameES} ({unitCost.toFixed(2)}€/{r.yieldUnit || 'ud'})
+                              <option value="">
+                                {ri.itemType === 'elaborado' ? 'Selecciona un elaborado...' : 'Selecciona un ingrediente...'}
+                              </option>
+                              {ri.itemType !== 'elaborado' && (
+                                <optgroup label="Ingredientes">
+                                  {ingredients.map(ing => (
+                                    <option key={ing.id} value={ing.id}>
+                                      {ing.nameES} ({ing.costPerUnit.toFixed(2)}€/{ing.unit})
                                     </option>
-                                  );
-                                })}
-                              </optgroup>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {ri.itemType !== 'ingredient' && (
+                                <optgroup label="Elaborados">
+                                  {recipes.filter(r => r.id !== editingId && r.type === 'elaborado').map(r => {
+                                    const unitCost = r.totalCost / (r.yieldQuantity || 1);
+                                    return (
+                                      <option key={r.id} value={r.id}>
+                                        {r.nameES} ({unitCost.toFixed(2)}€/{r.yieldUnit || 'ud'})
+                                      </option>
+                                    );
+                                  })}
+                                </optgroup>
+                              )}
                             </select>
                             {selectedIng && (
                               <button
@@ -1008,14 +1021,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         No hay ingredientes añadidos.
                       </div>
                     )}
-                    <button
-                      type="button"
-                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                      onClick={addIngredientToRecipe}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Plus size={18} /> Añadir ingrediente
-                    </button>
+                    <div className="flex gap-4 mt-4">
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onClick={addIngredientToRecipe}
+                        className="flex-1 py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Plus size={18} /> Añadir ingrediente
+                      </button>
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onClick={addElaboradoToRecipe}
+                        className="flex-1 py-3 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Plus size={18} /> Añadir elaborado
+                      </button>
+                    </div>
                   </div>
                 </div>
 

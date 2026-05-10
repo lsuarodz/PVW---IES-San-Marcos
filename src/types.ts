@@ -19,6 +19,7 @@ export interface RecipeIngredient {
   ingredientId: string;
   quantity: number;
   usePortions?: boolean;
+  itemType?: 'ingredient' | 'elaborado';
 }
 
 export interface Recipe {
