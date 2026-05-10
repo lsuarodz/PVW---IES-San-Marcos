@@ -446,6 +446,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const filteredRecipes = filteredByType.filter(r => {
+    // Si somos alumnos de 1º, SOLO podemos ver las recetas creadas por nosotros o por otros de 1º
+    if (appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA') {
+      const creator = users.find(u => u.name === r.createdBy);
+      if (creator && creator.course !== '1ºCOCINA' && creator.course !== '1ºPANADERÍA') {
+        return false;
+      }
+    }
+
     // Determine visibility based on student view and the "View Other Groups" toggle
     const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
     

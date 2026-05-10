@@ -347,7 +347,7 @@ export default function Admin() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-stone-500">
+                <td colSpan={7} className="px-6 py-8 text-center text-stone-500">
                   No hay usuarios registrados.
                 </td>
               </tr>
