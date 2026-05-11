@@ -77,7 +77,7 @@ service cloud.firestore {
     }
 
     function hasOnlyAllowedFields(allowedFields) {
-      return request.resource.data.keys().removeAll(allowedFields).size() == 0;
+      return allowedFields.hasAll(request.resource.data.keys());
     }
 
     function isValidString(val, minLen, maxLen) {
@@ -153,7 +153,7 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'extraConcepts', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
@@ -164,6 +164,7 @@ service cloud.firestore {
              (!('location' in data) || data.location in ['centro', 'fuera']) &&
              (!('occasion' in data) || data.occasion == "" || isValidString(data.occasion, 1, 100)) &&
              data.recipes is list && data.recipes.size() <= 50 &&
+             (!('extraConcepts' in data) || data.extraConcepts is list) &&
              data.totalCost is number && data.totalCost >= 0 &&
              data.price is number && data.price >= 0 &&
              isValidString(data.createdBy, 1, 100) &&

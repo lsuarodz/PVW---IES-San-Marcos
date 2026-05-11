@@ -23,6 +23,7 @@ interface AuthContextType {
   commissionMode: boolean;
   setCommissionMode: (value: boolean) => void;
   login: () => Promise<void>; // Función para iniciar sesión
+  loginInProgress: boolean;
   logout: () => Promise<void>; // Función para cerrar sesión
 }
 
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginInProgress, setLoginInProgress] = useState(false);
   const [viewAsStudent, setViewAsStudent] = useState(false);
   const [commissionMode, setCommissionMode] = useState(true);
 
@@ -91,10 +93,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Función para iniciar sesión usando el popup de Google
   const login = async () => {
+    if (loginInProgress) return;
+    setLoginInProgress(true);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: any) {
+      if (error.code !== 'auth/cancelled-popup-request') {
+        console.error('Login error:', error);
+      }
+    } finally {
+      setLoginInProgress(false);
     }
   };
 
@@ -118,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       commissionMode, 
       setCommissionMode, 
       login, 
+      loginInProgress,
       logout 
     }}>
       {children}
