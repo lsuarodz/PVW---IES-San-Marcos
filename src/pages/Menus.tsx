@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
+import { canViewItem } from '../utils/visibility';
 import ConfirmModal from '../components/ConfirmModal';
 import CreateRecipeModal from '../components/CreateRecipeModal';
 import html2pdf from 'html2pdf.js';
@@ -41,6 +42,68 @@ export default function Menus() {
   
   // Estado para saber si estamos editando un menú existente
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [hasFixedMenus, setHasFixedMenus] = useState(false);
+
+  useEffect(() => {
+    if (!hasFixedMenus && appUser?.role === 'admin' && menus.length > 0 && users.length > 0) {
+      const fixMenus = async () => {
+        setHasFixedMenus(true);
+        for (const m of menus) {
+          const creator = users.find(u => u.name === m.createdBy || u.uid === m.createdBy);
+          if (!creator) continue;
+          
+          let correctType = m.type;
+          if (creator.course === '1ºCOCINA' || creator.course === '1ºPANADERÍA') {
+            correctType = 'cafeteria';
+          } else if (creator.course === '2ºSUPERIOR COCINA') {
+            correctType = 'pedagogico';
+          } else if (creator.course === '2ºPANADERÍA') {
+            if (m.type !== 'coffee' && m.type !== 'brunch') {
+               correctType = 'coffee';
+            }
+          }
+
+          if (correctType !== m.type) {
+             try {
+               await updateDoc(doc(db, 'menus', m.id), { type: correctType as any });
+               console.log(`Menú ${m.id} corregido de ${m.type} a ${correctType}`);
+             } catch(e) {}
+          }
+        }
+      };
+      fixMenus();
+    }
+  }, [hasFixedMenus, appUser, menus, users]);
+
+  const getDefaultMenuType = (): Menu['type'] => {
+    if (appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA') return 'cafeteria';
+    if (appUser?.course === '2ºSUPERIOR COCINA') return 'pedagogico';
+    if (appUser?.course === '2ºPANADERÍA') return 'coffee';
+    return 'brunch';
+  };
+
+  const getMenuTypeOptions = () => {
+    if (appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA') {
+       return [{ value: 'cafeteria', label: 'Cafetería' }];
+    } else if (appUser?.course === '2ºSUPERIOR COCINA') {
+       return [{ value: 'pedagogico', label: 'Menú Pedagógico' }];
+    } else if (appUser?.course === '2ºPANADERÍA') {
+       return [
+         { value: 'coffee', label: 'Coffee Break' },
+         { value: 'brunch', label: 'Brunch' }
+       ];
+    } else {
+       return [
+         { value: 'brunch', label: 'Brunch' },
+         { value: 'cocktail', label: 'Cóctel' },
+         { value: 'navidad', label: 'Menú Navidad Solidario' },
+         { value: 'coffee', label: 'Coffee Break' },
+         { value: 'cafeteria', label: 'Cafetería' },
+         { value: 'pedagogico', label: 'Menú Pedagógico' }
+       ];
+    }
+  };
 
   // Estados para el modal de confirmación
   const [confirmModal, setConfirmModal] = useState<{
@@ -252,7 +315,7 @@ export default function Menus() {
       eventDate: '', 
       eventTime: '', 
       eventPlace: '', 
-      type: 'brunch', 
+      type: getDefaultMenuType(), 
       clientId: '', 
       location: 'centro', 
       occasion: '', 
@@ -373,44 +436,21 @@ export default function Menus() {
   };
 
   const filteredMenus = menus.filter(m => {
-    const isFirstYearUser = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
-    const creator = users.find(u => u.name === m.createdBy);
-    const isFirstYearMenu = creator && (creator.course === '1ºCOCINA' || creator.course === '1ºPANADERÍA');
-
-    // Separación estricta entre 1º y los demás (excepto admin principal)
-    const isSuperAdmin = appUser?.role === 'admin';
-    if (!isSuperAdmin) {
-      if (isFirstYearUser && !isFirstYearMenu) {
-        if (creator) return false;
-      } else if (!isFirstYearUser && isFirstYearMenu) {
-        return false;
-      }
+    if (!canViewItem(m, appUser, users, {
+      commissionMode,
+      viewOtherGroups,
+      selectedGroupFilter: selectedGroup,
+      viewAsStudent,
+      isKaled
+    })) {
+      return false;
     }
 
-    const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
-    if (isStudentView) {
-      // Si el modo comisión está desactivado (estamos en modo alumno), restringir estrictamente al propio grupo
-      if (appUser?.role === 'student' && !commissionMode) {
-        const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
-        if (!matchesGroup) return false;
-      }
-
-      // Si estamos viendo "Otros Grupos" y el modo comisión está activo o somos admin
-      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled && commissionMode) {
-        const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
-        if (!matchesGroup) return false;
-      }
-
-      // Filtro de grupo específico
-      if (viewOtherGroups && selectedGroup !== 'todos') {
-        if (m.group !== selectedGroup) return false;
-      }
-
-      if (appUser?.role === 'admin' && viewAsStudent) {
-        if (!m.group) return false;
-        if (selectedGroup !== 'todos' && m.group !== selectedGroup) return false;
-      }
+    if (viewAsStudent && appUser?.role === 'admin') {
+      if (!m.group) return false;
+      if (selectedGroup !== 'todos' && m.group !== selectedGroup) return false;
     }
+
     return m.nameES.toLowerCase().includes(search.toLowerCase()) || 
            m.nameEN?.toLowerCase().includes(search.toLowerCase());
   });
@@ -466,7 +506,7 @@ export default function Menus() {
           />
         </div>
 
-        {(appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
+        {(appUser?.course === '2ºPANADERÍA' && appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
           <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
             <div className="flex bg-stone-100 p-1 rounded-xl">
               <button
@@ -1027,12 +1067,9 @@ export default function Menus() {
                       onChange={e => setFormData({...formData, type: e.target.value as any})}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="brunch">Brunch</option>
-                      <option value="cocktail">Cóctel</option>
-                      <option value="navidad">Menú Navidad Solidario</option>
-                      <option value="coffee">Coffee Break</option>
-                      <option value="cafeteria">Cafetería</option>
-                      <option value="pedagogico">Menú Pedagógico</option>
+                      {getMenuTypeOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

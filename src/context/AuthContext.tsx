@@ -4,19 +4,15 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
 
 // Definición de la estructura de datos de nuestro usuario en la aplicación
-interface AppUser {
-  uid: string;
-  email: string;
-  role: 'admin' | 'student' | 'docente';
-  name: string;
-  group?: string;
-  commission?: string;
-}
+import { AppUser } from '../types';
 
 // Definición de lo que va a proveer nuestro contexto de autenticación
 interface AuthContextType {
   user: User | null; // Usuario de Firebase Auth
   appUser: AppUser | null; // Datos extendidos del usuario desde Firestore
+  actualAppUser: AppUser | null; // The real user when impersonating
+  impersonatedUserId: string | null;
+  setImpersonatedUserId: (uid: string | null) => void;
   loading: boolean; // Estado de carga mientras verificamos la sesión
   viewAsStudent: boolean;
   setViewAsStudent: (value: boolean) => void;
@@ -33,7 +29,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Componente proveedor que envolverá nuestra aplicación para darle acceso a la autenticación
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [realAppUser, setRealAppUser] = useState<AppUser | null>(null);
+  const [impersonatedAppUser, setImpersonatedAppUser] = useState<AppUser | null>(null);
+  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loginInProgress, setLoginInProgress] = useState(false);
   const [viewAsStudent, setViewAsStudent] = useState(false);
@@ -49,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Si hay un usuario logueado en Firebase, buscamos sus datos en nuestra base de datos (Firestore)
         const userEmail = firebaseUser.email?.toLowerCase();
         if (!userEmail) {
-          setAppUser(null);
+          setRealAppUser(null);
           setLoading(false);
           return;
         }
@@ -61,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (userDoc.exists()) {
             // Si el usuario existe en nuestra base de datos, guardamos sus datos en el estado
-            setAppUser({ uid: firebaseUser.uid, ...userDoc.data() } as AppUser);
+            setRealAppUser({ uid: firebaseUser.uid, ...userDoc.data() } as AppUser);
           } else if (userEmail === 'lsuarodzmail.com@gmail.com') {
             // Caso especial: Si es el email del administrador principal y no existe, lo creamos automáticamente
             const newAdmin: Omit<AppUser, 'uid'> = {
@@ -70,18 +68,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: firebaseUser.displayName || 'Admin',
             };
             await setDoc(userDocRef, { ...newAdmin, createdAt: new Date().toISOString() });
-            setAppUser({ uid: firebaseUser.uid, ...newAdmin } as AppUser);
+            setRealAppUser({ uid: firebaseUser.uid, ...newAdmin } as AppUser);
           } else {
             // Si el usuario se loguea con Google pero no está registrado en nuestra base de datos por un admin, no le damos acceso
-            setAppUser(null);
+            setRealAppUser(null);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
-          setAppUser(null);
+          setRealAppUser(null);
         }
       } else {
         // Si no hay usuario en Firebase, limpiamos el estado
-        setAppUser(null);
+        setRealAppUser(null);
+        setImpersonatedAppUser(null);
+        setImpersonatedUserId(null);
       }
       // Terminamos el estado de carga
       setLoading(false);
@@ -90,6 +90,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Limpiamos el listener cuando el componente se desmonta
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    // Load impersonated user if set
+    async function loadImpersonated() {
+      if (!impersonatedUserId) {
+        setImpersonatedAppUser(null);
+        return;
+      }
+      
+      try {
+        const userDocRef = doc(db, 'users', impersonatedUserId);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          setImpersonatedAppUser({ uid: userDoc.id, ...userDoc.data() } as AppUser);
+        } else {
+          setImpersonatedAppUser(null);
+        }
+      } catch (error) {
+        setImpersonatedAppUser(null);
+      }
+    }
+    loadImpersonated();
+  }, [impersonatedUserId]);
+
+  // Si hay un usuario personificado, usamos ese, si no el real
+  const effectiveAppUser = (realAppUser?.role === 'admin' && impersonatedAppUser) ? impersonatedAppUser : realAppUser;
 
   // Función para iniciar sesión usando el popup de Google
   const login = async () => {
@@ -119,7 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       user, 
-      appUser, 
+      appUser: effectiveAppUser,
+      actualAppUser: realAppUser,
+      impersonatedUserId,
+      setImpersonatedUserId,
       loading, 
       viewAsStudent, 
       setViewAsStudent, 

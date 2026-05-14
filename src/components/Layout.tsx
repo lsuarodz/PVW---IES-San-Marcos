@@ -28,13 +28,16 @@ export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
     const { 
     appUser, 
+    actualAppUser,
+    impersonatedUserId,
+    setImpersonatedUserId,
     viewAsStudent, 
     setViewAsStudent, 
     commissionMode, 
     setCommissionMode, 
     logout 
   } = useAuth();
-  const { settings } = useData();
+  const { settings, users } = useData();
   // Obtenemos la ruta actual para saber qué menú está activo
   const location = useLocation();
   
@@ -68,7 +71,6 @@ export default function Layout() {
   const jornada2Items = [
     { name: 'Matriz Benchmarking', path: '/benchmarking', icon: <FileText size={20} /> },
     { name: 'Fuentes', path: '/sources', icon: <LinkIcon size={20} /> },
-    { name: 'Brainstorming', path: '/brainstorming', icon: <Lightbulb size={20} /> },
   ];
 
   // Definición de los elementos del menú para la Jornada 3
@@ -79,7 +81,6 @@ export default function Layout() {
 
   // Definición de los elementos del menú para Producción
   const productionItems = [
-    { name: 'Tormenta de Ideas', path: '/production-brainstorming', icon: <Lightbulb size={20} /> },
     { name: 'Proveedores', path: '/providers', icon: <Users size={20} /> },
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
     { name: 'Elaborados', path: '/elaborados', icon: <BookOpen size={20} /> },
@@ -155,7 +156,7 @@ export default function Layout() {
         <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
           {/* Sección Jornada 1 */}
           {!isFirstYear && (
-            <div>
+            <div style={{ backgroundColor: '#bce7f4' }}>
               <button 
                 onClick={() => toggleSection('jornada1')}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
@@ -230,6 +231,7 @@ export default function Layout() {
             <button 
               onClick={() => toggleSection('jornada3')}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+              style={{ backgroundColor: '#ffffff' }}
             >
               <span>Jornada 3</span>
               {openSections.jornada3 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -260,10 +262,11 @@ export default function Layout() {
           )}
 
           {/* Gestión de Producción */}
-          <div>
+          <div style={{ lineHeight: '20px', backgroundColor: '#e7f2f5', borderRadius: '6px' }}>
             <button 
               onClick={() => toggleSection('produccion')}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+              style={{ backgroundColor: '#d2efff', borderRadius: '6px' }}
             >
               <span>Gestión de Producción</span>
               {openSections.produccion ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -293,7 +296,7 @@ export default function Layout() {
           </div>
 
           {/* Gestión Comercial */}
-          {!isFirstYear && (
+          {appUser?.role !== 'student' && (
           <div>
             <button 
               onClick={() => toggleSection('comercial')}
@@ -413,6 +416,23 @@ export default function Layout() {
                 <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${viewAsStudent ? 'left-[18px]' : 'left-0.5'}`} />
               </div>
             </button>
+          )}
+          {actualAppUser?.role === 'admin' && users && (
+            <div className="mb-2">
+              <label className="block text-xs font-medium text-stone-500 mb-1 px-1">Ver como usuario:</label>
+              <select
+                value={impersonatedUserId || ''}
+                onChange={(e) => setImpersonatedUserId(e.target.value || null)}
+                className="w-full px-2 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                <option value="">(Mi cuenta Admin)</option>
+                {users.map(u => (
+                  <option key={u.uid} value={u.uid}>
+                    {u.name} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
           {/* Botón para cerrar sesión */}
           <button

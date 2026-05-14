@@ -157,7 +157,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8 w-full max-w-7xl mx-auto">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -259,6 +259,7 @@ export default function Admin() {
                 <option value="2ºPANADERÍA">2º PANADERÍA</option>
                 <option value="1ºCOCINA">1º COCINA</option>
                 <option value="1ºPANADERÍA">1º PANADERÍA</option>
+                <option value="2ºSUPERIOR COCINA">2º SUPERIOR COCINA</option>
               </select>
             </div>
           )}
@@ -291,7 +292,7 @@ export default function Admin() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-x-auto">
-        <table className="min-w-max w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-stone-50 border-b border-stone-200">
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>

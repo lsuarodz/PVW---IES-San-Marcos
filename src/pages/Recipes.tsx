@@ -15,6 +15,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import IngredientSelect from '../components/IngredientSelect';
 import html2pdf from 'html2pdf.js';
 import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
+import { canViewItem } from '../utils/visibility';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
@@ -447,46 +448,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const filteredRecipes = filteredByType.filter(r => {
-    const isFirstYearUser = appUser?.course === '1ºCOCINA' || appUser?.course === '1ºPANADERÍA';
-    const creator = users.find(u => u.name === r.createdBy);
-    const isFirstYearRecipe = creator && (creator.course === '1ºCOCINA' || creator.course === '1ºPANADERÍA');
-
-    // Separación estricta entre 1º y los demás (excepto admin principal)
-    const isSuperAdmin = appUser?.role === 'admin';
-    if (!isSuperAdmin) {
-      if (isFirstYearUser && !isFirstYearRecipe) {
-        if (creator) return false;
-      } else if (!isFirstYearUser && isFirstYearRecipe) {
-        return false;
-      }
+    if (!canViewItem(r, appUser, users, {
+      commissionMode,
+      viewOtherGroups,
+      selectedGroupFilter: selectedGroup,
+      viewAsStudent,
+      isKaled
+    })) {
+      return false;
     }
 
-    // Determine visibility based on student view and the "View Other Groups" toggle
-    const isStudentView = appUser?.role === 'student' || (appUser?.role === 'admin' && viewAsStudent);
-    
-    if (isStudentView) {
-      // Si el modo comisión está desactivado (estamos en modo alumno), restringir estrictamente al propio grupo
-      if (appUser?.role === 'student' && !commissionMode) {
-        const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
-        if (!matchesGroup) return false;
-      }
-      
-      // Si estamos viendo "Otros Grupos" y el modo comisión está activo o somos admin
-      if (appUser?.role === 'student' && !viewOtherGroups && !isKaled && commissionMode) {
-        const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
-        if (!matchesGroup) return false;
-      } 
-      
-      // Filtro de grupo específico (disponible cuando ven otros grupos en modo comisión o admin)
-      if (viewOtherGroups && selectedGroup !== 'todos') {
-        if (r.group !== selectedGroup) return false;
-      }
-
-      if (appUser?.role === 'admin' && viewAsStudent) {
-        // Admin viewing as student: show ONLY recipes that have a group (students' recipes)
-        if (!r.group) return false;
-        if (selectedGroup !== 'todos' && r.group !== selectedGroup) return false;
-      }
+    if (viewAsStudent && appUser?.role === 'admin') {
+      if (!r.group) return false;
+      if (selectedGroup !== 'todos' && r.group !== selectedGroup) return false;
     }
 
     return r.nameES.toLowerCase().includes(search.toLowerCase()) || 
@@ -546,7 +520,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           />
         </div>
 
-        {(appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
+        {(appUser?.course === '2ºPANADERÍA' && appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
           <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
             <div className="flex bg-stone-100 p-1 rounded-xl">
               <button

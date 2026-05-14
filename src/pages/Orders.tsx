@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import { canViewItem } from '../utils/visibility';
 import { Recipe, Ingredient } from '../types';
 
 interface OrderItem {
@@ -26,7 +27,7 @@ export default function Orders() {
   const { appUser, commissionMode } = useAuth();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Estados para almacenar recetas e ingredientes desde la base de datos
-  const { recipes, ingredients, menus, settings } = useData();
+  const { users, recipes, ingredients, menus, settings } = useData();
   const { showToast } = useToast();
   
   // Estado para el buscador de recetas
@@ -132,22 +133,14 @@ export default function Orders() {
   };
 
   const filteredRecipes = recipes.filter(r => {
-    // Si es estudiante y no está en modo comisión, solo ve sus propias recetas
-    if (appUser?.role === 'student' && !commissionMode) {
-      const matchesGroup = appUser?.group ? r.group === appUser.group : r.createdBy === appUser?.name;
-      if (!matchesGroup) return false;
-    }
+    if (!canViewItem(r, appUser, users, { commissionMode })) return false;
     
     return r.nameES.toLowerCase().includes(search.toLowerCase()) &&
            !orderItems.find(item => item.id === r.id && item.type === 'recipe');
   });
 
   const filteredMenus = menus.filter(m => {
-    // Si es estudiante y no está en modo comisión, solo ve sus propios menús
-    if (appUser?.role === 'student' && !commissionMode) {
-      const matchesGroup = appUser?.group ? m.group === appUser.group : m.createdBy === appUser?.name;
-      if (!matchesGroup) return false;
-    }
+    if (!canViewItem(m, appUser, users, { commissionMode })) return false;
 
     return m.nameES.toLowerCase().includes(search.toLowerCase()) &&
            !orderItems.find(item => item.id === m.id && item.type === 'menu');

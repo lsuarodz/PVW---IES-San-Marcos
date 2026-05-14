@@ -40,7 +40,6 @@ import TestRecipe from './pages/TestRecipe';
 import Providers from './pages/Providers';
 import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
-import ProductionBrainstorming from './pages/ProductionBrainstorming';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -50,7 +49,7 @@ import ProductionBrainstorming from './pages/ProductionBrainstorming';
 // Recibe dos "props" (parámetros):
 // - children: El contenido que queremos proteger (la página en sí).
 // - requireAdmin: Un valor opcional (true/false) que indica si se necesita ser jefe/admin.
-function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) {
+function ProtectedRoute({ children, requireAdmin, requireNonStudent }: { children: React.ReactNode, requireAdmin?: boolean, requireNonStudent?: boolean }) {
   // Obtenemos el usuario actual (appUser) y si la app está cargando (loading) desde el contexto de autenticación.
   const { appUser, loading } = useAuth();
 
@@ -74,6 +73,10 @@ function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode,
   // pero el usuario tiene un rol normal (no es 'admin' ni 'docente'),
   // lo devolvemos a la página principal ("/").
   if (requireAdmin && appUser.role !== 'admin' && appUser.role !== 'docente') {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireNonStudent && appUser.role === 'student') {
     return <Navigate to="/" replace />;
   }
 
@@ -119,9 +122,8 @@ function AppRoutes() {
         <Route path="commissions" element={<Commissions />} />
         <Route path="test-recipe" element={<TestRecipe />} />
         <Route path="providers" element={<Providers />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="quotes" element={<Quotes />} />
-        <Route path="production-brainstorming" element={<ProductionBrainstorming />} />
+        <Route path="clients" element={<ProtectedRoute requireNonStudent><Clients /></ProtectedRoute>} />
+        <Route path="quotes" element={<ProtectedRoute requireNonStudent><Quotes /></ProtectedRoute>} />
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="elaborados" element={<Recipes type="elaborado" />} />
         <Route path="recipes" element={<Recipes type="plato" />} />

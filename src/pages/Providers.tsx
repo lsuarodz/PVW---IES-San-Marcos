@@ -7,10 +7,11 @@ import { useToast } from '../context/ToastContext';
 import { Plus, Trash2, Edit2, Phone, Mail, MapPin, Building2 } from 'lucide-react';
 import { Provider } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
+import { canViewItem } from '../utils/visibility';
 
 export default function Providers() {
-  const { appUser } = useAuth();
-  const { providers } = useData();
+  const { appUser, viewAsStudent, commissionMode } = useAuth();
+  const { providers, users } = useData();
   const { showToast } = useToast();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
 
@@ -28,6 +29,11 @@ export default function Providers() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
+
+    if (!editingId && providers.some(p => p.name.toLowerCase() === formData.name?.toLowerCase())) {
+      showToast('Ya existe un proveedor con ese nombre', 'error');
+      return;
+    }
 
     const id = editingId || doc(collection(db, 'providers')).id;
     const providerData: Provider = {
@@ -108,8 +114,13 @@ export default function Providers() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {providers.map(provider => (
-          <div key={provider.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 flex flex-col">
+        {providers.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-stone-500 bg-white rounded-2xl border border-stone-200 border-dashed">
+            No hay proveedores registrados.
+          </div>
+        ) : (
+          providers.map(provider => (
+            <div key={provider.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 flex flex-col">
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
                 <Building2 size={24} />
@@ -166,12 +177,7 @@ export default function Providers() {
               Añadido por {provider.createdBy}
             </div>
           </div>
-        ))}
-        {providers.length === 0 && (
-          <div className="col-span-full bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-500">
-            No hay proveedores registrados.
-          </div>
-        )}
+        )))}
       </div>
 
       {isModalOpen && (
