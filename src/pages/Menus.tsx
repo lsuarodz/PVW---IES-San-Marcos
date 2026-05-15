@@ -10,13 +10,13 @@ import { getGroupColor } from '../utils/groupColors';
 import { canViewItem } from '../utils/visibility';
 import ConfirmModal from '../components/ConfirmModal';
 import CreateRecipeModal from '../components/CreateRecipeModal';
-import html2pdf from 'html2pdf.js';
+import { generatePDF } from '../utils/pdf';
 import { calculateMenuTotalCost, getMenuAllergens } from '../utils/calculations';
 import { Menu, Recipe, Ingredient } from '../types';
 
 export default function Menus() {
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser, viewAsStudent, commissionMode } = useAuth();
+  const { appUser, actualAppUser, viewAsStudent, commissionMode } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Verificamos si el usuario es el administrador principal
@@ -370,7 +370,7 @@ export default function Menus() {
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
-          await html2pdf().set(opt).from(printRef.current).save();
+          await generatePDF(printRef.current, opt);
         } catch (err: any) {
           console.error('Error generating PDF:', err);
           showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
@@ -419,7 +419,7 @@ export default function Menus() {
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
-          await html2pdf().set(opt).from(printEquipmentRef.current).save();
+          await generatePDF(printEquipmentRef.current, opt);
         } catch (err: any) {
           console.error('Error generating PDF:', err);
           showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
@@ -588,7 +588,7 @@ export default function Menus() {
                       <Edit2 size={18} />
                     </button>
                   )}
-                  {isSuperAdmin && (
+                  {(isSuperAdmin || (actualAppUser && (actualAppUser.role === 'admin' || actualAppUser.role === 'docente') && menu.group === appUser?.group)) && (
                     <button onClick={() => handleDelete(menu.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>

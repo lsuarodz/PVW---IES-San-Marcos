@@ -144,9 +144,9 @@ export default function Layout() {
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 lg:h-auto p-6 border-b border-stone-200 flex items-center gap-3 text-teal-700">
+        <div className="h-16 lg:h-auto p-6 border-b border-stone-200 flex items-center gap-3 text-teal-700" style={{ backgroundColor: '#e7f2f5' }}>
           {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain hidden lg:block" crossOrigin="anonymous" />
+            <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pl-[3px] pt-0 pr-[2px] w-[139.438px] h-[55px]" crossOrigin="anonymous" />
           ) : (
             <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
           )}
@@ -159,7 +159,7 @@ export default function Layout() {
             <div style={{ backgroundColor: '#bce7f4' }}>
               <button 
                 onClick={() => toggleSection('jornada1')}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors bg-white"
             >
               <span>Jornada 1: Definición del Proyecto</span>
               {openSections.jornada1 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -417,7 +417,7 @@ export default function Layout() {
               </div>
             </button>
           )}
-          {actualAppUser?.role === 'admin' && users && (
+          {(actualAppUser?.role === 'admin' || actualAppUser?.role === 'docente') && users && (
             <div className="mb-2">
               <label className="block text-xs font-medium text-stone-500 mb-1 px-1">Ver como usuario:</label>
               <select
@@ -425,10 +425,10 @@ export default function Layout() {
                 onChange={(e) => setImpersonatedUserId(e.target.value || null)}
                 className="w-full px-2 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
-                <option value="">(Mi cuenta Admin)</option>
+                <option value="">(Mi cuenta)</option>
                 {users.map(u => (
                   <option key={u.uid} value={u.uid}>
-                    {u.name} ({u.role})
+                    {u.name} {u.course ? `(${u.course})` : `(${u.role})`}
                   </option>
                 ))}
               </select>

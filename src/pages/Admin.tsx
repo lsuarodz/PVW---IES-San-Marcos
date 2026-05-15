@@ -7,6 +7,16 @@ import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/ConfirmModal';
 
+const getAvailableGroups = (course?: string): number[] => {
+  switch (course) {
+    case '2ºPANADERÍA': return [1, 2, 3];
+    case '1ºCOCINA': return [4, 5, 6, 7, 8];
+    case '1ºPANADERÍA': return [9, 10, 11];
+    case '2ºSUPERIOR COCINA': return Array.from({length: 13}, (_, i) => i + 12);
+    default: return Array.from({length: 24}, (_, i) => i + 1); // 2ºCOCINA y fallback
+  }
+};
+
 interface User {
   uid: string;
   email: string;
@@ -34,6 +44,10 @@ export default function Admin() {
   const [newCommission, setNewCommission] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Estados de ordenación
+  const [sortBy, setSortBy] = useState<'course' | 'name'>('course');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   // Estado para el logo
   const [logoUrl, setLogoUrl] = useState('');
   const [savingLogo, setSavingLogo] = useState(false);
@@ -43,6 +57,32 @@ export default function Admin() {
       setLogoUrl(settings.logoUrl);
     }
   }, [settings]);
+
+  const sortedUsers = [...users].sort((a, b) => {
+    if (sortBy === 'course') {
+      const courseA = a.course || '';
+      const courseB = b.course || '';
+      if (courseA < courseB) return sortOrder === 'asc' ? -1 : 1;
+      if (courseA > courseB) return sortOrder === 'asc' ? 1 : -1;
+      // Secondary sort by name
+      return a.name.localeCompare(b.name);
+    } else {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1;
+      if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    }
+  });
+
+  const handleSort = (field: 'course' | 'name') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
 
   // Estados para el modal de confirmación
   const [confirmModal, setConfirmModal] = useState<{
@@ -70,6 +110,13 @@ export default function Admin() {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const available = getAvailableGroups(newCourse);
+    if (!available.includes(Number(newGroup))) {
+      setNewGroup(String(available[0]));
+    }
+  }, [newCourse, newGroup]);
 
   // Función para añadir un nuevo usuario (alumno, docente o admin)
   const handleAddStudent = async (e: React.FormEvent) => {
@@ -121,6 +168,34 @@ export default function Admin() {
     } catch (error) {
       console.error('Error updating commission:', error);
       showToast('Error al actualizar la comisión', 'error');
+    }
+  };
+
+  const handleUpdateGroup = async (uid: string, group: string) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { group });
+      showToast('Grupo actualizado correctamente', 'success');
+    } catch (error) {
+      console.error('Error updating group:', error);
+      showToast('Error al actualizar el grupo', 'error');
+    }
+  };
+
+  const handleUpdateCourse = async (uid: string, course: string) => {
+    try {
+      const userToUpdate = users.find(u => u.uid === uid);
+      const updates: any = { course };
+      if (userToUpdate && userToUpdate.role === 'student' && userToUpdate.group) {
+        const available = getAvailableGroups(course);
+        if (!available.includes(Number(userToUpdate.group))) {
+          updates.group = String(available[0]);
+        }
+      }
+      await updateDoc(doc(db, 'users', uid), updates);
+      showToast('Curso actualizado correctamente', 'success');
+    } catch (error) {
+      console.error('Error updating course:', error);
+      showToast('Error al actualizar el curso', 'error');
     }
   };
 
@@ -272,9 +347,9 @@ export default function Admin() {
                   onChange={(e) => setNewGroup(e.target.value)}
                   className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
-                  {[...Array(10)].map((_, i) => (
-                    <option key={i + 1} value={String(i + 1)}>
-                      Grupo {i + 1}
+                  {getAvailableGroups(newCourse).map((g) => (
+                    <option key={g} value={String(g)}>
+                      Grupo {g}
                     </option>
                   ))}
                 </select>
@@ -295,17 +370,37 @@ export default function Admin() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-stone-50 border-b border-stone-200">
-              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Nombre</th>
+              <th 
+                className="px-6 py-4 text-sm font-semibold text-stone-900 cursor-pointer hover:bg-stone-100 transition-colors"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-2">
+                  Nombre
+                  {sortBy === 'name' && (
+                    <span className="text-stone-400 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Correo</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Rol</th>
-              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Curso</th>
+              <th 
+                className="px-6 py-4 text-sm font-semibold text-stone-900 cursor-pointer hover:bg-stone-100 transition-colors"
+                onClick={() => handleSort('course')}
+              >
+                <div className="flex items-center gap-2">
+                  Curso
+                  {sortBy === 'course' && (
+                    <span className="text-stone-400 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Grupo</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Comisión</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-200">
-            {users.map((user) => (
+            {sortedUsers.map((user) => (
               <tr key={user.uid} className="hover:bg-stone-50 transition-colors">
                 <td className="px-6 py-4 text-sm text-stone-900 font-medium">{user.name}</td>
                 <td className="px-6 py-4 text-sm text-stone-600">{user.email}</td>
@@ -318,8 +413,44 @@ export default function Admin() {
                     {user.role === 'admin' ? 'Tutor' : user.role === 'docente' ? 'Docente' : 'Alumno'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-stone-600">{user.course || '-'}</td>
-                <td className="px-6 py-4 text-sm text-stone-600">{user.group ? `Grupo ${user.group}` : '-'}</td>
+                <td className="px-6 py-4 text-sm text-stone-600">
+                  {user.role === 'student' || user.role === 'docente' ? (
+                    <select
+                      value={user.course || ''}
+                      onChange={(e) => handleUpdateCourse(user.uid, e.target.value)}
+                      className={`px-2 py-1 bg-white border rounded-md text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        user.course === '2ºPANADERÍA' ? 'border-amber-300 text-amber-700 bg-amber-50' :
+                        user.course === '2ºCOCINA' ? 'border-orange-300 text-orange-700 bg-orange-50' :
+                        user.course === '1ºPANADERÍA' ? 'border-yellow-300 text-yellow-700 bg-yellow-50' :
+                        user.course === '1ºCOCINA' ? 'border-red-300 text-red-700 bg-red-50' :
+                        'border-stone-200 text-stone-700'
+                      }`}
+                    >
+                      <option value="">Sin curso</option>
+                      <option value="2ºCOCINA">2º COCINA</option>
+                      <option value="2ºPANADERÍA">2º PANADERÍA</option>
+                      <option value="1ºCOCINA">1º COCINA</option>
+                      <option value="1ºPANADERÍA">1º PANADERÍA</option>
+                      <option value="2ºSUPERIOR COCINA">2º SUPERIOR COCINA</option>
+                    </select>
+                  ) : '-'}
+                </td>
+                <td className="px-6 py-4 text-sm text-stone-600">
+                  {user.role === 'student' ? (
+                    <select
+                      value={user.group || ''}
+                      onChange={(e) => handleUpdateGroup(user.uid, e.target.value)}
+                      className="px-2 py-1 bg-stone-50 border border-stone-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    >
+                      <option value="">Sin grupo</option>
+                      {getAvailableGroups(user.course).map((g) => (
+                        <option key={g} value={String(g)}>
+                          Grupo {g}
+                        </option>
+                      ))}
+                    </select>
+                  ) : '-'}
+                </td>
                 <td className="px-6 py-4 text-sm text-stone-600">
                   {user.role === 'student' ? (
                     <select

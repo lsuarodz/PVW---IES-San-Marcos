@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
 import { Recipe, Ingredient } from '../types';
 
@@ -169,10 +169,7 @@ export default function Orders() {
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
-        html2pdf()
-          .set(opt)
-          .from(printRef.current)
-          .save()
+        generatePDF(printRef.current, opt)
           .then(() => {
             setIsPrinting(false);
           })

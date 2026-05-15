@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import html2pdf from 'html2pdf.js';
+import { generatePDF } from '../utils/pdf';
 import { Download, BookOpen } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
@@ -24,7 +24,7 @@ export default function Manual() {
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
       // Ejecutamos la conversión
-      html2pdf().set(opt).from(printRef.current).save();
+      generatePDF(printRef.current, opt);
     }
   };
 

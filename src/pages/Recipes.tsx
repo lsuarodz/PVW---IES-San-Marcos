@@ -13,7 +13,7 @@ import CreateIngredientModal from '../components/CreateIngredientModal';
 import CreateElaboradoModal from '../components/CreateElaboradoModal';
 import ConfirmModal from '../components/ConfirmModal';
 import IngredientSelect from '../components/IngredientSelect';
-import html2pdf from 'html2pdf.js';
+import { generatePDF } from '../utils/pdf';
 import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
 import { canViewItem } from '../utils/visibility';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
@@ -21,7 +21,7 @@ import { Recipe, RecipeIngredient, Ingredient } from '../types';
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser, viewAsStudent, commissionMode } = useAuth();
+  const { appUser, actualAppUser, viewAsStudent, commissionMode } = useAuth();
   // Verificamos si el usuario tiene rol de administrador o docente
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   // Verificamos si el usuario es el administrador principal
@@ -431,7 +431,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
-          await html2pdf().set(opt).from(printRef.current).save();
+          await generatePDF(printRef.current, opt);
         } catch (err: any) {
           console.error('Error generating PDF:', err);
           showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
@@ -561,79 +561,71 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {paginatedRecipes.map((recipe) => {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
           return (
-          <div key={recipe.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
-            {recipe.imageUrl && (
-              <div className="w-full h-48 bg-stone-100 overflow-hidden">
-                <img 
-                  src={recipe.imageUrl} 
-                  alt={recipe.nameES} 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            )}
-            <div className="p-6 flex-1">
-              <div className="flex justify-between items-start mb-4">
-                {!recipe.imageUrl && (
-                  <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
-                    <BookOpen size={24} />
-                  </div>
-                )}
-                <div className={`flex gap-1 ${recipe.imageUrl ? 'w-full justify-end' : ''}`}>
+          <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-stone-200 overflow-hidden flex flex-col group relative h-[150px]">
+            <div className="p-3 flex flex-col h-full gap-2">
+              <div className="flex justify-between items-start gap-2 relative">
+                <div className="flex-1 pr-6">
+                  <h3 className="text-[13px] font-bold text-stone-900 leading-tight line-clamp-2" title={recipe.nameES}>{recipe.nameES}</h3>
+                  {recipeAllergens.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {recipeAllergens.map(a => {
+                        const allergen = ALLERGENS.find(al => al.id === a);
+                        return allergen ? (
+                          <span key={a} title={allergen.name} className="text-[11px] leading-none">{allergen.icon}</span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex bg-white/90 backdrop-blur-sm rounded-lg p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-0 top-0 border border-stone-100 shadow-sm z-10 gap-0.5 lg:-mr-1 lg:-mt-1">
                   {isAdmin && !viewAsStudent && recipe.group && (
                     <button 
                       onClick={() => openEvaluation(recipe)} 
-                      className={`p-2 rounded-lg transition-colors text-xs font-medium ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                      className={`p-1 rounded-md transition-colors text-[9px] uppercase font-bold tracking-wider ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
                       title="Evaluar"
                     >
-                      {recipe.score !== undefined && recipe.score !== null ? `Nota: ${recipe.score}` : 'Evaluar'}
+                      {recipe.score !== undefined && recipe.score !== null ? `Nota: ${recipe.score}` : 'Eval'}
                     </button>
                   )}
                   <button 
                     onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
-                    className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50" 
+                    className="p-1 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:opacity-50" 
                     title="Imprimir"
                   >
-                    <Printer size={18} />
+                    <Printer size={12} />
                   </button>
                   {canEditAnyPartOfRecipe(recipe) && (
-                    <button onClick={() => openEdit(recipe)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Editar">
-                      <Edit2 size={18} />
+                    <button onClick={() => openEdit(recipe)} className="p-1 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors" title="Editar">
+                      <Edit2 size={12} />
                     </button>
                   )}
-                  {isSuperAdmin && (
-                    <button onClick={() => handleDelete(recipe.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
-                      <Trash2 size={18} />
+                  {(isSuperAdmin || (actualAppUser && (actualAppUser.role === 'admin' || actualAppUser.role === 'docente') && recipe.group === appUser?.group)) && (
+                    <button onClick={() => handleDelete(recipe.id)} className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Eliminar">
+                      <Trash2 size={12} />
                     </button>
                   )}
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-stone-900 mb-4">{recipe.nameES}</h3>
-              
-              {recipeAllergens.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {recipeAllergens.map(a => {
-                    const allergen = ALLERGENS.find(al => al.id === a);
-                    return allergen ? (
-                      <span key={a} title={allergen.name} className="text-lg">{allergen.icon}</span>
-                    ) : null;
-                  })}
-                </div>
-              )}
 
-              <div className="space-y-2 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-500">Ingredientes:</span>
-                  <span className="font-medium text-stone-900">{recipe.ingredients.length}</span>
+              <div className="flex-1 flex flex-col justify-end text-[11px] min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between text-stone-500 bg-stone-50 py-1 px-1.5 rounded-md mb-1 shrink-0">
+                  <div className="flex items-center gap-1 font-medium">
+                    <BookOpen size={12} className="text-teal-600" />
+                    <span>{recipe.ingredients.length}</span>
+                  </div>
+                  <div className="font-bold text-teal-700">
+                    {recipe.totalCost.toFixed(2)} €
+                  </div>
                 </div>
+                
                 {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
-                  <div className="pt-2 border-t border-stone-100">
-                    <span className="text-xs text-stone-500 block mb-1">Elaborados:</span>
+                  <div className="overflow-y-auto min-h-0 flex-1 pr-1 custom-scrollbar">
                     <div className="flex flex-wrap gap-1">
                       {recipe.ingredients.map(ri => {
                         const elaborado = recipes.find(r => r.id === ri.ingredientId);
@@ -642,7 +634,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <button
                             key={ri.ingredientId}
                             onClick={() => openEdit(elaborado)}
-                            className="text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-md hover:bg-teal-100 transition-colors text-left"
+                            className="text-[9px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded hover:bg-teal-100 transition-colors truncate max-w-[80px]"
+                            title={elaborado.nameES}
                           >
                             {elaborado.nameES}
                           </button>
@@ -651,24 +644,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   </div>
                 )}
-                <div className="flex justify-between text-sm pt-2 border-t border-stone-100">
-                  <span className="text-stone-500">Coste Total:</span>
-                  <span className="font-bold text-teal-700">{recipe.totalCost.toFixed(2)} €</span>
-                </div>
               </div>
               
-              <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span>Creado por</span>
-                  <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(recipe.createdBy)}`}>
-                    {recipe.group ? `Grupo ${recipe.group}` : recipe.createdBy}
+              <div className="border-t border-stone-100 pt-1.5 flex items-center justify-between shrink-0">
+                <div className="text-[9px] text-stone-400 font-semibold uppercase tracking-wider">
+                  {recipe.group ? 'Grupo' : 'Creador'}
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${getGroupColor(recipe.createdBy)}`}>
+                    {recipe.group ? `${recipe.group}` : recipe.createdBy}
                   </span>
                 </div>
-                {recipe.group && (
-                  <div className="text-[10px] text-stone-500 text-right leading-tight">
-                    {users.filter(u => u.group === recipe.group).map(u => u.name).join(', ')}
-                  </div>
-                )}
               </div>
             </div>
           </div>

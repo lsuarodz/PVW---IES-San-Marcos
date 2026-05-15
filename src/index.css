@@ -88,3 +88,7 @@
   --color-indigo-900: #312e81;
   --color-indigo-950: #1e1b4b;
 }
+
+#root > div > main > div {
+  background-color: #e7f2f5 !important;
+}
