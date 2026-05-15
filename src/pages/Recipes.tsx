@@ -601,6 +601,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {paginatedRecipes.map((recipe) => {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
+          const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
+          const course = members.length > 0 ? (members.find(m => m.course)?.course || members[0].course) : null;
+          const memberNames = members.map(m => m.name).join(', ');
+
           return (
           <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-stone-200 overflow-hidden flex flex-col group relative h-[150px]">
             <div className="p-3 flex flex-col h-full gap-2">
@@ -688,8 +692,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   {recipe.group ? 'Grupo' : 'Creador'}
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${getGroupColor(recipe.createdBy)}`}>
-                    {recipe.group ? `${recipe.group}` : recipe.createdBy}
+                  <span 
+                    title={memberNames ? `Miembros: ${memberNames}` : undefined}
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-default ${getGroupColor(recipe.createdBy)}`}
+                  >
+                    {recipe.group ? `${course ? `${course} - ` : ''}Grupo ${recipe.group}` : recipe.createdBy}
                   </span>
                 </div>
               </div>

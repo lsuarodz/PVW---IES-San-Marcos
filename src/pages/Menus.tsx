@@ -550,6 +550,10 @@ export default function Menus() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {paginatedMenus.map((menu) => {
           const menuAllergens = getMenuAllergens(menu.recipes, ingredients, recipes);
+          const members = menu.group ? users.filter(u => u.group === menu.group) : [];
+          const course = members.length > 0 ? (members.find(m => m.course)?.course || members[0].course) : null;
+          const memberNames = members.map(m => m.name).join(', ');
+
           return (
           <div key={menu.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden flex flex-col">
             <div className="p-6 flex-1">
@@ -681,15 +685,13 @@ export default function Menus() {
               <div className="text-xs text-stone-400 border-t border-stone-100 pt-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span>Creado por</span>
-                  <span className={`font-bold px-2 py-1 rounded-full ${getGroupColor(menu.createdBy)}`}>
-                    {menu.group ? `Grupo ${menu.group}` : menu.createdBy}
+                  <span 
+                    title={memberNames ? `Miembros: ${memberNames}` : undefined}
+                    className={`font-bold px-2 py-1 rounded-full cursor-default ${getGroupColor(menu.createdBy)}`}
+                  >
+                    {menu.group ? `${course ? `${course} - ` : ''}Grupo ${menu.group}` : menu.createdBy}
                   </span>
                 </div>
-                {menu.group && (
-                  <div className="text-[10px] text-stone-500 text-right leading-tight">
-                    {users.filter(u => u.group === menu.group).map(u => u.name).join(', ')}
-                  </div>
-                )}
               </div>
             </div>
           </div>
