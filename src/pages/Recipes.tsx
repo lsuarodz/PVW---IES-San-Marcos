@@ -36,6 +36,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   
   // Estado para el buscador, paginación y filtro de grupos
   const [search, setSearch] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState('todas');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOtherGroups, setViewOtherGroups] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
@@ -463,6 +464,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (selectedGroup !== 'todos' && r.group !== selectedGroup) return false;
     }
 
+    if (selectedLetter !== 'todas') {
+      if (!r.nameES.toLowerCase().startsWith(selectedLetter.toLowerCase())) {
+        return false;
+      }
+    }
+
     return r.nameES.toLowerCase().includes(search.toLowerCase()) || 
            r.nameEN?.toLowerCase().includes(search.toLowerCase());
   });
@@ -475,7 +482,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Resetear a la página 1 cuando se busca
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [search, type]);
+  }, [search, type, selectedLetter]);
+
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   return (
     <div className="min-h-full p-8">
@@ -508,57 +517,85 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
-          <input
-            type="text"
-            placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-        </div>
-
-        {(appUser?.course === '2ºPANADERÍA' && appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
-          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-            <div className="flex bg-stone-100 p-1 rounded-xl">
-              <button
-                onClick={() => setViewOtherGroups(false)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  !viewOtherGroups 
-                    ? 'bg-white text-teal-700 shadow-sm' 
-                    : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Mi Grupo
-              </button>
-              <button
-                onClick={() => setViewOtherGroups(true)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  viewOtherGroups 
-                    ? 'bg-white text-teal-700 shadow-sm' 
-                    : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Otros Grupos
-              </button>
-            </div>
-
-            {viewOtherGroups && (commissionMode || isAdmin) && (
-              <select
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-                className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
-              >
-                <option value="todos">Todos los grupos</option>
-                {[...new Set(recipes.map(r => r.group).filter(Boolean))].sort().map(group => (
-                  <option key={group} value={group!}>{group}</option>
-                ))}
-              </select>
-            )}
+      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between w-full">
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+            <input
+              type="text"
+              placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
           </div>
-        )}
+
+          {(appUser?.course === '2ºPANADERÍA' && appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
+            <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+              <div className="flex bg-stone-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setViewOtherGroups(false)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    !viewOtherGroups 
+                      ? 'bg-white text-teal-700 shadow-sm' 
+                      : 'text-stone-500 hover:text-stone-700'
+                  }`}
+                >
+                  Mi Grupo
+                </button>
+                <button
+                  onClick={() => setViewOtherGroups(true)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    viewOtherGroups 
+                      ? 'bg-white text-teal-700 shadow-sm' 
+                      : 'text-stone-500 hover:text-stone-700'
+                  }`}
+                >
+                  Otros Grupos
+                </button>
+              </div>
+
+              {viewOtherGroups && (commissionMode || isAdmin) && (
+                <select
+                  value={selectedGroup}
+                  onChange={(e) => setSelectedGroup(e.target.value)}
+                  className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+                >
+                  <option value="todos">Todos los grupos</option>
+                  {[...new Set(recipes.map(r => r.group).filter(Boolean))].sort().map(group => (
+                    <option key={group} value={group!}>{group}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap gap-1 w-full justify-center lg:justify-start border-t border-stone-100 pt-3 mt-1">
+          <button
+            onClick={() => setSelectedLetter('todas')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm ${
+              selectedLetter === 'todas'
+                ? 'bg-teal-600 text-white'
+                : 'bg-stone-100 text-stone-500 hover:bg-teal-50 hover:text-teal-600'
+            }`}
+          >
+            Todas
+          </button>
+          {ALPHABET.map((letter) => (
+            <button
+              key={letter}
+              onClick={() => setSelectedLetter(letter)}
+              className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all shadow-sm ${
+                selectedLetter === letter
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
+              }`}
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
