@@ -92,3 +92,11 @@
 #root > div > main > div {
   background-color: #f5f5f5 !important;
 }
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(4) {
+  border-radius: 3px !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) {
+  border-radius: 6px !important;
+}
