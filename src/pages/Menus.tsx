@@ -176,6 +176,13 @@ export default function Menus() {
     // Si no es dueño, comprobamos comisiones transversales (solo si el modo comisión está activo)
     if (!commissionMode) return false;
 
+    // Cada comisión actuará solo en los miembros de su curso
+    const menuCreator = users.find(u => u.name === menu.createdBy || u.uid === menu.createdBy);
+    const menuCourse = menuCreator?.course;
+    if (appUser.course && menuCourse && appUser.course !== menuCourse) {
+      return false;
+    }
+
     const commission = appUser.commission?.toLowerCase();
     if (fieldType === 'gastos' && commission === 'gastos') return true;
     

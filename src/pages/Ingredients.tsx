@@ -26,6 +26,7 @@ export default function Ingredients() {
   const itemsPerPage = 20;
 
   const isKaled = (appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled')) && commissionMode;
+  const isGastos = commissionMode && appUser?.commission?.toLowerCase() === 'gastos';
 
   // Mapeo de ingredientes usados en recetas para mostrar enlaces
   const ingredientUsage = useMemo(() => {
@@ -365,7 +366,7 @@ export default function Ingredients() {
           <p className="text-stone-500 text-lg">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
         <div className="flex gap-3">
-          {activeTab === 'ingredients' && selectedIds.size > 0 && (isSuperAdmin || isKaled) && (
+          {activeTab === 'ingredients' && selectedIds.size > 0 && (isAdmin || isGastos || isKaled) && (
             <button
               onClick={handleBulkDelete}
               className="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 border border-red-200"
@@ -534,7 +535,7 @@ export default function Ingredients() {
                         step="0.01"
                         min="0"
                         value={ing.purchasePrice || ing.costPerUnit}
-                        disabled={!isAdmin && !isKaled}
+                        disabled={!isAdmin && !isKaled && !isGastos}
                         onChange={(e) => {
                           const newPrice = Number(e.target.value) || 0;
                           const waste = ing.wastePercentage || 0;
@@ -555,7 +556,7 @@ export default function Ingredients() {
                         min="0"
                         max="99"
                         value={ing.wastePercentage || 0}
-                        disabled={!isAdmin && !isKaled}
+                        disabled={!isAdmin && !isKaled && !isGastos}
                         onChange={(e) => {
                           const newWaste = Number(e.target.value) || 0;
                           const safeWaste = Math.min(Math.max(newWaste, 0), 99);
@@ -575,7 +576,7 @@ export default function Ingredients() {
                 </td>
                 <td className="px-6 py-2 text-sm text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {(isAdmin || isKaled) && (
+                    {(isAdmin || isKaled || isGastos) && (
                       <button
                         onClick={() => openEdit(ing)}
                         className="text-stone-400 hover:text-teal-600 p-2 hover:bg-teal-50 rounded-lg transition-colors"
@@ -584,7 +585,7 @@ export default function Ingredients() {
                         <Edit2 size={18} />
                       </button>
                     )}
-                    {(isSuperAdmin || isKaled) && (
+                    {(isAdmin || isGastos || isKaled) && (
                       <button
                         onClick={() => handleDelete(ing.id)}
                         className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"
@@ -692,7 +693,7 @@ export default function Ingredients() {
                       >
                         <Edit2 size={18} />
                       </button>
-                      {(isAdmin || isKaled) && (
+                      {(isAdmin || isKaled || isGastos) && (
                         <button
                           onClick={() => handleWasteDelete(waste.id)}
                           className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

@@ -153,7 +153,7 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'extraConcepts', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'extraConcepts', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners', 'marketingDescription', 'marketingImageUrl', 'marketingStatus']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
@@ -171,6 +171,9 @@ service cloud.firestore {
              (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
              (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 10)) &&
              (!('feedback' in data) || data.feedback == "" || isValidString(data.feedback, 1, 2000)) &&
+             (!('marketingDescription' in data) || data.marketingDescription == "" || data.marketingDescription is string) &&
+             (!('marketingImageUrl' in data) || data.marketingImageUrl == "" || data.marketingImageUrl is string) &&
+             (!('marketingStatus' in data) || data.marketingStatus in ['boceto', 'publicado']) &&
              data.createdAt is string &&
              (!('diners' in data) || data.diners == null || (data.diners is number && data.diners > 0));
     }
@@ -279,7 +282,7 @@ service cloud.firestore {
     match /ingredients/{ingredientId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidIngredient();
-      allow delete: if isSuperAdmin();
+      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('name', '').lower().matches('.*kaled.*'));
     }
 
     match /recipes/{recipeId} {
@@ -360,7 +363,7 @@ service cloud.firestore {
     match /standard_wastes/{wasteId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidStandardWaste();
-      allow delete: if isSuperAdmin() || isAdmin();
+      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('name', '').lower().matches('.*kaled.*'));
     }
 
     match /clients/{clientId} {

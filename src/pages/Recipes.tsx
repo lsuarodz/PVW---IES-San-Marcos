@@ -122,6 +122,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     // Si no es dueño, comprobamos comisiones transversales (solo si el modo comisión está activo)
     if (!commissionMode) return false;
     
+    // Cada comisión actuará solo en los miembros de su curso
+    const recipeCreator = users.find(u => u.name === recipe.createdBy || u.uid === recipe.createdBy);
+    const recipeCourse = recipeCreator?.course;
+    if (appUser.course && recipeCourse && appUser.course !== recipeCourse) {
+      return false;
+    }
+    
     const commission = appUser.commission?.toLowerCase();
     if (fieldType === 'escandallo' && commission === 'gastos') return true;
     if (fieldType === 'logistica' && commission === 'logística') return true;

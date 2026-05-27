@@ -73,6 +73,9 @@ export interface Menu {
   score?: number;
   feedback?: string;
   createdAt: string;
+  marketingDescription?: string;
+  marketingImageUrl?: string;
+  marketingStatus?: 'boceto' | 'publicado';
 }
 
 export interface ProductionIdea {

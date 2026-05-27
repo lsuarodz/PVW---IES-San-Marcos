@@ -41,34 +41,27 @@ export function canViewItem(
     // Los docentes ven todos los subgrupos de su curso
     return true;
   } else if (currentUser.role === 'student' || (currentUser.role === 'admin' && options?.viewAsStudent)) {
-    if (currentUser.course === '2ºPANADERÍA') {
-      // Reglas antiguas solo para 2ºPANADERÍA
-      const isKaled = options?.isKaled;
-      const commissionMode = options?.commissionMode;
-      const viewOtherGroups = options?.viewOtherGroups;
-      const selectedGroupFilter = options?.selectedGroupFilter;
+    const isKaled = options?.isKaled;
+    const commissionMode = options?.commissionMode;
+    const viewOtherGroups = options?.viewOtherGroups;
+    const selectedGroupFilter = options?.selectedGroupFilter;
 
-      if (!commissionMode) {
-        const matchesGroup = itemGroup ? itemGroup === currentUser.group : item.createdBy === currentUser.name;
-        if (!matchesGroup) return false;
-      }
-      
-      if (!viewOtherGroups && !isKaled && commissionMode) {
-        const matchesGroup = itemGroup ? itemGroup === currentUser.group : item.createdBy === currentUser.name;
-        if (!matchesGroup) return false;
-      } 
-      
-      if (viewOtherGroups && selectedGroupFilter) {
-        const matchesGroup = itemGroup ? itemGroup === selectedGroupFilter : true;
-        if (!matchesGroup) return false;
-      }
-
-      return true;
-    } else {
-      // Regla estricta para el resto de cursos: solo ven su propio subgrupo
+    if (!commissionMode) {
       const matchesGroup = itemGroup ? itemGroup === currentUser.group : item.createdBy === currentUser.name;
-      return matchesGroup;
+      if (!matchesGroup) return false;
     }
+    
+    if (!viewOtherGroups && !isKaled && commissionMode) {
+      const matchesGroup = itemGroup ? itemGroup === currentUser.group : item.createdBy === currentUser.name;
+      if (!matchesGroup) return false;
+    } 
+    
+    if (viewOtherGroups && selectedGroupFilter) {
+      const matchesGroup = itemGroup ? itemGroup === selectedGroupFilter : true;
+      if (!matchesGroup) return false;
+    }
+
+    return true;
   }
 
   return false;

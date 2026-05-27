@@ -40,6 +40,7 @@ import TestRecipe from './pages/TestRecipe';
 import Providers from './pages/Providers';
 import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
+import Marketing from './pages/Marketing';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -124,6 +125,7 @@ function AppRoutes() {
         <Route path="providers" element={<Providers />} />
         <Route path="clients" element={<ProtectedRoute requireNonStudent><Clients /></ProtectedRoute>} />
         <Route path="quotes" element={<ProtectedRoute requireNonStudent><Quotes /></ProtectedRoute>} />
+        <Route path="marketing" element={<ProtectedRoute requireNonStudent><Marketing /></ProtectedRoute>} />
         <Route path="ingredients" element={<Ingredients />} />
         <Route path="elaborados" element={<Recipes type="elaborado" />} />
         <Route path="recipes" element={<Recipes type="plato" />} />

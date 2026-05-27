@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -21,7 +21,8 @@ import {
   Menu as MenuIcon,
   X,
   Link as LinkIcon,
-  Lightbulb
+  Lightbulb,
+  Palette
 } from 'lucide-react';
 
 export default function Layout() {
@@ -38,6 +39,27 @@ export default function Layout() {
     logout 
   } = useAuth();
   const { settings, users } = useData();
+
+  const sortedUsers = useMemo(() => {
+    if (!users) return [];
+    return [...users].sort((a, b) => {
+      // 1. Admin y docentes primero
+      const aIsStaff = a.role === 'admin' || a.role === 'docente';
+      const bIsStaff = b.role === 'admin' || b.role === 'docente';
+      if (aIsStaff && !bIsStaff) return -1;
+      if (!aIsStaff && bIsStaff) return 1;
+      
+      // 2. Ordenar por curso
+      const aCourse = a.course || '';
+      const bCourse = b.course || '';
+      if (aCourse < bCourse) return -1;
+      if (aCourse > bCourse) return 1;
+      
+      // 3. Ordenar alfabéticamente
+      return a.name.localeCompare(b.name);
+    });
+  }, [users]);
+
   // Obtenemos la ruta actual para saber qué menú está activo
   const location = useLocation();
   
@@ -94,6 +116,11 @@ export default function Layout() {
     { name: 'Clientes', path: '/clients', icon: <Users size={20} /> },
     { name: 'Presupuestos', path: '/quotes', icon: <FileText size={20} /> },
   ];
+
+  const showMarketing = appUser?.role === 'admin' || appUser?.role === 'docente' || appUser?.commission === 'DISEÑO Y MARKETING';
+  if (showMarketing) {
+    comercialItems.push({ name: 'Marketing y Catálogo', path: '/marketing', icon: <Palette size={20} /> });
+  }
 
   // Definición de otros elementos del menú
   const baseOtherItems = [
@@ -426,9 +453,9 @@ export default function Layout() {
                 className="w-full px-2 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">(Mi cuenta)</option>
-                {users.map(u => (
+                {sortedUsers.map(u => (
                   <option key={u.uid} value={u.uid}>
-                    {u.name} {u.course ? `(${u.course})` : `(${u.role})`}
+                    {u.course ? `[${u.course}] ` : ''}{u.name} {u.commission ? `- Comisión ${u.commission}` : (u.role === 'docente' ? '(Docente)' : (u.role === 'admin' ? '(Admin)' : ''))}
                   </option>
                 ))}
               </select>
