@@ -479,7 +479,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (printRef.current) {
         try {
           const opt = {
-            margin: 40,
+            margin: 0,
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -1027,67 +1027,80 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       }
                       
                       return (
-                        <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex-1 min-w-0 flex gap-2">
-                            <IngredientSelect
-                              value={ri.ingredientId}
-                              onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
-                              ingredients={ingredients}
-                              recipes={recipes}
+                        <div key={index} className="flex flex-col gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                          <div className="flex gap-3 items-center">
+                            <div className="flex-1 min-w-0 flex gap-2">
+                              <IngredientSelect
+                                value={ri.ingredientId}
+                                onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
+                                ingredients={ingredients}
+                                recipes={recipes}
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                itemType={ri.itemType}
+                                currentRecipeId={editingId}
+                              />
+                              {selectedIng && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // We need to trigger the edit ingredient modal.
+                                    // Let's add an editingIngredientId state.
+                                    setEditingIngredientId(selectedIng.id);
+                                    setIsIngredientModalOpen(true);
+                                  }}
+                                  className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0"
+                                  title="Editar ingrediente"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                              )}
+                              {subRecipe && (
+                                <a
+                                  href={`/elaborados?edit=${ri.ingredientId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0"
+                                  title="Editar elaborado en nueva pestaña"
+                                >
+                                  <Edit2 size={16} />
+                                </a>
+                              )}
+                            </div>
+                            <div className="w-56 shrink-0 pt-4 relative">
+                              <RecipeIngredientInput
+                                ri={ri}
+                                index={index}
+                                selectedIng={selectedIng}
+                                subRecipe={subRecipe}
+                                editingId={editingId}
+                                recipes={recipes}
+                                updateRecipeIngredient={updateRecipeIngredient}
+                                canEditField={canEditField}
+                              />
+                            </div>
+                            <div className="w-24 text-right font-medium text-stone-700">
+                              {cost.toFixed(2)} €
+                            </div>
+                            <button
+                              type="button"
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              itemType={ri.itemType}
-                              currentRecipeId={editingId}
-                            />
-                            {selectedIng && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  // We need to trigger the edit ingredient modal.
-                                  // Let's add an editingIngredientId state.
-                                  setEditingIngredientId(selectedIng.id);
-                                  setIsIngredientModalOpen(true);
-                                }}
-                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0"
-                                title="Editar ingrediente"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            {subRecipe && (
-                              <a
-                                href={`/elaborados?edit=${ri.ingredientId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0"
-                                title="Editar elaborado en nueva pestaña"
-                              >
-                                <Edit2 size={16} />
-                              </a>
-                            )}
+                              onClick={() => removeRecipeIngredient(index)}
+                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
-                          <div className="w-56 shrink-0 pt-4 relative">
-                            <RecipeIngredientInput
-                              ri={ri}
-                              index={index}
-                              selectedIng={selectedIng}
-                              subRecipe={subRecipe}
-                              editingId={editingId}
-                              recipes={recipes}
-                              updateRecipeIngredient={updateRecipeIngredient}
-                              canEditField={canEditField}
+                          
+                          <div className="flex gap-2 w-full">
+                            <input
+                              type="text"
+                              value={ri.preparation || ''}
+                              onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
+                              placeholder="Preelaborar (Mirepoix, Escaldar...)"
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                              className="w-full px-3 py-1.5 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
-                          <div className="w-24 text-right font-medium text-stone-700">
-                            {cost.toFixed(2)} €
-                          </div>
-                          <button
-                            type="button"
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onClick={() => removeRecipeIngredient(index)}
-                            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 size={18} />
-                          </button>
                         </div>
                       );
                     })}
@@ -1326,7 +1339,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="print-container px-10 py-10 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col relative overflow-hidden">
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col relative overflow-hidden">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
@@ -1349,15 +1362,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
             `}</style>
             <div className="z-10 w-full">
-              <div className="border-b border-stone-200 pb-3 mb-4">
+              <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-end">
+                <div>
+                  <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
+                  <h1 className="text-xl font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
+                  {printingRecipe.nameEN && <h2 className="text-sm text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
+                </div>
                 {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="h-6 object-contain mb-3" crossOrigin="anonymous" />
+                  <img src={settings.logoUrl} alt="Logo" className="w-[120px] object-contain mb-1" crossOrigin="anonymous" />
                 )}
-                <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
-                <h1 className="text-xl font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
-                {printingRecipe.nameEN && <h2 className="text-sm text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
-                
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mt-3">
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
                     <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
@@ -1372,16 +1388,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
                     <span className="text-stone-700">{printingRecipe.createdBy}</span>
                   </div>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-6">
                 <div>
                   <h3 className="text-[10px] font-bold mb-2 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
-                  <table className="w-full text-[9px] text-left mb-2 font-sans">
+                  <table className="w-full text-[8px] text-left mb-2 font-sans">
                     <thead>
                       <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-100">
-                        <th className="py-1 font-medium">Ingrediente</th>
+                        <th className="py-1 font-medium w-[25%]">Ingrediente</th>
+                        <th className="py-1 font-medium w-[35%]">Preelaborar</th>
                         <th className="py-1 font-medium text-right">Cantidad</th>
                         <th className="py-1 font-medium text-right">Coste/Ud</th>
                         <th className="py-1 font-medium text-right">Total</th>
@@ -1410,17 +1426,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         return (
                           <tr key={idx}>
                             <td className="py-1.5 font-medium text-stone-800">{name}</td>
-                            <td className="py-1.5 text-right text-stone-600">{ri.quantity} {unit}</td>
-                            <td className="py-1.5 text-right text-stone-500">{realCostPerUnit.toFixed(2)} €</td>
-                            <td className="py-1.5 text-right font-bold text-stone-800">{itemTotalCost.toFixed(2)} €</td>
+                            <td className="py-1.5 text-stone-600 truncate">{ri.preparation || '-'}</td>
+                            <td className="py-1.5 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
+                            <td className="py-1.5 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-1.5 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-stone-100 font-bold text-stone-900">
-                        <td colSpan={3} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
-                        <td className="py-2 text-right text-teal-700 text-base">{printingRecipe.totalCost.toFixed(2)} €</td>
+                        <td colSpan={4} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
+                        <td className="py-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
                     </tfoot>
                   </table>

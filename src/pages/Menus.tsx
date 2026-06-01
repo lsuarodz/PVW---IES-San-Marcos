@@ -363,7 +363,7 @@ export default function Menus() {
       if (printRef.current) {
         try {
           const opt = {
-            margin: 40,
+            margin: 0,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -412,7 +412,7 @@ export default function Menus() {
       if (printEquipmentRef.current) {
         try {
           const opt = {
-            margin: 40,
+            margin: 0,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -788,7 +788,7 @@ export default function Menus() {
               <div className="text-center mb-6 w-full pt-6">
                 <div className="flex justify-center mb-4">
                   {settings?.logoUrl ? (
-                    <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain" crossOrigin="anonymous" />
+                    <img src={settings.logoUrl} alt="Logo" className="w-[120px] object-contain" crossOrigin="anonymous" />
                   ) : (
                     <Utensils className="text-stone-800" size={28} strokeWidth={1.5} />
                   )}
