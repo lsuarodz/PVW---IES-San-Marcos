@@ -363,7 +363,7 @@ export default function Menus() {
       if (printRef.current) {
         try {
           const opt = {
-            margin: 0,
+            margin: 40,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -412,7 +412,7 @@ export default function Menus() {
       if (printEquipmentRef.current) {
         try {
           const opt = {
-            margin: 0,
+            margin: 40,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
