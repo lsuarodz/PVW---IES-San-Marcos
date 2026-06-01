@@ -355,7 +355,7 @@ export default function Menus() {
       if (isPrinting) {
         setIsPrinting(false);
         setPrintingMenu(null);
-        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+        showToast('La generación del PDF está tardando más de lo esperado.', 'info');
       }
     }, 15000);
 
@@ -404,7 +404,7 @@ export default function Menus() {
       if (isPrinting) {
         setIsPrinting(false);
         setPrintingEquipmentMenu(null);
-        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+        showToast('La generación del PDF está tardando más de lo esperado.', 'info');
       }
     }, 15000);
 

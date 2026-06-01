@@ -8,7 +8,7 @@ import { Menu, Recipe } from '../types';
 
 export default function Translations() {
   // Obtenemos menús y recetas desde el contexto global
-  const { menus, recipes, loading } = useData();
+  const { menus, recipes, loadingData: loading } = useData();
   const { showToast } = useToast();
   
   // Estado para indicar qué menú se está guardando actualmente

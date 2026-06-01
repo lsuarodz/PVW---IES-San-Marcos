@@ -52,6 +52,24 @@ export interface ExtraConcept {
   cost: number;
 }
 
+export interface CanvasElement {
+  id: string;
+  type: 'text' | 'image';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontStyle?: string;
+  fill?: string;
+  src?: string;
+}
+
 export interface Menu {
   id: string;
   nameES: string;
@@ -76,6 +94,7 @@ export interface Menu {
   marketingDescription?: string;
   marketingImageUrl?: string;
   marketingStatus?: 'boceto' | 'publicado';
+  marketingCanvasElements?: CanvasElement[];
 }
 
 export interface ProductionIdea {

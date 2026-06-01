@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Palette, Megaphone, Image as ImageIcon, CheckCircle2, Search, Type } from 'lucide-react';
+import { Palette, Megaphone, Image as ImageIcon, CheckCircle2, Search, Type, Trash2, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Menu } from '../types';
+import { Menu, CanvasElement } from '../types';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useToast } from '../context/ToastContext';
 import { canViewItem } from '../utils/visibility';
+import MarketingCanvas from '../components/MarketingCanvas';
 
 export default function Marketing() {
   const { appUser, commissionMode, viewAsStudent } = useAuth();
@@ -18,7 +19,8 @@ export default function Marketing() {
   const [formData, setFormData] = useState({
     marketingDescription: '',
     marketingImageUrl: '',
-    marketingStatus: 'boceto' as 'boceto' | 'publicado'
+    marketingStatus: 'boceto' as 'boceto' | 'publicado',
+    marketingCanvasElements: [] as CanvasElement[]
   });
 
   // Filtramos los menús que estén disponibles
@@ -35,7 +37,8 @@ export default function Marketing() {
     setFormData({
       marketingDescription: menu.marketingDescription || '',
       marketingImageUrl: menu.marketingImageUrl || '',
-      marketingStatus: menu.marketingStatus || 'boceto'
+      marketingStatus: menu.marketingStatus || 'boceto',
+      marketingCanvasElements: menu.marketingCanvasElements || []
     });
     setIsEditing(false);
   };
@@ -48,13 +51,63 @@ export default function Marketing() {
       await updateDoc(menuRef, {
         marketingDescription: formData.marketingDescription,
         marketingImageUrl: formData.marketingImageUrl,
-        marketingStatus: formData.marketingStatus
+        marketingStatus: formData.marketingStatus,
+        marketingCanvasElements: formData.marketingCanvasElements
       });
       showToast('Datos de comercialización guardados con éxito', 'success');
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating menu marketing details:', error);
       showToast('Error al guardar', 'error');
+    }
+  };
+
+  const addCanvasText = () => {
+    setFormData(prev => ({
+      ...prev,
+      marketingCanvasElements: [
+        ...prev.marketingCanvasElements,
+        {
+          id: crypto.randomUUID(),
+          type: 'text',
+          x: 50,
+          y: 50,
+          text: 'Nuevo Texto',
+          fontSize: 24,
+          fontFamily: 'Inter',
+          fill: '#000000'
+        }
+      ]
+    }));
+  };
+
+  const addCanvasImage = () => {
+    const url = prompt('Introduce la URL de la imagen:');
+    if (url) {
+      setFormData(prev => ({
+        ...prev,
+        marketingCanvasElements: [
+          ...prev.marketingCanvasElements,
+          {
+            id: crypto.randomUUID(),
+            type: 'image',
+            x: 50,
+            y: 50,
+            src: url,
+            width: 150,
+            height: 150
+          }
+        ]
+      }));
+    }
+  };
+
+  const removeLastElement = () => {
+    if (formData.marketingCanvasElements.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        marketingCanvasElements: prev.marketingCanvasElements.slice(0, -1)
+      }));
     }
   };
 
@@ -200,44 +253,36 @@ export default function Marketing() {
                   </div>
                 </div>
 
-                {/* Previsualización */}
-                <div>
-                  <h3 className="text-sm font-semibold text-stone-900 mb-4 tracking-wide uppercase border-b border-stone-200 pb-2">Previsualización (Cliente)</h3>
-                  
-                  <div className="bg-white rounded-2xl border border-stone-200 shadow-xl overflow-hidden max-w-sm mx-auto transform transition-all hover:scale-[1.02]">
-                    {formData.marketingImageUrl ? (
-                      <div className="aspect-[4/3] relative">
-                        <img src={formData.marketingImageUrl} alt="Visual" className="absolute inset-0 w-full h-full object-cover" />
-                        {formData.marketingStatus === 'boceto' && (
-                          <div className="absolute top-2 right-2 bg-yellow-400 text-stone-900 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Boceto</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center relative">
-                        <ImageIcon size={48} className="text-stone-300" />
-                        {formData.marketingStatus === 'boceto' && (
-                          <div className="absolute top-2 right-2 bg-yellow-400 text-stone-900 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Boceto</div>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-stone-900 text-lg leading-tight">{selectedMenu.nameES}</h4>
-                      </div>
-                      <p className="text-stone-600 text-sm mb-4 line-clamp-3">
-                        {formData.marketingDescription || <span className="italic text-stone-400">Sin descripción...</span>}
-                      </p>
-                      
-                      <div className="flex justify-between items-center mt-4">
-                        <span className="text-xl font-black text-rose-600">
-                          {selectedMenu.price > 0 ? `${selectedMenu.price.toFixed(2)}€` : '---'}
-                        </span>
-                        <button disabled className="bg-stone-900 text-white px-4 py-2 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed">
-                          Contratar
+                {/* Editor Avanzado de Lienzo */}
+                <div className="flex flex-col h-full min-h-[500px]">
+                  <div className="flex justify-between items-end mb-4 border-b border-stone-200 pb-2">
+                    <h3 className="text-sm font-semibold text-stone-900 tracking-wide uppercase">Editor de Composición</h3>
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <button onClick={addCanvasText} className="p-2 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors" title="Añadir Texto">
+                          <Type size={16} />
+                        </button>
+                        <button onClick={addCanvasImage} className="p-2 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors" title="Añadir Imagen/Sello">
+                          <ImageIcon size={16} />
+                        </button>
+                        <button onClick={removeLastElement} className="p-2 border border-rose-200 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors" title="Deshacer Último Elemento">
+                          <Trash2 size={16} />
                         </button>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 w-full bg-stone-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center relative">
+                    {formData.marketingStatus === 'boceto' && (
+                      <div className="absolute top-2 right-2 bg-yellow-400 text-stone-900 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded z-10">Boceto</div>
+                    )}
+                    <MarketingCanvas
+                      elements={formData.marketingCanvasElements}
+                      onChange={(newElements) => setFormData(prev => ({ ...prev, marketingCanvasElements: newElements }))}
+                      readOnly={!isEditing}
+                      width={400}
+                      height={500}
+                    />
                   </div>
                 </div>
               </div>

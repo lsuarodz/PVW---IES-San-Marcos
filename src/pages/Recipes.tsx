@@ -42,6 +42,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
   const itemsPerPage = 12;
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const isKaled = (appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled')) && commissionMode;
   
   // Estados para controlar la visibilidad de los modales
@@ -298,6 +300,56 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     });
   };
 
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    
+    // Check if any is used in menus
+    const usedInMenus = Array.from(selectedIds).filter(id => 
+      menus.some(menu => menu.recipes?.includes(id))
+    );
+
+    if (usedInMenus.length > 0) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'No se pueden eliminar',
+        message: 'Algunos de los elementos seleccionados se están utilizando en uno o más menús. Elimínalos primero de los menús para poder borrarlos.',
+        onConfirm: () => {},
+        isDestructive: false
+      });
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      title: `Eliminar ${selectedIds.size} elementos`,
+      message: `¿Estás seguro de eliminar los ${selectedIds.size} elementos seleccionados? Esta acción no se puede deshacer.`,
+      onConfirm: async () => {
+        try {
+          // Firebase doesn't have bulk delete client-side without batch, but we can do a simple loop since the list isn't huge. Or we can import writeBatch.
+          // For simplicity we will loop.
+          for (const id of Array.from(selectedIds)) {
+            await deleteDoc(doc(db, 'recipes', id));
+          }
+          setSelectedIds(new Set());
+          showToast(`${selectedIds.size} elementos eliminados`, 'success');
+        } catch (error) {
+          console.error('Error deleting recipes:', error);
+          showToast('Error al eliminar. Revisa tus permisos.', 'error');
+        }
+      }
+    });
+  };
+
   const openEdit = (recipe: Recipe) => {
     setFormData({
       type: recipe.type === 'elaborado' ? 'elaborado' : 'plato',
@@ -417,7 +469,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (isPrinting) {
         setIsPrinting(false);
         setPrintingRecipe(null);
-        showToast('La generación del PDF está tardando más de lo esperado.', 'warning');
+        showToast('La generación del PDF está tardando más de lo esperado.', 'info');
       }
     }, 15000);
 
@@ -515,13 +567,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               : 'Crea platos finales combinando ingredientes y elaborados.'}
           </p>
         </div>
-        <button
-          onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-        >
-          <Plus size={20} />
-          {type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato'}
-        </button>
+        <div className="flex gap-2">
+          {isAdmin && !viewAsStudent && selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+            >
+              <Trash2 size={18} />
+              Borrar Seleccionados ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus size={20} />
+            {type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col gap-4">
@@ -578,7 +641,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           )}
         </div>
         
-        <div className="flex flex-wrap gap-1 w-full justify-center lg:justify-start border-t border-stone-100 pt-3 mt-1">
+        <div className="flex flex-wrap gap-2 w-full justify-center lg:justify-start border-t border-stone-100 pt-3 mt-1 items-center">
+          {isAdmin && !viewAsStudent && (
+            <button
+              onClick={() => {
+                if (selectedIds.size === paginatedRecipes.length && paginatedRecipes.length > 0) {
+                  setSelectedIds(new Set());
+                } else {
+                  setSelectedIds(new Set(paginatedRecipes.map(r => r.id)));
+                }
+              }}
+              className="px-3 py-1 rounded-lg text-xs font-semibold tracking-wider transition-all shadow-sm border border-stone-200 text-stone-600 hover:bg-stone-100 mr-2 flex items-center justify-center gap-1 h-7"
+            >
+              {selectedIds.size === paginatedRecipes.length && paginatedRecipes.length > 0 ? 'Desmarcar' : 'Seleccionar Vista'}
+            </button>
+          )}
           <button
             onClick={() => setSelectedLetter('todas')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm ${
@@ -614,9 +691,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
           return (
           <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-stone-200 overflow-hidden flex flex-col group relative h-[150px]">
+            {isAdmin && !viewAsStudent && (
+              <div className="absolute top-2 left-2 z-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(recipe.id)}
+                  onChange={() => toggleSelection(recipe.id)}
+                  className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                />
+              </div>
+            )}
             <div className="p-3 flex flex-col h-full gap-2">
               <div className="flex justify-between items-start gap-2 relative">
-                <div className="flex-1 pr-6">
+                <div className={`flex-1 pr-6 ${isAdmin && !viewAsStudent ? 'pl-5' : ''}`}>
                   <h3 className="text-[13px] font-bold text-stone-900 leading-tight line-clamp-2" title={recipe.nameES}>{recipe.nameES}</h3>
                   {recipeAllergens.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
@@ -860,7 +947,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <label className="block text-sm font-medium text-stone-700 mb-1">Peso por ración</label>
                           <div className="w-full px-4 py-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
                             {formData.yieldQuantity && formData.portions 
-                              ? `${(formData.yieldQuantity / formData.portions).toFixed(3)} ${formData.yieldUnit}`
+                              ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
                               : '-'}
                           </div>
                         </div>
@@ -976,33 +1063,63 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               </a>
                             )}
                           </div>
-                          <div className="w-32 shrink-0">
-                            <div className="relative">
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="0"
-                                required
-                                value={ri.quantity}
-                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                                onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
-                                onFocus={e => e.target.select()}
-                                className="w-full pl-2 pr-10 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                placeholder="Cant."
-                              />
-                              <button
-                                type="button"
-                                disabled={(!subRecipe || !subRecipe.portions) || (editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false)}
-                                onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
-                                title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
-                                className={`absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
-                                  ri.usePortions 
-                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
-                                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'
-                                }`}
-                              >
-                                {ri.usePortions ? 'ud' : (selectedIng?.unit || (subRecipe?.yieldUnit || 'ud'))}
-                              </button>
+                          <div className="w-56 shrink-0 pt-4 relative">
+                            <div className="flex gap-2 relative">
+                              <div className="relative flex-1">
+                                <div className="absolute -top-4 left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  required
+                                  value={ri.quantity}
+                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                  onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
+                                  onFocus={e => e.target.select()}
+                                  className="w-full pl-2 pr-1 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  placeholder="Bruto"
+                                  title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
+                                />
+                              </div>
+                              <div className="relative flex-1">
+                                <div className="absolute -top-4 left-1 text-[10px] text-stone-500 font-medium">Neto</div>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  required
+                                  value={(ri.quantity as any) !== '' && ri.quantity !== undefined && !isNaN(Number(ri.quantity)) ? Number((Number(ri.quantity) * (1 - ((selectedIng?.wastePercentage || 0) / 100))).toFixed(4)).toString() : ''}
+                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                  onChange={e => {
+                                    const netValue = e.target.value;
+                                    if (netValue === '') {
+                                      updateRecipeIngredient(index, 'quantity', '');
+                                      return;
+                                    }
+                                    const net = Number(netValue);
+                                    const waste = selectedIng?.wastePercentage || 0;
+                                    const gross = waste === 100 ? 0 : net / (1 - waste / 100);
+                                    updateRecipeIngredient(index, 'quantity', Number(gross.toFixed(4)).toString());
+                                  }}
+                                  onFocus={e => e.target.select()}
+                                  className="w-full pl-2 pr-7 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  placeholder="Neto"
+                                  title="Peso neto (listo para usar)"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={(!subRecipe || !subRecipe.portions) || (editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false)}
+                                  onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
+                                  title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
+                                  className={`absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
+                                    ri.usePortions 
+                                      ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                                      : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'
+                                  }`}
+                                >
+                                  {ri.usePortions ? 'ud' : (selectedIng?.unit || (subRecipe?.yieldUnit || 'ud'))}
+                                </button>
+                              </div>
                             </div>
                           </div>
                           <div className="w-24 text-right font-medium text-stone-700">
