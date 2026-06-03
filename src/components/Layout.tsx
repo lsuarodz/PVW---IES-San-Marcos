@@ -109,6 +109,7 @@ export default function Layout() {
     { name: 'Platos', path: '/recipes', icon: <BookOpen size={20} /> },
     { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
     { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
+    { name: 'Listas de Trabajo', path: '/work-lists', icon: <ClipboardList size={20} /> },
   ];
 
   // Definición de los elementos del menú para Gestión Comercial
@@ -138,7 +139,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-stone-100">
+    <div className="flex h-screen bg-stone-100 print:h-auto print:bg-white text-stone-900">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-3 text-teal-700">

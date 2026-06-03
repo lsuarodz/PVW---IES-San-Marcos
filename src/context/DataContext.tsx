@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings, AppUser } from '../types';
+import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings, AppUser, WorkList } from '../types';
 
 // ============================================================================
 // INTERFACES (Definición de Tipos)
@@ -19,6 +19,7 @@ interface DataContextType {
   clients: Client[];
   quotes: Quote[];
   productionIdeas: ProductionIdea[];
+  workLists: WorkList[];
   users: AppUser[];
   settings: AppSettings | null;
   loadingData: boolean;
@@ -50,6 +51,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [productionIdeas, setProductionIdeas] = useState<ProductionIdea[]>([]);
+  const [workLists, setWorkLists] = useState<WorkList[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   
@@ -69,6 +71,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setClients([]);
       setQuotes([]);
       setProductionIdeas([]);
+      setWorkLists([]);
       setSettings(null);
       setLoadingData(false);
       return; // Salimos de la función, no hacemos nada más.
@@ -80,9 +83,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     // Función auxiliar: cada vez que termina de descargar una colección, suma 1.
     // Si llega a 9 (porque tenemos 9 colecciones), significa que ya terminó de cargar todo.
+    // Wait, now we have 10 collections (WorkLists added).
     const checkLoading = () => {
       loadedCount++;
-      if (loadedCount === 9) setLoadingData(false);
+      if (loadedCount === 10) setLoadingData(false);
     };
 
     // 3. CONEXIÓN EN TIEMPO REAL A FIREBASE (onSnapshot)
@@ -149,6 +153,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       checkLoading();
     });
 
+    const unsubWorkLists = onSnapshot(collection(db, 'work_lists'), (snapshot) => {
+      const data: WorkList[] = [];
+      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as WorkList));
+      setWorkLists(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      checkLoading();
+    });
+
     const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
       let globalSettings: AppSettings | null = null;
       snapshot.forEach((doc) => {
@@ -178,6 +189,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       unsubClients();
       unsubQuotes();
       unsubProductionIdeas();
+      unsubWorkLists();
       unsubSettings();
       unsubUsers();
     };
@@ -187,7 +199,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Aquí devolvemos el "Context.Provider" envolviendo a los "children" (nuestra app).
   // En la propiedad "value" metemos todos los datos que queremos compartir.
   return (
-    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, users, settings, loadingData }}>
+    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, workLists, users, settings, loadingData }}>
       {children}
     </DataContext.Provider>
   );

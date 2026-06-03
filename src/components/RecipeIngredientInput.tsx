@@ -29,10 +29,12 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   useEffect(() => {
     const grossNum = Number(ri.quantity);
     if (!isNaN(grossNum) && (ri.quantity as any) !== '') {
-      // only update local if it's deeply out of sync (e.g. from parent save/load/initial render)
-      if (Math.abs(Number(localGross) - grossNum) > 0.0001 || localGross === '') {
-        setLocalGross(ri.quantity.toString());
-        setLocalNet((grossNum * (1 - waste / 100)).toFixed(3));
+      const expectedNet = (Math.max(0, grossNum * (1 - waste / 100))).toFixed(3);
+      
+      // Calculate missing net/gross if the component just mounted or waste changed
+      if (Math.abs(Number(localGross) - grossNum) > 0.0001 || localGross === '' || localNet === '' || localNet !== expectedNet) {
+        setLocalGross(Number(ri.quantity.toString()).toFixed(3).replace(/\.?0+$/, ''));
+        setLocalNet(expectedNet.replace(/\.?0+$/, ''));
       }
     } else {
       if ((ri.quantity as any) === '' || ri.quantity === undefined) {

@@ -69,6 +69,18 @@
           "items": { "type": "string" }
         },
         "imageUrl": { "type": "string" },
+        "workListTasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "process": { "type": "string" },
+              "element": { "type": "string" }
+            },
+            "required": ["id", "process", "element"]
+          }
+        },
         "ingredients": {
           "type": "array",
           "items": {
@@ -246,12 +258,47 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["commission", "idea", "createdBy", "createdAt"]
+    },
+    "WorkList": {
+      "title": "WorkList",
+      "description": "A production work list with ordered tasks",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "pax": { "type": "number" },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "process": { "type": "string" },
+              "element": { "type": "string" },
+              "priority": { "type": "string" },
+              "professor": { "type": "string" },
+              "completed": { "type": "boolean" },
+              "student": { "type": "string" },
+              "elaborations": { "type": "string" },
+              "order": { "type": "number" }
+            },
+            "required": ["id", "process", "element", "priority", "professor", "completed", "student", "elaborations", "order"]
+          }
+        },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "pax", "tasks", "createdBy", "createdAt"]
     }
   },
   "firestore": {
     "commission_tasks/{taskId}": {
       "schema": { "$ref": "#/entities/CommissionTask" },
       "description": "Ideas and responsibilities per commission"
+    },
+    "work_lists/{listId}": {
+      "schema": { "$ref": "#/entities/WorkList" },
+      "description": "Production work lists"
     },
     "users/{userId}": {
       "schema": { "$ref": "#/entities/User" },

@@ -127,7 +127,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit', 'workListTasks']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -138,6 +138,7 @@ service cloud.firestore {
              (!('miseEnPlace' in data) || data.miseEnPlace == "" || isValidString(data.miseEnPlace, 1, 2000)) &&
              (!('sustainabilityTips' in data) || data.sustainabilityTips is list) &&
              (!('imageUrl' in data) || data.imageUrl == "" || isValidString(data.imageUrl, 1, 2000)) &&
+             (!('workListTasks' in data) || data.workListTasks is list) &&
              (!('type' in data) || data.type in ['elaborado', 'plato']) &&
              (!('yieldUnit' in data) || data.yieldUnit in ['kg', 'L', 'ud']) &&
              (!('yieldQuantity' in data) || data.yieldQuantity == null || (data.yieldQuantity is number && data.yieldQuantity >= 0)) &&
@@ -271,6 +272,17 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidWorkList() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['title', 'date', 'pax', 'tasks', 'createdBy', 'createdAt']) &&
+             isValidString(data.title, 1, 200) &&
+             isValidString(data.date, 1, 100) &&
+             data.pax is number && data.pax >= 0 &&
+             data.tasks is list &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -382,6 +394,12 @@ service cloud.firestore {
     match /commission_tasks/{taskId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidCommissionTask();
+      allow delete: if isAdmin();
+    }
+
+    match /work_lists/{listId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidWorkList();
       allow delete: if isAdmin();
     }
 

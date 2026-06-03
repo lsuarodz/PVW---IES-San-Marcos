@@ -41,6 +41,7 @@ import Providers from './pages/Providers';
 import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
 import Marketing from './pages/Marketing';
+import WorkLists from './pages/WorkLists';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -101,7 +102,7 @@ function AppRoutes() {
         Si el usuario ya inició sesión (appUser existe), lo mandamos directamente a "/ingredients".
         Si no, le mostramos el componente <Login />.
       */}
-      <Route path="/login" element={appUser ? <Navigate to="/ingredients" replace /> : <Login />} />
+      <Route path="/login" element={appUser ? <Navigate to="/elaborados" replace /> : <Login />} />
       
       {/* 
         Ruta principal ("/"):
@@ -112,7 +113,7 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         
         {/* "index" significa que si entramos a "/", nos redirige automáticamente a "/ingredients" */}
-        <Route index element={<Navigate to="/ingredients" replace />} />
+        <Route index element={<Navigate to="/elaborados" replace />} />
         
         {/* Aquí listamos todas las páginas y la URL que les corresponde */}
         <Route path="presentation" element={<ProjectPresentation />} />
@@ -131,6 +132,7 @@ function AppRoutes() {
         <Route path="recipes" element={<Recipes type="plato" />} />
         <Route path="menus" element={<Menus />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="work-lists" element={<WorkLists />} />
         <Route path="coffee-brunch" element={<CoffeeBrunch />} />
         <Route path="standardization" element={<Standardization />} />
         <Route path="translations" element={<Translations />} />

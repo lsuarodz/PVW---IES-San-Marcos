@@ -363,7 +363,7 @@ export default function Menus() {
       if (printRef.current) {
         try {
           const opt = {
-            margin: 0,
+            margin: 20,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -412,7 +412,7 @@ export default function Menus() {
       if (printEquipmentRef.current) {
         try {
           const opt = {
-            margin: 0,
+            margin: 20,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -788,15 +788,15 @@ export default function Menus() {
               <div className="text-center mb-6 w-full pt-6">
                 <div className="flex justify-center mb-4">
                   {settings?.logoUrl ? (
-                    <img src={settings.logoUrl} alt="Logo" className="w-[120px] object-contain" crossOrigin="anonymous" />
+                    <img src={settings.logoUrl} alt="Logo" className="h-10 object-contain" crossOrigin="anonymous" />
                   ) : (
-                    <Utensils className="text-stone-800" size={28} strokeWidth={1.5} />
+                    <Utensils className="text-stone-800" size={24} strokeWidth={1.5} />
                   )}
                 </div>
                 <div className="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
-                <h1 className="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
-                {printingMenu.eventDate && <h2 className="text-lg text-stone-600 font-serif mb-1">{printingMenu.eventDate}{printingMenu.eventTime ? ` a las ${printingMenu.eventTime}` : ''}</h2>}
-                {printingMenu.eventPlace && <h2 className="text-lg text-stone-600 font-serif mb-3">{printingMenu.eventPlace}</h2>}
+                <h1 className="text-2xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
+                {printingMenu.eventDate && <h2 className="text-base text-stone-600 font-serif mb-1">{printingMenu.eventDate}{printingMenu.eventTime ? ` a las ${printingMenu.eventTime}` : ''}</h2>}
+                {printingMenu.eventPlace && <h2 className="text-base text-stone-600 font-serif mb-3">{printingMenu.eventPlace}</h2>}
                 
                 <div className="flex items-center justify-center gap-6 mt-6">
                   <div className="h-px w-16 bg-stone-300"></div>
@@ -903,7 +903,7 @@ export default function Menus() {
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-8 mb-12">
                 <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
-                <h1 className="text-4xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
+                <h1 className="text-2xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
                 <div className="flex items-center gap-4 text-stone-500 text-sm font-sans flex-wrap">
                   <span className="uppercase tracking-widest">{printingEquipmentMenu.type}</span>
                   <span className="text-stone-300">|</span>

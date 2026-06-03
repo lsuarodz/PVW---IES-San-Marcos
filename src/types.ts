@@ -45,6 +45,7 @@ export interface Recipe {
   group?: string;
   score?: number;
   feedback?: string;
+  workListTasks?: { id: string; process: string; element: string; }[];
   createdAt: string;
 }
 
@@ -238,7 +239,30 @@ export interface Quote {
   createdBy: string;
 }
 
+export interface WorkListTask {
+  id: string;
+  process: string;
+  element: string;
+  priority: string;
+  professor: string;
+  completed: boolean;
+  student: string;
+  elaborations: string;
+  order: number;
+}
+
+export interface WorkList {
+  id: string;
+  title: string;
+  date: string;
+  pax: number;
+  tasks: WorkListTask[];
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface AppSettings {
   id?: string;
   logoUrl?: string;
+  processes?: string[];
 }

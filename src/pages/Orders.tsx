@@ -155,7 +155,7 @@ export default function Orders() {
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
-          margin: 0,
+          margin: 20,
           filename: `Pedido_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { 
@@ -373,10 +373,10 @@ export default function Orders() {
               <div className="border-b border-stone-200 pb-8 mb-10 flex justify-between items-end">
                 <div>
                   {settings?.logoUrl && (
-                    <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain mb-4" crossOrigin="anonymous" />
+                    <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain mb-4" crossOrigin="anonymous" />
                   )}
                   <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Pedido y Compra</div>
-                  <h1 className="text-3xl font-bold uppercase tracking-tight text-stone-800">Lista de Pedido</h1>
+                  <h1 className="text-xl font-bold uppercase tracking-tight text-stone-800">Lista de Pedido</h1>
                   <p className="text-stone-500 mt-1 text-sm">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
                 <div className="text-right">

@@ -100,6 +100,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     equipment: [] as string[],
     miseEnPlace: '',
     sustainabilityTips: [] as string[],
+    workListTasks: [] as { id: string; process: string; element: string; }[],
     ingredients: [] as RecipeIngredient[],
     imageUrl: '',
   });
@@ -113,7 +114,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     return recipe.group === appUser.group;
   };
 
-  const canEditField = (recipe: Recipe | null, fieldType: 'escandallo' | 'logistica' | 'sostenibilidad' | 'general') => {
+  const canEditField = (recipe: Recipe | null, fieldType: 'escandallo' | 'logistica' | 'sostenibilidad' | 'general' | 'tareas') => {
     if (!appUser || !recipe) return false;
     if (isAdmin && !viewAsStudent) return true;
     
@@ -363,6 +364,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       equipment: recipe.equipment || [],
       miseEnPlace: recipe.miseEnPlace || '',
       sustainabilityTips: recipe.sustainabilityTips || [],
+      workListTasks: recipe.workListTasks || [],
       ingredients: recipe.ingredients,
       imageUrl: recipe.imageUrl || '',
     });
@@ -371,7 +373,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], ingredients: [], imageUrl: '' });
+    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '' });
     setEditingId(null);
   };
 
@@ -435,6 +437,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, sustainabilityTips: newTips });
   };
 
+  const addWorkListTask = () => {
+    setFormData({
+      ...formData,
+      workListTasks: [...formData.workListTasks, { id: crypto.randomUUID(), process: 'ELABORAR', element: '' }]
+    });
+  };
+
+  const updateWorkListTask = (index: number, field: 'process' | 'element', value: string) => {
+    const newTasks = [...formData.workListTasks];
+    newTasks[index] = { ...newTasks[index], [field]: value };
+    setFormData({ ...formData, workListTasks: newTasks });
+  };
+
+  const removeWorkListTask = (index: number) => {
+    const newTasks = formData.workListTasks.filter((_, i) => i !== index);
+    setFormData({ ...formData, workListTasks: newTasks });
+  };
+
   const addIngredientToRecipe = () => {
     setFormData({
       ...formData,
@@ -479,7 +499,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (printRef.current) {
         try {
           const opt = {
-            margin: 0,
+            margin: 20,
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -1027,79 +1047,81 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       }
                       
                       return (
-                        <div key={index} className="flex flex-col gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex gap-3 items-center">
-                            <div className="flex-1 min-w-0 flex gap-2">
-                              <IngredientSelect
-                                value={ri.ingredientId}
-                                onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
-                                ingredients={ingredients}
-                                recipes={recipes}
-                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                                itemType={ri.itemType}
-                                currentRecipeId={editingId}
-                              />
-                              {selectedIng && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    // We need to trigger the edit ingredient modal.
-                                    // Let's add an editingIngredientId state.
-                                    setEditingIngredientId(selectedIng.id);
-                                    setIsIngredientModalOpen(true);
-                                  }}
-                                  className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0"
-                                  title="Editar ingrediente"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                              )}
-                              {subRecipe && (
-                                <a
-                                  href={`/elaborados?edit=${ri.ingredientId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0"
-                                  title="Editar elaborado en nueva pestaña"
-                                >
-                                  <Edit2 size={16} />
-                                </a>
-                              )}
-                            </div>
-                            <div className="w-56 shrink-0 pt-4 relative">
-                              <RecipeIngredientInput
-                                ri={ri}
-                                index={index}
-                                selectedIng={selectedIng}
-                                subRecipe={subRecipe}
-                                editingId={editingId}
-                                recipes={recipes}
-                                updateRecipeIngredient={updateRecipeIngredient}
-                                canEditField={canEditField}
-                              />
-                            </div>
-                            <div className="w-24 text-right font-medium text-stone-700">
-                              {cost.toFixed(2)} €
-                            </div>
-                            <button
-                              type="button"
+                        <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                          <div className="flex-1 min-w-0 flex gap-2 pt-4">
+                            <IngredientSelect
+                              value={ri.ingredientId}
+                              onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
+                              ingredients={ingredients}
+                              recipes={recipes}
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              onClick={() => removeRecipeIngredient(index)}
-                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                              itemType={ri.itemType}
+                              currentRecipeId={editingId}
+                            />
+                            {selectedIng && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // We need to trigger the edit ingredient modal.
+                                  // Let's add an editingIngredientId state.
+                                  setEditingIngredientId(selectedIng.id);
+                                  setIsIngredientModalOpen(true);
+                                }}
+                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0 h-[38px]"
+                                title="Editar ingrediente"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {subRecipe && (
+                              <a
+                                href={`/elaborados?edit=${ri.ingredientId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0 h-[38px]"
+                                title="Editar elaborado en nueva pestaña"
+                              >
+                                <Edit2 size={16} />
+                              </a>
+                            )}
                           </div>
                           
-                          <div className="flex gap-2 w-full">
+                          <div className="w-40 shrink-0 pt-4">
                             <input
                               type="text"
                               value={ri.preparation || ''}
                               onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
-                              placeholder="Preelaborar (Mirepoix, Escaldar...)"
+                              placeholder="Mirepoix, escaldar..."
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              className="w-full px-3 py-1.5 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full px-2 py-2 h-[38px] text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Preelaboración"
                             />
+                          </div>
+
+                          <div className="w-56 shrink-0 pt-4 relative">
+                            <RecipeIngredientInput
+                              ri={ri}
+                              index={index}
+                              selectedIng={selectedIng}
+                              subRecipe={subRecipe}
+                              editingId={editingId}
+                              recipes={recipes}
+                              updateRecipeIngredient={updateRecipeIngredient}
+                              canEditField={canEditField}
+                            />
+                          </div>
+                          <div className="w-24 text-right font-medium text-stone-700 pt-[26px]">
+                            {cost.toFixed(2)} €
+                          </div>
+                          <div className="pt-4">
+                            <button
+                              type="button"
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                              onClick={() => removeRecipeIngredient(index)}
+                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[38px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
                         </div>
                       );
@@ -1241,7 +1263,64 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   />
                 </div>
 
-                <div>
+                <div className="mt-8 border-t border-stone-200 pt-6">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
+                    <button
+                      type="button"
+                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                      onClick={addWorkListTask}
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={16} /> Añadir Tarea
+                    </button>
+                  </div>
+                  <p className="text-xs text-stone-500 mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
+                  
+                  <div className="space-y-3">
+                    {formData.workListTasks.map((task, index) => (
+                      <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                        <div className="flex-1 max-w-[200px]">
+                          <input
+                            type="text"
+                            required
+                            value={task.process}
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                            onChange={e => updateWorkListTask(index, 'process', e.target.value)}
+                            className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                            placeholder="EJ: ELABORAR"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            required
+                            value={task.element}
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                            onChange={e => updateWorkListTask(index, 'element', e.target.value)}
+                            className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
+                            placeholder="Ej: PESCADO CEVICHE"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                          onClick={() => removeWorkListTask(index)}
+                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    {formData.workListTasks.length === 0 && (
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                        No hay tareas configuradas para esta receta.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-stone-200 pt-6">
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Tips de Sostenibilidad</label>
                     <button
@@ -1365,11 +1444,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-end">
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
-                  <h1 className="text-xl font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
-                  {printingRecipe.nameEN && <h2 className="text-sm text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
+                  <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
+                  {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
                 </div>
                 {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="w-[120px] object-contain mb-1" crossOrigin="anonymous" />
+                  <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain mb-1" crossOrigin="anonymous" />
                 )}
               </div>
               
