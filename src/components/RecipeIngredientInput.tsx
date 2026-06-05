@@ -31,8 +31,18 @@ export const RecipeIngredientInput: React.FC<Props> = ({
     if (!isNaN(grossNum) && (ri.quantity as any) !== '') {
       const expectedNet = (Math.max(0, grossNum * (1 - waste / 100))).toFixed(3);
       
-      // Calculate missing net/gross if the component just mounted or waste changed
-      if (Math.abs(Number(localGross) - grossNum) > 0.0001 || localGross === '' || localNet === '' || localNet !== expectedNet) {
+      const localGrossNum = Number(localGross);
+      const localNetNum = Number(localNet);
+      const expectedNetNum = Number(expectedNet);
+
+      // Only rewrite our local string states if there is a significant mathematical difference,
+      // or if they are blank (to ensure initial hydration or external updates are reflected correctly).
+      const hasSignificantDiff =
+        isNaN(localGrossNum) || isNaN(localNetNum) ||
+        Math.abs(localGrossNum - grossNum) > 0.0001 ||
+        Math.abs(localNetNum - expectedNetNum) > 0.0001;
+
+      if (hasSignificantDiff || localGross === '' || localNet === '') {
         setLocalGross(Number(ri.quantity.toString()).toFixed(3).replace(/\.?0+$/, ''));
         setLocalNet(expectedNet.replace(/\.?0+$/, ''));
       }

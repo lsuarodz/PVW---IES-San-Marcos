@@ -1278,19 +1278,32 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <p className="text-xs text-stone-500 mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
                   
                   <div className="space-y-3">
-                    {formData.workListTasks.map((task, index) => (
-                      <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-                        <div className="flex-1 max-w-[200px]">
-                          <input
-                            type="text"
-                            required
-                            value={task.process}
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                            onChange={e => updateWorkListTask(index, 'process', e.target.value)}
-                            className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
-                            placeholder="EJ: ELABORAR"
-                          />
-                        </div>
+                    {formData.workListTasks.map((task, index) => {
+                      const processes = settings?.processes || [];
+                      const currentProcessLower = task.process?.toLowerCase().trim() || '';
+                      const processOptions = [...processes];
+                      if (currentProcessLower && !processes.map(p => p.toLowerCase()).includes(currentProcessLower)) {
+                        processOptions.push(task.process);
+                      }
+
+                      return (
+                        <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                          <div className="flex-1 max-w-[200px]">
+                            <select
+                              required
+                              value={task.process}
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                              onChange={e => updateWorkListTask(index, 'process', e.target.value)}
+                              className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-stone-700"
+                            >
+                              <option value="">-- Proceso --</option>
+                              {processOptions.map((p, i) => (
+                                <option key={i} value={p}>
+                                  {p.toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         <div className="flex-1">
                           <input
                             type="text"
@@ -1311,7 +1324,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <Trash2 size={18} />
                         </button>
                       </div>
-                    ))}
+                    );
+                  })}
                     {formData.workListTasks.length === 0 && (
                       <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
                         No hay tareas configuradas para esta receta.
@@ -1439,6 +1453,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .border-stone-50 { border-color: #fafaf9 !important; }
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
+              .print-container .logo-print { max-width: 5% !important; max-height: 56px !important; object-fit: contain !important; }
             `}</style>
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-end">
@@ -1448,7 +1463,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
                 </div>
                 {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain mb-1" crossOrigin="anonymous" />
+                  <img src={settings.logoUrl} alt="Logo" className="logo-print mb-1" crossOrigin="anonymous" />
                 )}
               </div>
               

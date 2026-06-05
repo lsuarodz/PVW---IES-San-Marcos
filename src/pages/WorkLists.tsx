@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import { generatePDF } from '../utils/pdf';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -34,6 +34,9 @@ interface SortableTableRowProps {
   onDelete: (id: string) => void;
   teachers: string[];
   processes: string[];
+  suggestedElements?: string[];
+  suggestedPlatos?: string[];
+  isExportingPDF?: boolean;
 }
 
 const getCourseColor = (course: string) => {
@@ -72,7 +75,7 @@ const getProcessColor = (process: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes }: SortableTableRowProps) {
+function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes, suggestedElements = [], suggestedPlatos = [], isExportingPDF }: SortableTableRowProps) {
   const [showTeachers, setShowTeachers] = useState(false);
   const {
     attributes,
@@ -99,76 +102,144 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
 
   return (
     <tr ref={setNodeRef} style={style} className={`bg-white border-b border-stone-200 ${isDragging ? 'shadow-lg' : ''} print:border-stone-800`}>
-      <td className="px-2 py-2 w-10 print:hidden cursor-move" {...attributes} {...listeners}>
-        <GripVertical size={16} className="text-stone-400" />
+      {!isExportingPDF && (
+        <td className="px-2 py-2 w-10 print:hidden cursor-move" {...attributes} {...listeners}>
+          <GripVertical size={16} className="text-stone-400" />
+        </td>
+      )}
+      <td className="px-2 py-2">
+        {isExportingPDF ? (
+          <span className={`text-xs uppercase font-extrabold ${getProcessColor(task.process)}`}>
+            {task.process || '--'}
+          </span>
+        ) : (
+          <>
+            <span className={`hidden print:inline-block text-xs uppercase font-extrabold ${getProcessColor(task.process)}`}>
+              {task.process || '--'}
+            </span>
+            <select 
+              value={task.process} 
+              onChange={e => onUpdate(task.id, 'process', e.target.value)}
+              className={`w-full text-xs uppercase font-medium bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden ${getProcessColor(task.process)}`}
+            >
+              <option value="" className="text-stone-600">--</option>
+              {processOptions.map((p, i) => (
+                <option key={i} value={p} className={`${getProcessColor(p)} font-semibold uppercase`}>
+                  {p.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </td>
       <td className="px-2 py-2">
-        <select 
-          value={task.process} 
-          onChange={e => onUpdate(task.id, 'process', e.target.value)}
-          className={`w-full text-xs uppercase font-medium bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 ${getProcessColor(task.process)}`}
-        >
-          <option value="" className="text-stone-600">--</option>
-          {processOptions.map((p, i) => (
-            <option key={i} value={p} className={`${getProcessColor(p)} font-semibold uppercase`}>
-              {p.toUpperCase()}
-            </option>
-          ))}
-        </select>
+        {isExportingPDF ? (
+          <span className="text-xs text-stone-900 font-bold uppercase">
+            {task.element || '--'}
+          </span>
+        ) : (
+          <>
+            <span className="hidden print:inline-block text-xs text-stone-900 font-bold uppercase">
+              {task.element || '--'}
+            </span>
+            <input 
+              type="text" 
+              list="elements-list"
+              value={task.element} 
+              onChange={e => onUpdate(task.id, 'element', e.target.value)}
+              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden"
+              placeholder="DESCONGELAR PESCADO"
+            />
+          </>
+        )}
       </td>
       <td className="px-2 py-2">
-        <input 
-          type="text" 
-          value={task.element} 
-          onChange={e => onUpdate(task.id, 'element', e.target.value)}
-          className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1"
-          placeholder="DESCONGELAR PESCADO"
-        />
+        {isExportingPDF ? (
+          <span className="text-xs text-stone-900 uppercase">
+            {task.plato || '--'}
+          </span>
+        ) : (
+          <>
+            <span className="hidden print:inline-block text-xs text-stone-900 uppercase">
+              {task.plato || '--'}
+            </span>
+            <input 
+              type="text" 
+              list="platos-list"
+              value={task.plato || ''} 
+              onChange={e => onUpdate(task.id, 'plato', e.target.value)}
+              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden"
+              placeholder="Ej: Miniburguer de Ternera, queso ahumado y Rúcula"
+            />
+          </>
+        )}
       </td>
       <td className="px-2 py-2">
-        <input 
-          type="text" 
-          value={task.priority} 
-          onChange={e => onUpdate(task.id, 'priority', e.target.value)}
-          className="w-full text-xs text-stone-600 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1"
-          placeholder="2 JUNIO"
-        />
+        {isExportingPDF ? (
+          <span className="text-xs text-stone-600 text-center block w-full uppercase">
+            {task.priority || '--'}
+          </span>
+        ) : (
+          <>
+            <span className="hidden print:inline-block text-xs text-stone-600 text-center w-full uppercase">
+              {task.priority || '--'}
+            </span>
+            <input 
+              type="text" 
+              value={task.priority} 
+              onChange={e => onUpdate(task.id, 'priority', e.target.value)}
+              className="w-full text-xs text-stone-600 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden text-center"
+              placeholder="2 JUNIO"
+            />
+          </>
+        )}
       </td>
       <td className="px-2 py-2 relative">
-        <input 
-          type="text" 
-          value={task.professor} 
-          onChange={e => onUpdate(task.id, 'professor', e.target.value.toUpperCase())}
-          onFocus={() => setShowTeachers(true)}
-          onBlur={() => setTimeout(() => setShowTeachers(false), 200)}
-          className="w-full text-xs text-stone-600 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 uppercase text-center"
-          placeholder="JORGE / DOCENTE"
-        />
-        {showTeachers && teachers.length > 0 && (
-          <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-stone-200 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
-            {teachers.map(t => {
-              const selected = (task.professor || '').split(',').map(s => s.trim()).includes(t);
-              return (
-                <label key={t} className="flex items-center gap-2 px-3 py-2 hover:bg-stone-50 cursor-pointer text-xs">
-                  <input 
-                    type="checkbox" 
-                    checked={selected}
-                    onChange={(e) => {
-                      let current = (task.professor || '').split(',').map(s => s.trim()).filter(Boolean);
-                      if (e.target.checked) {
-                        current.push(t);
-                      } else {
-                        current = current.filter(c => c !== t);
-                      }
-                      onUpdate(task.id, 'professor', current.join(', '));
-                    }}
-                    className="rounded text-teal-600 focus:ring-teal-500"
-                  />
-                  <span className="text-stone-700">{t}</span>
-                </label>
-              );
-            })}
-          </div>
+        {isExportingPDF ? (
+          <span className="text-xs text-stone-600 font-medium text-center block w-full uppercase">
+            {task.professor || '--'}
+          </span>
+        ) : (
+          <>
+            <span className="hidden print:inline-block text-xs text-stone-600 text-center w-full uppercase font-medium">
+              {task.professor || '--'}
+            </span>
+            <input 
+              type="text" 
+              value={task.professor} 
+              onChange={e => onUpdate(task.id, 'professor', e.target.value.toUpperCase())}
+              onFocus={() => setShowTeachers(true)}
+              onBlur={() => setTimeout(() => setShowTeachers(false), 200)}
+              className="w-full text-xs text-stone-600 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 uppercase text-center print:hidden"
+              placeholder="JORGE / DOCENTE"
+            />
+            {showTeachers && teachers.length > 0 && (
+              <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-stone-200 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                {teachers.map(t => {
+                  const selected = (task.professor || '').split(',').map(s => s.trim()).includes(t);
+                  return (
+                    <label key={t} className="flex items-center gap-2 px-3 py-2 hover:bg-stone-50 cursor-pointer text-xs">
+                      <input 
+                        type="checkbox" 
+                        checked={selected}
+                        onChange={(e) => {
+                          let current = (task.professor || '').split(',').map(s => s.trim()).filter(Boolean);
+                          if (e.target.checked) {
+                            current.push(t);
+                          } else {
+                            current = current.filter(c => c !== t);
+                          }
+                          onUpdate(task.id, 'professor', current.join(', '));
+                        }}
+                        className="rounded text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-stone-700">{t}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </td>
       <td className="px-2 py-2 text-center">
@@ -183,24 +254,37 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
         </button>
       </td>
       <td className="px-2 py-2">
-        <select 
-          value={task.student} 
-          onChange={e => onUpdate(task.id, 'student', e.target.value)}
-          className={`w-full text-xs font-semibold bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 ${getCourseColor(task.student)}`}
-        >
-          <option value="" className="text-stone-600">Seleccionar curso...</option>
-          <option value="1ºCOCINA" className="text-amber-600 font-semibold">1º COCINA</option>
-          <option value="2ºCOCINA" className="text-blue-600 font-semibold">2º COCINA</option>
-          <option value="1ºPANADERÍA" className="text-pink-600 font-semibold">1º PANADERÍA</option>
-          <option value="2ºPANADERÍA" className="text-purple-600 font-semibold">2º PANADERÍA</option>
-          <option value="2ºSUPERIOR COCINA" className="text-teal-600 font-semibold">2º SUPERIOR COCINA</option>
-        </select>
+        {isExportingPDF ? (
+          <span className={`text-xs font-semibold uppercase text-center block w-full ${getCourseColor(task.student)}`}>
+            {task.student || '--'}
+          </span>
+        ) : (
+          <>
+            <span className={`hidden print:inline-block text-xs font-semibold text-center w-full ${getCourseColor(task.student)}`}>
+              {task.student || '--'}
+            </span>
+            <select 
+              value={task.student} 
+              onChange={e => onUpdate(task.id, 'student', e.target.value)}
+              className={`w-full text-xs font-semibold bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden ${getCourseColor(task.student)}`}
+            >
+              <option value="" className="text-stone-600">Seleccionar curso...</option>
+              <option value="1ºCOCINA" className="text-amber-600 font-semibold">1º COCINA</option>
+              <option value="2ºCOCINA" className="text-blue-600 font-semibold">2º COCINA</option>
+              <option value="1ºPANADERÍA" className="text-pink-600 font-semibold">1º PANADERÍA</option>
+              <option value="2ºPANADERÍA" className="text-purple-600 font-semibold">2º PANADERÍA</option>
+              <option value="2ºSUPERIOR COCINA" className="text-teal-600 font-semibold">2º SUPERIOR COCINA</option>
+            </select>
+          </>
+        )}
       </td>
-      <td className="px-2 py-2 w-10 print:hidden text-center">
-        <button onClick={() => onDelete(task.id)} className="text-stone-400 hover:text-red-600 p-1 rounded hover:bg-stone-100">
-          <Trash2 size={16} />
-        </button>
-      </td>
+      {!isExportingPDF && (
+        <td className="px-2 py-2 w-10 print:hidden text-center">
+          <button onClick={() => onDelete(task.id)} className="text-stone-400 hover:text-red-600 p-1 rounded hover:bg-stone-100">
+            <Trash2 size={16} />
+          </button>
+        </td>
+      )}
     </tr>
   );
 }
@@ -218,10 +302,76 @@ export default function WorkLists() {
 
   const [editingList, setEditingList] = useState<WorkList | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-  });
+
+  const suggestedElements = useMemo(() => {
+    const list = new Set<string>();
+    workLists.forEach(wl => {
+      wl.tasks?.forEach(t => {
+        if (t.element) list.add(t.element);
+      });
+    });
+    editingList?.tasks?.forEach(t => {
+      if (t.element) list.add(t.element);
+    });
+    return Array.from(list).sort();
+  }, [workLists, editingList]);
+
+  const suggestedPlatos = useMemo(() => {
+    const list = new Set<string>();
+    recipes.forEach(r => {
+      if (r.nameES) list.add(r.nameES);
+    });
+    workLists.forEach(wl => {
+      wl.tasks?.forEach(t => {
+        if (t.plato) list.add(t.plato);
+      });
+    });
+    editingList?.tasks?.forEach(t => {
+      if (t.plato) list.add(t.plato);
+    });
+    return Array.from(list).sort();
+  }, [recipes, workLists, editingList]);
+
+  const exportPDF = async () => {
+    if (!printRef.current || !editingList) return;
+    try {
+      setIsExportingPDF(true);
+      showToast('Generando PDF formateado...', 'info');
+      // Esperar un breve momento para que React re-renderice la vista en modo estático
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      const fileName = `lista_trabajo_${(editingList.title || 'sin_nombre')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/_+/g, '_')}.pdf`;
+
+      await generatePDF(printRef.current, {
+        filename: fileName,
+        margin: 0.25,
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: {
+          unit: 'in',
+          format: 'a4',
+          orientation: 'portrait'
+        }
+      });
+      showToast('¡PDF de cocina generado con éxito!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error al exportar PDF', 'error');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   
   // Managing processes
@@ -337,6 +487,7 @@ export default function WorkLists() {
       id: crypto.randomUUID(),
       process: 'ELABORAR',
       element: '',
+      plato: '',
       priority: '',
       professor: '',
       completed: false,
@@ -367,6 +518,7 @@ export default function WorkLists() {
           id: crypto.randomUUID(),
           process: t.process,
           element: t.element,
+          plato: recipe.nameES,
           priority: '',
           professor: '',
           completed: false,
@@ -444,7 +596,7 @@ export default function WorkLists() {
   // Si estamos editando y en modo de impresión de un documento, ocupamos casi toda la pantalla
   if (isModalOpen && editingList) {
     return (
-      <div className="h-full print:h-auto bg-stone-50 flex flex-col p-4 md:p-8 print:p-0 print:block">
+      <div className="min-h-screen bg-stone-50 flex flex-col p-4 md:p-8 print:p-0 print:block">
         <datalist id="teachers-list">
           {teachers.map(t => <option key={t} value={t} />)}
         </datalist>
@@ -457,8 +609,18 @@ export default function WorkLists() {
           </div>
           <div className="flex items-center gap-3">
             <button 
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-stone-200 text-stone-800 rounded-lg hover:bg-stone-300 font-medium transition-colors"
+              onClick={exportPDF}
+              disabled={isExportingPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-[#d97706] text-white rounded-lg hover:bg-[#b45309] font-medium transition-colors disabled:opacity-50"
+              title="Generar PDF descargable para la cocina sin controles de edición"
+            >
+              <ClipboardList size={18} />
+              {isExportingPDF ? 'Exportando...' : 'Exportar PDF Cocina'}
+            </button>
+            <button 
+              onClick={exportPDF}
+              disabled={isExportingPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-stone-200 text-stone-800 rounded-lg hover:bg-stone-300 font-medium transition-colors disabled:opacity-50"
             >
               <Printer size={18} />
               Imprimir
@@ -474,106 +636,135 @@ export default function WorkLists() {
         </div>
 
         {/* Paper format for printing and editing */}
-        <div ref={printRef} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full">
+        <div ref={printRef} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full">
           
           {/* Work List Header */}
           <div className="p-4 border-b border-stone-200 print:border-black flex gap-4">
             <div className="flex-1">
               <label className="block text-[10px] font-semibold text-stone-500 uppercase print:hidden">Título</label>
-              <input 
-                type="text"
-                value={editingList.title}
-                onChange={e => setEditingList(prev => prev ? { ...prev, title: e.target.value } : prev)}
-                className="w-full text-xl font-bold text-stone-800 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded px-2 py-1 print:p-0 print:text-black print:text-lg"
-                placeholder="DÍA 03/06/26. MENÚ DE ARROCES. JORNADAS GASTRONÓMICAS"
-              />
+              {isExportingPDF ? (
+                <div className="text-xl font-bold text-black border-none px-2 py-1">
+                  {editingList.title || 'SIN TÍTULO'}
+                </div>
+              ) : (
+                <input 
+                  type="text"
+                  value={editingList.title}
+                  onChange={e => setEditingList(prev => prev ? { ...prev, title: e.target.value } : prev)}
+                  className="w-full text-xl font-bold text-stone-800 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded px-2 py-1 print:p-0 print:text-black print:text-lg"
+                  placeholder="DÍA 03/06/26. MENÚ DE ARROCES. JORNADAS GASTRONÓMICAS"
+                />
+              )}
             </div>
             <div className="w-40">
               <label className="block text-[10px] font-semibold text-stone-500 uppercase print:hidden">Fecha</label>
-              <input 
-                type="text"
-                value={editingList.date}
-                onChange={e => setEditingList(prev => prev ? { ...prev, date: e.target.value } : prev)}
-                className="w-full font-medium text-stone-600 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded px-2 py-1 print:p-0 print:text-black"
-                placeholder="03/06/2026"
-              />
+              {isExportingPDF ? (
+                <div className="font-medium text-black border-none px-2 py-1">
+                  {editingList.date || '--'}
+                </div>
+              ) : (
+                <input 
+                  type="text"
+                  value={editingList.date}
+                  onChange={e => setEditingList(prev => prev ? { ...prev, date: e.target.value } : prev)}
+                  className="w-full font-medium text-stone-600 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded px-2 py-1 print:p-0 print:text-black"
+                  placeholder="03/06/2026"
+                />
+              )}
             </div>
             <div className="w-24">
               <label className="block text-[10px] font-semibold text-stone-500 uppercase print:hidden">PAX</label>
-              <div className="flex items-center gap-1 px-2 py-1 print:p-0">
-                <input 
-                  type="number"
-                  value={editingList.pax || ''}
-                  onChange={e => setEditingList(prev => prev ? { ...prev, pax: Number(e.target.value) } : prev)}
-                  className="w-full font-medium text-stone-600 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded print:p-0 print:text-black text-right"
-                  placeholder="35"
-                />
-                <span className="text-stone-600 print:text-black">pax</span>
-              </div>
+              {isExportingPDF ? (
+                <div className="font-medium text-black border-none px-2 py-1 text-right">
+                  {editingList.pax || '0'} <span className="text-stone-700">pax</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 print:p-0 border-none">
+                  <input 
+                    type="number"
+                    value={editingList.pax || ''}
+                    onChange={e => setEditingList(prev => prev ? { ...prev, pax: Number(e.target.value) } : prev)}
+                    className="w-full font-medium text-stone-600 bg-transparent border-none focus:ring-2 focus:ring-teal-500 rounded print:p-0 print:text-black text-right"
+                    placeholder="35"
+                  />
+                  <span className="text-stone-600 print:text-black">pax</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Tools for adding tasks - Hidden on Print */}
-          <div className="p-3 bg-stone-50 border-b border-stone-200 print:hidden flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => addTask()}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 text-stone-700 font-medium rounded-lg hover:bg-stone-100 hover:text-stone-900 transition-colors text-sm"
-              >
-                <Plus size={16} />
-                Fila Vacía
-              </button>
-              
-              <div className="w-px h-6 bg-stone-300"></div>
-
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedRecipeId}
-                  onChange={e => setSelectedRecipeId(e.target.value)}
-                  className="px-3 py-1.5 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-xs"
-                >
-                  <option value="">-- Seleccionar Receta para Tarea --</option>
-                  {recipes.map(r => (
-                    <option key={r.id} value={r.id}>{r.nameES}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={addTaskFromRecipe}
-                  disabled={!selectedRecipeId}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 font-medium rounded-lg hover:bg-teal-100 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          {/* Tools for adding tasks - Hidden on Print or PDF export */}
+          {!isExportingPDF && (
+            <div className="p-3 bg-stone-50 border-b border-stone-200 print:hidden flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => addTask()}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 text-stone-700 font-medium rounded-lg hover:bg-stone-100 hover:text-stone-900 transition-colors text-sm"
                 >
                   <Plus size={16} />
-                  Añadir de Receta
+                  Fila Vacía
                 </button>
+                
+                <div className="w-px h-6 bg-stone-300"></div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedRecipeId}
+                    onChange={e => setSelectedRecipeId(e.target.value)}
+                    className="px-3 py-1.5 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-xs"
+                  >
+                    <option value="">-- Seleccionar Receta para Tarea --</option>
+                    {recipes.map(r => (
+                      <option key={r.id} value={r.id}>{r.nameES}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={addTaskFromRecipe}
+                    disabled={!selectedRecipeId}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 font-medium rounded-lg hover:bg-teal-100 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={16} />
+                    Añadir de Receta
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Table */}
-          <div className="flex-1 overflow-auto print:overflow-visible print:block">
+          <div className="w-full overflow-visible print:overflow-visible print:block">
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <datalist id="elements-list">
+                {suggestedElements.map((el, i) => <option key={i} value={el} />)}
+              </datalist>
+              <datalist id="platos-list">
+                {suggestedPlatos.map((pl, i) => <option key={i} value={pl} />)}
+              </datalist>
               <table className="w-full text-left border-collapse print:table">
                 <thead>
                   <tr className="bg-[#4c5c4e] text-white text-[11px] uppercase tracking-wider print:bg-[#4c5c4e] print:text-white print:border-black" style={{ WebkitPrintColorAdjust: 'exact', colorAdjust: 'exact' }}>
-                    <th className="px-2 py-2 print:hidden w-10"></th>
+                    {!isExportingPDF && <th className="px-2 py-2 print:hidden w-10"></th>}
                     <th className="px-2 py-2 w-32 border-x border-[#5c6c5e]">
                       <div className="flex items-center justify-between">
                         Proceso
-                        <button 
-                          onClick={() => setIsProcessModalOpen(true)}
-                          className="print:hidden hover:bg-[#5c6c5e] p-1 rounded transition-colors"
-                          title="Gestionar procesos"
-                        >
-                          <Plus size={14} />
-                        </button>
+                        {!isExportingPDF && (
+                          <button 
+                            onClick={() => setIsProcessModalOpen(true)}
+                            className="print:hidden hover:bg-[#5c6c5e] p-1 rounded transition-colors"
+                            title="Gestionar procesos"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        )}
                       </div>
                     </th>
-                    <th className="px-2 py-2 border-r border-[#5c6c5e]">Elemento</th>
-                    <th className="px-2 py-2 w-32 border-r border-[#5c6c5e]">Día de Ejecución</th>
-                    <th className="px-2 py-2 w-24 border-r border-[#5c6c5e] text-center">Profesor</th>
+                    <th className="px-2 py-2 w-45 border-r border-[#5c6c5e]">Elemento</th>
+                    <th className="px-2 py-2 w-65 border-r border-[#5c6c5e]">Plato</th>
+                    <th className="px-2 py-2 w-20 border-r border-[#5c6c5e]">Día/Ejecución</th>
+                    <th className="px-2 py-2 w-30 border-r border-[#5c6c5e] text-center">Profesor</th>
                     <th className="px-2 py-2 w-20 border-r border-[#5c6c5e] text-center">Realizado</th>
                     <th className="px-2 py-2 w-32 border-r border-[#5c6c5e]">Alumnado</th>
-                    <th className="px-2 py-2 print:hidden w-10"></th>
+                    {!isExportingPDF && <th className="px-2 py-2 print:hidden w-10"></th>}
                   </tr>
                 </thead>
                 <tbody className="print:text-[10px]">
@@ -587,6 +778,9 @@ export default function WorkLists() {
                         onDelete={deleteTask}
                         teachers={teachers}
                         processes={processes}
+                        suggestedElements={suggestedElements}
+                        suggestedPlatos={suggestedPlatos}
+                        isExportingPDF={isExportingPDF}
                       />
                     ))}
                   </SortableContext>

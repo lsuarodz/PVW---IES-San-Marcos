@@ -243,6 +243,7 @@ export interface WorkListTask {
   id: string;
   process: string;
   element: string;
+  plato?: string;
   priority: string;
   professor: string;
   completed: boolean;
