@@ -42,6 +42,7 @@ import Clients from './pages/Clients';
 import Quotes from './pages/Quotes';
 import Marketing from './pages/Marketing';
 import WorkLists from './pages/WorkLists';
+import Home from './pages/Home';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -102,7 +103,7 @@ function AppRoutes() {
         Si el usuario ya inició sesión (appUser existe), lo mandamos directamente a "/ingredients".
         Si no, le mostramos el componente <Login />.
       */}
-      <Route path="/login" element={appUser ? <Navigate to="/elaborados" replace /> : <Login />} />
+      <Route path="/login" element={appUser ? <Navigate to="/" replace /> : <Login />} />
       
       {/* 
         Ruta principal ("/"):
@@ -112,8 +113,8 @@ function AppRoutes() {
       */}
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         
-        {/* "index" significa que si entramos a "/", nos redirige automáticamente a "/ingredients" */}
-        <Route index element={<Navigate to="/elaborados" replace />} />
+        {/* "index" significa que si entramos a "/", nos muestra la pantalla de inicio (Home) */}
+        <Route index element={<Home />} />
         
         {/* Aquí listamos todas las páginas y la URL que les corresponde */}
         <Route path="presentation" element={<ProjectPresentation />} />

@@ -350,7 +350,7 @@ export default function WorkLists() {
 
       await generatePDF(printRef.current, {
         filename: fileName,
-        margin: 0.25,
+        margin: [0.5, 0.4], // Top/Bottom 0.5in, Left/Right 0.4in
         html2canvas: {
           scale: 2,
           useCORS: true,
@@ -360,7 +360,7 @@ export default function WorkLists() {
         jsPDF: {
           unit: 'in',
           format: 'a4',
-          orientation: 'portrait'
+          orientation: 'landscape'
         }
       });
       showToast('¡PDF de cocina generado con éxito!', 'success');
@@ -636,7 +636,26 @@ export default function WorkLists() {
         </div>
 
         {/* Paper format for printing and editing */}
-        <div ref={printRef} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full">
+        <div ref={printRef} className={`bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full ${isExportingPDF ? 'print-export-mode' : ''}`}>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 15mm 10mm; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              table { font-size: 16px !important; }
+              th, td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
+              .text-xs { font-size: 16px !important; line-height: 1.5 !important; }
+              .text-\\[11px\\] { font-size: 16px !important; }
+              .text-\\[10px\\] { font-size: 16px !important; }
+              .print\\:text-\\[10px\\] { font-size: 16px !important; }
+            }
+            .print-export-mode table { font-size: 16px !important; }
+            .print-export-mode th, .print-export-mode td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
+            .print-export-mode .text-xs { font-size: 16px !important; line-height: 1.5 !important; }
+            .print-export-mode .text-\\[11px\\] { font-size: 16px !important; }
+            .print-export-mode .text-\\[10px\\] { font-size: 16px !important; }
+            .print-export-mode .print\\:text-\\[10px\\] { font-size: 16px !important; }
+            .print-export-mode .print\\:hidden { display: none !important; }
+          `}</style>
           
           {/* Work List Header */}
           <div className="p-4 border-b border-stone-200 print:border-black flex gap-4">
