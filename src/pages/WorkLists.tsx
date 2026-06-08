@@ -155,12 +155,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       </td>
       <td className="px-2 py-2">
         {isExportingPDF ? (
-          <span className="text-xs text-stone-900 uppercase">
+          <span className="text-xs text-stone-900 uppercase platos-col-text">
             {task.plato || '--'}
           </span>
         ) : (
           <>
-            <span className="hidden print:inline-block text-xs text-stone-900 uppercase">
+            <span className="hidden print:inline-block text-xs text-stone-900 uppercase platos-col-text">
               {task.plato || '--'}
             </span>
             <input 
@@ -176,12 +176,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       </td>
       <td className="px-2 py-2">
         {isExportingPDF ? (
-          <span className="text-xs text-stone-600 text-center block w-full uppercase">
+          <span className="text-xs text-stone-600 text-center block w-full uppercase dia-col-text">
             {task.priority || '--'}
           </span>
         ) : (
           <>
-            <span className="hidden print:inline-block text-xs text-stone-600 text-center w-full uppercase">
+            <span className="hidden print:inline-block text-xs text-stone-600 text-center w-full uppercase dia-col-text">
               {task.priority || '--'}
             </span>
             <input 
@@ -350,7 +350,8 @@ export default function WorkLists() {
 
       await generatePDF(printRef.current, {
         filename: fileName,
-        margin: [0.5, 0.4], // Top/Bottom 0.5in, Left/Right 0.4in
+        margin: [0.5, 0.4, 0.8, 0.4], // Top 0.5in, Right 0.4in, Bottom 0.8in, Left 0.4in
+        pagebreak: { mode: 'css', avoid: 'tr' },
         html2canvas: {
           scale: 2,
           useCORS: true,
@@ -639,7 +640,7 @@ export default function WorkLists() {
         <div ref={printRef} className={`bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full ${isExportingPDF ? 'print-export-mode' : ''}`}>
           <style>{`
             @media print {
-              @page { size: landscape; margin: 15mm 10mm; }
+              @page { size: landscape; margin: 15mm 10mm 20mm 10mm; }
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               table { font-size: 16px !important; }
               th, td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
@@ -647,6 +648,8 @@ export default function WorkLists() {
               .text-\\[11px\\] { font-size: 16px !important; }
               .text-\\[10px\\] { font-size: 16px !important; }
               .print\\:text-\\[10px\\] { font-size: 16px !important; }
+              .platos-col-text { font-size: 11px !important; }
+              .dia-col-text { font-size: 11px !important; }
             }
             .print-export-mode table { font-size: 16px !important; }
             .print-export-mode th, .print-export-mode td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
@@ -655,6 +658,8 @@ export default function WorkLists() {
             .print-export-mode .text-\\[10px\\] { font-size: 16px !important; }
             .print-export-mode .print\\:text-\\[10px\\] { font-size: 16px !important; }
             .print-export-mode .print\\:hidden { display: none !important; }
+            .print-export-mode .platos-col-text { font-size: 11px !important; }
+            .print-export-mode .dia-col-text { font-size: 11px !important; }
           `}</style>
           
           {/* Work List Header */}
@@ -777,8 +782,8 @@ export default function WorkLists() {
                         )}
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-45 border-r border-[#5c6c5e]">Elemento</th>
-                    <th className="px-2 py-2 w-65 border-r border-[#5c6c5e]">Plato</th>
+                    <th className="px-2 py-2 w-64 border-r border-[#5c6c5e]">Elemento</th>
+                    <th className="px-2 py-2 w-48 border-r border-[#5c6c5e]">Plato</th>
                     <th className="px-2 py-2 w-20 border-r border-[#5c6c5e]">Día/Ejecución</th>
                     <th className="px-2 py-2 w-30 border-r border-[#5c6c5e] text-center">Profesor</th>
                     <th className="px-2 py-2 w-20 border-r border-[#5c6c5e] text-center">Realizado</th>

@@ -510,7 +510,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               y: 0
             },
             jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
           };
           
           await generatePDF(printRef.current, opt);
@@ -1453,7 +1453,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .border-stone-50 { border-color: #fafaf9 !important; }
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
-              .print-container .logo-print { max-width: 5% !important; max-height: 56px !important; object-fit: contain !important; }
+              .print-container .logo-print { max-width: 10% !important; max-height: 56px !important; object-fit: contain !important; }
             `}</style>
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-end">
