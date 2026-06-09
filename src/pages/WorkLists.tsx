@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { collection, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { WorkList, WorkListTask } from '../types';
 import { 
-  Plus, Edit2, Trash2, Printer, GripVertical, Check, X, Search, ClipboardList 
+  Plus, Edit2, Trash2, Printer, GripVertical, Check, X, Search, ClipboardList, ArrowUpDown 
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { 
@@ -26,6 +26,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface SortableTableRowProps {
   task: WorkListTask;
@@ -153,7 +154,7 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
           </>
         )}
       </td>
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" title={task.plato || ''}>
         {isExportingPDF ? (
           <span className="text-xs text-stone-900 uppercase platos-col-text">
             {task.plato || '--'}
@@ -168,8 +169,9 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
               list="platos-list"
               value={task.plato || ''} 
               onChange={e => onUpdate(task.id, 'plato', e.target.value)}
-              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden"
+              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden truncate"
               placeholder="Ej: Miniburguer de Ternera, queso ahumado y Rúcula"
+              title={task.plato || ''}
             />
           </>
         )}
@@ -303,7 +305,37 @@ export default function WorkLists() {
   const [editingList, setEditingList] = useState<WorkList | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof WorkListTask, direction: 'asc' | 'desc' } | null>(null);
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const isAdmin = appUser?.role === 'admin';
+
+  const handleSort = (key: keyof WorkListTask) => {
+    if (!editingList) return;
+    
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+
+    setEditingList(prev => {
+      if (!prev) return prev;
+      const sortedTasks = [...prev.tasks].sort((a, b) => {
+        const valA = String(a[key] || '').toLowerCase();
+        const valB = String(b[key] || '').toLowerCase();
+        
+        let comparison = 0;
+        if (valA > valB) {
+          comparison = 1;
+        } else if (valA < valB) {
+          comparison = -1;
+        }
+        return direction === 'asc' ? comparison : -comparison;
+      });
+      return { ...prev, tasks: sortedTasks.map((t, i) => ({ ...t, order: i })) };
+    });
+  };
 
   const suggestedElements = useMemo(() => {
     const list = new Set<string>();
@@ -441,15 +473,19 @@ export default function WorkLists() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta lista?')) {
-      try {
-        await deleteDoc(doc(db, 'work_lists', id));
-        showToast('Lista eliminada', 'success');
-      } catch (error: any) {
-        showToast('Error al eliminar: ' + error.message, 'error');
-      }
+  const handleDelete = (id: string) => {
+    setListToDelete(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!listToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'work_lists', listToDelete));
+      showToast('Lista eliminada', 'success');
+    } catch (error: any) {
+      showToast('Error al eliminar: ' + error.message, 'error');
     }
+    setListToDelete(null);
   };
 
   const handleSave = async () => {
@@ -768,12 +804,15 @@ export default function WorkLists() {
                 <thead>
                   <tr className="bg-[#4c5c4e] text-white text-[11px] uppercase tracking-wider print:bg-[#4c5c4e] print:text-white print:border-black" style={{ WebkitPrintColorAdjust: 'exact', colorAdjust: 'exact' }}>
                     {!isExportingPDF && <th className="px-2 py-2 print:hidden w-10"></th>}
-                    <th className="px-2 py-2 w-32 border-x border-[#5c6c5e]">
+                    <th className="px-2 py-2 w-32 border-x border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('process')}>
                       <div className="flex items-center justify-between">
-                        Proceso
+                        <div className="flex items-center gap-1">
+                          Proceso
+                          <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'process' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                        </div>
                         {!isExportingPDF && (
                           <button 
-                            onClick={() => setIsProcessModalOpen(true)}
+                            onClick={(e) => { e.stopPropagation(); setIsProcessModalOpen(true); }}
                             className="print:hidden hover:bg-[#5c6c5e] p-1 rounded transition-colors"
                             title="Gestionar procesos"
                           >
@@ -782,12 +821,42 @@ export default function WorkLists() {
                         )}
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-64 border-r border-[#5c6c5e]">Elemento</th>
-                    <th className="px-2 py-2 w-48 border-r border-[#5c6c5e]">Plato</th>
-                    <th className="px-2 py-2 w-20 border-r border-[#5c6c5e]">Día/Ejecución</th>
-                    <th className="px-2 py-2 w-30 border-r border-[#5c6c5e] text-center">Profesor</th>
-                    <th className="px-2 py-2 w-20 border-r border-[#5c6c5e] text-center">Realizado</th>
-                    <th className="px-2 py-2 w-32 border-r border-[#5c6c5e]">Alumnado</th>
+                    <th className="px-2 py-2 w-64 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('element')}>
+                      <div className="flex items-center gap-1">
+                        Elemento
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'element' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 w-48 print:w-64 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('plato')}>
+                      <div className="flex items-center gap-1">
+                        Plato
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'plato' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 w-20 print:w-12 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('priority')}>
+                      <div className="flex items-center gap-1">
+                        Prioridad
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'priority' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 w-30 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('professor')}>
+                      <div className="flex items-center justify-center gap-1">
+                        Profesor
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'professor' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 w-20 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('completed')}>
+                      <div className="flex items-center justify-center gap-1">
+                        Realizado
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'completed' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 w-32 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('student')}>
+                      <div className="flex items-center gap-1">
+                        Alumnado
+                        <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'student' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
+                      </div>
+                    </th>
                     {!isExportingPDF && <th className="px-2 py-2 print:hidden w-10"></th>}
                   </tr>
                 </thead>
@@ -923,13 +992,15 @@ export default function WorkLists() {
                 >
                   <Edit2 size={16} />
                 </button>
-                <button
-                  onClick={() => handleDelete(list.id)}
-                  className="p-2 text-stone-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Eliminar"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDelete(list.id)}
+                    className="p-2 text-stone-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
             
@@ -970,6 +1041,16 @@ export default function WorkLists() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!listToDelete}
+        title="Eliminar Lista de Trabajo"
+        message="¿Estás seguro de que quieres eliminar esta lista? Al eliminarla, se perderán todas las tareas programadas. Esta acción no se puede deshacer."
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setListToDelete(null)}
+        confirmText="Sí, eliminar de todos modos"
+        cancelText="Conservar Lista"
+      />
     </div>
   );
 }
