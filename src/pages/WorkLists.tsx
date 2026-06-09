@@ -135,12 +135,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       </td>
       <td className="px-2 py-2">
         {isExportingPDF ? (
-          <span className="text-xs text-stone-900 font-bold uppercase">
+          <span className="text-xs text-stone-900 font-bold uppercase elemento-col-text">
             {task.element || '--'}
           </span>
         ) : (
           <>
-            <span className="hidden print:inline-block text-xs text-stone-900 font-bold uppercase">
+            <span className="hidden print:inline-block text-xs text-stone-900 font-bold uppercase elemento-col-text">
               {task.element || '--'}
             </span>
             <input 
@@ -148,7 +148,7 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
               list="elements-list"
               value={task.element} 
               onChange={e => onUpdate(task.id, 'element', e.target.value)}
-              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden"
+              className="w-full text-xs text-stone-900 bg-transparent border-none focus:ring-1 focus:ring-teal-500 rounded p-1 print:hidden elemento-col-text"
               placeholder="DESCONGELAR PESCADO"
             />
           </>
@@ -257,12 +257,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       </td>
       <td className="px-2 py-2">
         {isExportingPDF ? (
-          <span className={`text-xs font-semibold uppercase text-center block w-full ${getCourseColor(task.student)}`}>
+          <span className={`text-xs font-semibold uppercase text-center block w-full alumnado-col-text ${getCourseColor(task.student)}`}>
             {task.student || '--'}
           </span>
         ) : (
           <>
-            <span className={`hidden print:inline-block text-xs font-semibold text-center w-full ${getCourseColor(task.student)}`}>
+            <span className={`hidden print:inline-block text-xs font-semibold text-center w-full alumnado-col-text ${getCourseColor(task.student)}`}>
               {task.student || '--'}
             </span>
             <select 
@@ -675,7 +675,7 @@ export default function WorkLists() {
         {/* Paper format for printing and editing */}
         <div ref={printRef} className={`bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full ${isExportingPDF ? 'print-export-mode' : ''}`}>
           <style>{`
-            @media print {
+              @media print {
               @page { size: landscape; margin: 15mm 10mm 20mm 10mm; }
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               table { font-size: 16px !important; }
@@ -686,6 +686,9 @@ export default function WorkLists() {
               .print\\:text-\\[10px\\] { font-size: 16px !important; }
               .platos-col-text { font-size: 11px !important; }
               .dia-col-text { font-size: 11px !important; }
+              .elemento-col-text { font-size: 9px !important; }
+              .alumnado-col-text { font-size: 10px !important; }
+              .header-small-text, th.header-small-text div { font-size: 10px !important; }
             }
             .print-export-mode table { font-size: 16px !important; }
             .print-export-mode th, .print-export-mode td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
@@ -696,6 +699,9 @@ export default function WorkLists() {
             .print-export-mode .print\\:hidden { display: none !important; }
             .print-export-mode .platos-col-text { font-size: 11px !important; }
             .print-export-mode .dia-col-text { font-size: 11px !important; }
+            .print-export-mode .elemento-col-text { font-size: 9px !important; }
+            .print-export-mode .alumnado-col-text { font-size: 10px !important; }
+            .print-export-mode .header-small-text, .print-export-mode th.header-small-text div { font-size: 10px !important; }
           `}</style>
           
           {/* Work List Header */}
@@ -821,37 +827,37 @@ export default function WorkLists() {
                         )}
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-64 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('element')}>
+                    <th className="px-2 py-2 w-48 print:w-[20%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('element')}>
                       <div className="flex items-center gap-1">
                         Elemento
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'element' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-48 print:w-64 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('plato')}>
+                    <th className="px-2 py-2 w-64 print:w-[70%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('plato')}>
                       <div className="flex items-center gap-1">
                         Plato
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'plato' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-20 print:w-12 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('priority')}>
+                    <th className="px-2 py-2 w-20 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('priority')}>
                       <div className="flex items-center gap-1">
                         Prioridad
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'priority' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-30 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('professor')}>
+                    <th className="px-2 py-2 w-30 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('professor')}>
                       <div className="flex items-center justify-center gap-1">
                         Profesor
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'professor' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-20 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('completed')}>
+                    <th className="px-2 py-2 w-20 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('completed')}>
                       <div className="flex items-center justify-center gap-1">
                         Realizado
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'completed' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-32 border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('student')}>
+                    <th className="px-2 py-2 w-32 print:w-[5%] print:px-1 header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('student')}>
                       <div className="flex items-center gap-1">
                         Alumnado
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'student' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
