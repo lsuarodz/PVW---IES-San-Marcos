@@ -110,12 +110,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       )}
       <td className="px-2 py-2">
         {isExportingPDF ? (
-          <span className={`text-xs uppercase font-extrabold ${getProcessColor(task.process)}`}>
+          <span className={`text-xs uppercase font-extrabold proceso-col-text ${getProcessColor(task.process)}`}>
             {task.process || '--'}
           </span>
         ) : (
           <>
-            <span className={`hidden print:inline-block text-xs uppercase font-extrabold ${getProcessColor(task.process)}`}>
+            <span className={`hidden print:inline-block text-xs uppercase font-extrabold proceso-col-text ${getProcessColor(task.process)}`}>
               {task.process || '--'}
             </span>
             <select 
@@ -157,12 +157,12 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
       <td className="px-2 py-2" title={task.plato || ''}>
         {isExportingPDF ? (
           <span className="text-xs text-stone-900 uppercase platos-col-text">
-            {task.plato || '--'}
+            {task.plato ? task.plato.trim().split(' ')[0] : '--'}
           </span>
         ) : (
           <>
             <span className="hidden print:inline-block text-xs text-stone-900 uppercase platos-col-text">
-              {task.plato || '--'}
+              {task.plato ? task.plato.trim().split(' ')[0] : '--'}
             </span>
             <input 
               type="text" 
@@ -245,8 +245,8 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
         )}
       </td>
       <td className="px-2 py-2 text-center">
-        <div className="w-5 h-5 mx-auto border-2 border-stone-800 rounded-sm print:border-black flex items-center justify-center">
-          {task.completed && <Check size={14} className="text-stone-900" />}
+        <div className="w-5 h-5 mx-auto border-2 border-stone-800 rounded-sm print:border-black flex items-center justify-center realizado-box">
+          {task.completed && <Check size={14} className="text-stone-900 realizado-icon" />}
         </div>
         <button 
           className="print:hidden text-[10px] mt-1 text-stone-400 hover:text-stone-700"
@@ -336,6 +336,21 @@ export default function WorkLists() {
       return { ...prev, tasks: sortedTasks.map((t, i) => ({ ...t, order: i })) };
     });
   };
+
+  const uniquePlatosPrintLegend = useMemo(() => {
+    if (!editingList) return [];
+    const platosMap = new Map<string, string>();
+    editingList.tasks.forEach(task => {
+      if (task.plato && task.plato.trim()) {
+        const full = task.plato.trim();
+        const firstWord = full.split(' ')[0].toUpperCase();
+        if (!platosMap.has(firstWord)) {
+          platosMap.set(firstWord, full.toUpperCase());
+        }
+      }
+    });
+    return Array.from(platosMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [editingList]);
 
   const suggestedElements = useMemo(() => {
     const list = new Set<string>();
@@ -678,29 +693,37 @@ export default function WorkLists() {
               @media print {
               @page { size: landscape; margin: 15mm 10mm 20mm 10mm; }
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              table { font-size: 16px !important; }
-              th, td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
-              .text-xs { font-size: 16px !important; line-height: 1.5 !important; }
+              table { font-size: 16px !important; border-collapse: collapse !important; }
+              th, td { font-size: 16px !important; padding: 1px 2px !important; height: auto !important; }
+              .text-xs { font-size: 16px !important; line-height: 1 !important; }
               .text-\\[11px\\] { font-size: 16px !important; }
               .text-\\[10px\\] { font-size: 16px !important; }
               .print\\:text-\\[10px\\] { font-size: 16px !important; }
               .platos-col-text { font-size: 11px !important; }
-              .dia-col-text { font-size: 11px !important; }
-              .elemento-col-text { font-size: 9px !important; }
-              .alumnado-col-text { font-size: 10px !important; }
-              .header-small-text, th.header-small-text div { font-size: 10px !important; }
+              .dia-col-text { font-size: 11px !important; line-height: 1 !important; }
+              .elemento-col-text { font-size: 11px !important; line-height: 1 !important; }
+              .alumnado-col-text { font-size: 10px !important; line-height: 1 !important; }
+              .proceso-col-text { font-size: 12px !important; line-height: 1 !important; }
+              .leyenda-text { font-size: 10px !important; line-height: 1 !important; }
+              .realizado-box { width: 12px !important; height: 12px !important; border-width: 1px !important; }
+              .realizado-icon { width: 8px !important; height: 8px !important; }
+              .header-small-text, th.header-small-text div { font-size: 10px !important; padding: 1px !important; line-height: 1 !important; }
             }
-            .print-export-mode table { font-size: 16px !important; }
-            .print-export-mode th, .print-export-mode td { font-size: 16px !important; padding: 4px 6px !important; height: auto !important; }
-            .print-export-mode .text-xs { font-size: 16px !important; line-height: 1.5 !important; }
+            .print-export-mode table { font-size: 16px !important; border-collapse: collapse !important; }
+            .print-export-mode th, .print-export-mode td { font-size: 16px !important; padding: 1px 2px !important; height: auto !important; }
+            .print-export-mode .text-xs { font-size: 16px !important; line-height: 1 !important; }
             .print-export-mode .text-\\[11px\\] { font-size: 16px !important; }
             .print-export-mode .text-\\[10px\\] { font-size: 16px !important; }
             .print-export-mode .print\\:text-\\[10px\\] { font-size: 16px !important; }
             .print-export-mode .print\\:hidden { display: none !important; }
             .print-export-mode .platos-col-text { font-size: 11px !important; }
             .print-export-mode .dia-col-text { font-size: 11px !important; }
-            .print-export-mode .elemento-col-text { font-size: 9px !important; }
+            .print-export-mode .elemento-col-text { font-size: 11px !important; }
             .print-export-mode .alumnado-col-text { font-size: 10px !important; }
+            .print-export-mode .proceso-col-text { font-size: 12px !important; }
+            .print-export-mode .leyenda-text { font-size: 10px !important; }
+            .print-export-mode .realizado-box { width: 12px !important; height: 12px !important; border-width: 1px !important; }
+            .print-export-mode .realizado-icon { width: 8px !important; height: 8px !important; }
             .print-export-mode .header-small-text, .print-export-mode th.header-small-text div { font-size: 10px !important; }
           `}</style>
           
@@ -810,7 +833,7 @@ export default function WorkLists() {
                 <thead>
                   <tr className="bg-[#4c5c4e] text-white text-[11px] uppercase tracking-wider print:bg-[#4c5c4e] print:text-white print:border-black" style={{ WebkitPrintColorAdjust: 'exact', colorAdjust: 'exact' }}>
                     {!isExportingPDF && <th className="px-2 py-2 print:hidden w-10"></th>}
-                    <th className="px-2 py-2 w-32 border-x border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('process')}>
+                    <th className="px-2 py-2 w-32 print:w-[10%] border-x border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('process')}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
                           Proceso
@@ -827,38 +850,38 @@ export default function WorkLists() {
                         )}
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-48 print:w-[20%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('element')}>
+                    <th className="px-2 py-2 w-48 print:w-[15%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('element')}>
                       <div className="flex items-center gap-1">
                         Elemento
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'element' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-64 print:w-[70%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('plato')}>
+                    <th className="px-2 py-2 w-64 print:w-[60%] border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('plato')}>
                       <div className="flex items-center gap-1">
                         Plato
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'plato' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-20 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('priority')}>
-                      <div className="flex items-center gap-1">
+                    <th className="px-2 py-2 w-20 print:w-[3%] print:px-1 header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('priority')}>
+                      <div className="flex items-center justify-center gap-1">
                         Prioridad
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'priority' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-30 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('professor')}>
+                    <th className="px-2 py-2 w-30 print:w-[4%] print:px-1 header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('professor')}>
                       <div className="flex items-center justify-center gap-1">
                         Profesor
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'professor' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
-                    <th className="px-2 py-2 w-20 print:w-[5%] header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('completed')}>
+                    <th className="px-2 py-2 w-20 print:w-[3%] print:px-1 header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group text-center" onClick={() => handleSort('completed')}>
                       <div className="flex items-center justify-center gap-1">
                         Realizado
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'completed' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
                     </th>
                     <th className="px-2 py-2 w-32 print:w-[5%] print:px-1 header-small-text border-r border-[#5c6c5e] cursor-pointer hover:bg-[#3c4c3e] transition-colors group" onClick={() => handleSort('student')}>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                         Alumnado
                         <ArrowUpDown size={12} className={`opacity-50 ${sortConfig?.key === 'student' ? 'opacity-100 text-teal-300' : 'group-hover:opacity-100'}`} />
                       </div>
@@ -890,6 +913,20 @@ export default function WorkLists() {
             {editingList.tasks.length === 0 && (
               <div className="p-12 text-center text-stone-500 print:hidden">
                 No hay tareas en esta lista. Usa la barra superior para añadir tareas.
+              </div>
+            )}
+
+            {(isExportingPDF || true) /* use CSS to handle visibility */ && uniquePlatosPrintLegend.length > 0 && (
+              <div className={`mt-8 ${isExportingPDF ? 'block' : 'hidden print:block'} print:break-inside-avoid px-4`}>
+                <h4 className="font-bold text-sm text-stone-800 uppercase mb-2 leyenda-text">Leyenda de Platos:</h4>
+                <ul className="text-xs text-stone-700 grid grid-cols-2 gap-x-4 gap-y-1 leyenda-text">
+                  {uniquePlatosPrintLegend.map(([short, full]) => (
+                    <li key={short}>
+                      <span className="font-bold mr-2">{short}:</span>
+                      <span>{full}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
