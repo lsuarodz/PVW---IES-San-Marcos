@@ -6,7 +6,6 @@ import {
   ChefHat, 
   BookOpen, 
   Utensils, 
-  Languages, 
   Users, 
   LogOut,
   FileText,
@@ -21,8 +20,7 @@ import {
   Menu as MenuIcon,
   X,
   Link as LinkIcon,
-  Lightbulb,
-  Palette
+  Lightbulb
 } from 'lucide-react';
 
 export default function Layout() {
@@ -65,9 +63,6 @@ export default function Layout() {
   
   // Estado para controlar qué secciones del menú lateral están desplegadas
   const [openSections, setOpenSections] = useState({
-    jornada1: false,
-    jornada2: true,
-    jornada3: true,
     produccion: true,
     comercial: true,
     otros: true
@@ -80,26 +75,6 @@ export default function Layout() {
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
-
-  // Definición de los elementos del menú para la Jornada 1
-  const jornada1Items = [
-    { name: 'Presentación del proyecto', path: '/presentation', icon: <Presentation size={20} /> },
-    { name: 'Coffee Break / Brunch / Menú Solidario', path: '/coffee-brunch', icon: <Coffee size={20} /> },
-    { name: 'Estandarización', path: '/standardization', icon: <ClipboardList size={20} /> },
-    { name: 'Equipo de Trabajo', path: '/work-team', icon: <Users size={20} /> },
-  ];
-
-  // Definición de los elementos del menú para la Jornada 2
-  const jornada2Items = [
-    { name: 'Matriz Benchmarking', path: '/benchmarking', icon: <FileText size={20} /> },
-    { name: 'Fuentes', path: '/sources', icon: <LinkIcon size={20} /> },
-  ];
-
-  // Definición de los elementos del menú para la Jornada 3
-  const jornada3Items = [
-    { name: 'Comisiones', path: '/commissions', icon: <Users size={20} /> },
-    { name: 'Receta de Prueba', path: '/test-recipe', icon: <ChefHat size={20} /> },
-  ];
 
   // Definición de los elementos del menú para Producción
   const productionItems = [
@@ -118,14 +93,8 @@ export default function Layout() {
     { name: 'Presupuestos', path: '/quotes', icon: <FileText size={20} /> },
   ];
 
-  const showMarketing = appUser?.role === 'admin' || appUser?.role === 'docente' || appUser?.commission === 'DISEÑO Y MARKETING';
-  if (showMarketing) {
-    comercialItems.push({ name: 'Marketing y Catálogo', path: '/marketing', icon: <Palette size={20} /> });
-  }
-
   // Definición de otros elementos del menú
   const baseOtherItems = [
-    { name: 'Traducciones', path: '/translations', icon: <Languages size={20} /> },
     { name: 'Manual', path: '/manual', icon: <ManualIcon size={20} /> },
   ];
 
@@ -182,112 +151,6 @@ export default function Layout() {
         </div>
         
         <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-          {/* Sección Jornada 1 */}
-          {!isFirstYear && (
-            <div style={{ backgroundColor: '#bce7f4' }}>
-              <button 
-                onClick={() => toggleSection('jornada1')}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors bg-white"
-            >
-              <span>Jornada 1: Definición del Proyecto</span>
-              {openSections.jornada1 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-            {openSections.jornada1 && (
-              <div className="space-y-1 mt-2">
-                {jornada1Items.map((item) => {
-                  // Comprobamos si la ruta actual coincide con la del ítem para marcarlo como activo
-                  const isActive = location.pathname.startsWith(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                        isActive 
-                          ? 'bg-sky-50 text-sky-700 font-medium' 
-                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                      }`}
-                    >
-                      {item.icon}
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Sección Jornada 2 */}
-          {!isFirstYear && (
-          <div>
-            <button 
-              onClick={() => toggleSection('jornada2')}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
-            >
-              <span>Jornada 2: Benchmarking</span>
-              {openSections.jornada2 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-            {openSections.jornada2 && (
-              <div className="space-y-1 mt-2">
-                {jornada2Items.map((item) => {
-                  const isActive = location.pathname.startsWith(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                        isActive 
-                          ? 'bg-violet-50 text-violet-700 font-medium' 
-                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                      }`}
-                     >
-                      {item.icon}
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Sección Jornada 3 */}
-          {!isFirstYear && (
-          <div>
-            <button 
-              onClick={() => toggleSection('jornada3')}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
-              style={{ backgroundColor: '#ffffff' }}
-            >
-              <span>Jornada 3</span>
-              {openSections.jornada3 ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-            {openSections.jornada3 && (
-              <div className="space-y-1 mt-2">
-                {jornada3Items.map((item) => {
-                  const isActive = location.pathname.startsWith(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                        isActive 
-                          ? 'bg-amber-50 text-amber-700 font-medium' 
-                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                      }`}
-                     >
-                      {item.icon}
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          )}
 
           {/* Gestión de Producción */}
           <div style={{ lineHeight: '20px', backgroundColor: '#e7f2f5', borderRadius: '6px' }}>
@@ -325,10 +188,11 @@ export default function Layout() {
 
           {/* Gestión Comercial */}
           {appUser?.role !== 'student' && (
-          <div>
+          <div style={{ lineHeight: '20px', backgroundColor: '#ECF5E7', borderRadius: '6px' }}>
             <button 
               onClick={() => toggleSection('comercial')}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+              style={{ backgroundColor: '#C9E0C5', borderRadius: '6px'}} 
             >
               <span>Gestión Comercial</span>
               {openSections.comercial ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
