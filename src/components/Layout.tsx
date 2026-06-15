@@ -11,16 +11,12 @@ import {
   FileText,
   ShoppingCart,
   BookOpen as ManualIcon,
-  Coffee,
   ClipboardList,
-  Presentation,
   ChevronDown,
   ChevronRight,
   UserCog,
   Menu as MenuIcon,
-  X,
-  Link as LinkIcon,
-  Lightbulb
+  X
 } from 'lucide-react';
 
 export default function Layout() {

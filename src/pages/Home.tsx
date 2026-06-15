@@ -10,7 +10,7 @@ export default function Home() {
         Proyecto Intermodular
       </h2>
       {/* Imagen del logotipo */}
-     <div className="bg-white p-4 rounded-2xl shadow-md border border-stone-100 mt-8 mb-8 flex items-center justify-center w-40 h-40"> 
+      <div className="bg-white p-4 rounded-2xl shadow-md border border-stone-100 mt-8 mb-8 flex items-center justify-center w-40 h-40"> 
         <img 
           src="/logoSolo.png" 
           alt="Logotipo IES San Marcos" 

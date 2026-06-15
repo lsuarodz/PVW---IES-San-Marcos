@@ -32,7 +32,7 @@ export default function Admin() {
   // Obtenemos el usuario actual para verificar sus permisos
   const { appUser } = useAuth();
   const { showToast } = useToast();
-  const { settings } = useData();
+  const { settings, ingredients, recipes, menus } = useData();
   
   // Estados para almacenar la lista de usuarios y los datos del nuevo usuario a crear
   const [users, setUsers] = useState<User[]>([]);
@@ -231,6 +231,96 @@ export default function Admin() {
     }
   };
 
+  const handleCleanStudentData = async () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar datos de alumnos',
+      message: '¿Estás completamente seguro de que deseas eliminar todas las recetas, ingredientes y menús creados por alumnos de la base de datos? Esta acción es irreversible.',
+      isDestructive: true,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const studentUsers = users.filter(u => u.role === 'student');
+          const teacherAndAdminUsers = users.filter(u => u.role === 'admin' || u.role === 'docente');
+          
+          // Construir identificadores de profesores y administradores para proteger sus datos
+          const teacherAndAdminIdentifiers = new Set<string>();
+          teacherAndAdminIdentifiers.add("lsuarodzmail.com@gmail.com");
+          teacherAndAdminIdentifiers.add("admin");
+          teacherAndAdminUsers.forEach(u => {
+            if (u.name) teacherAndAdminIdentifiers.add(u.name.toLowerCase().trim());
+            if (u.email) teacherAndAdminIdentifiers.add(u.email.toLowerCase().trim());
+            if (u.uid) teacherAndAdminIdentifiers.add(u.uid.toLowerCase().trim());
+          });
+
+          // Construir identificadores de alumnos
+          const studentIdentifiers = new Set<string>();
+          studentUsers.forEach(u => {
+            if (u.name) studentIdentifiers.add(u.name.toLowerCase().trim());
+            if (u.email) studentIdentifiers.add(u.email.toLowerCase().trim());
+            if (u.uid) studentIdentifiers.add(u.uid.toLowerCase().trim());
+            if (u.group) {
+              const g = u.group.toLowerCase().trim();
+              studentIdentifiers.add(g);
+              studentIdentifiers.add(`grupo ${g}`);
+            }
+          });
+
+          // Función auxiliar para determinar si un elemento es del alumnado
+          const isStudentItem = (item: { id?: string; createdBy?: string; group?: string }) => {
+            if (!item.id) return false;
+            
+            const createdByLower = item.createdBy?.toLowerCase().trim() || '';
+            const groupLower = item.group?.toLowerCase().trim() || '';
+
+            // Si es un creador explícitamente docente o admin, protegerlo
+            if (createdByLower !== '' && teacherAndAdminIdentifiers.has(createdByLower)) {
+              return false;
+            }
+
+            // Si tiene grupo asignado, o el creador contiene "grupo", o el creador es solo un dígito (ej. "5")
+            if (groupLower !== '' || createdByLower.includes('grupo') || /^\d+$/.test(createdByLower)) {
+              return true;
+            }
+
+            // Si el creador coincide con algún identificador de alumno conocido
+            if (createdByLower !== '' && studentIdentifiers.has(createdByLower)) {
+              return true;
+            }
+
+            // Si algún alumno tiene ese grupo asignado
+            if (groupLower !== '' && studentUsers.some(su => su.group && su.group.toLowerCase().trim() === groupLower)) {
+              return true;
+            }
+
+            return false;
+          };
+
+          const recipesToDelete = recipes.filter(isStudentItem);
+          const ingredientsToDelete = ingredients.filter(isStudentItem);
+          const menusToDelete = menus.filter(isStudentItem);
+
+          console.log(`Eliminando de alumnos: ${recipesToDelete.length} recetas, ${ingredientsToDelete.length} ingredientes, ${menusToDelete.length} menús.`);
+
+          // Ejecutamos las eliminaciones en paralelo para que sea hiper-rápido y no se quede colgado
+          const recipePromises = recipesToDelete.map(recipe => deleteDoc(doc(db, 'recipes', recipe.id)));
+          const ingredientPromises = ingredientsToDelete.map(ingredient => deleteDoc(doc(db, 'ingredients', ingredient.id)));
+          const menuPromises = menusToDelete.map(menu => deleteDoc(doc(db, 'menus', menu.id)));
+
+          await Promise.all([...recipePromises, ...ingredientPromises, ...menuPromises]);
+
+          showToast(`Limpieza completada: Se eliminaron ${recipesToDelete.length} recetas, ${ingredientsToDelete.length} ingredientes y ${menusToDelete.length} menús de alumnos.`, 'success');
+        } catch (error) {
+          console.error('Error cleaning student data:', error);
+          showToast('Error al limpiar los datos de alumnos', 'error');
+        } finally {
+          setLoading(false);
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   return (
     <div className="p-8 w-full max-w-7xl mx-auto">
       <ConfirmModal
@@ -280,6 +370,35 @@ export default function Admin() {
             <img src={logoUrl} alt="Logo preview" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
           </div>
         )}
+      </div>
+
+      {/* Sección de Mantenimiento de Datos */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-red-500">
+        <h2 className="text-lg font-semibold text-stone-900 mb-2 flex items-center gap-2">
+          <Trash2 size={20} className="text-red-600" />
+          Mantenimiento de Base de Datos
+        </h2>
+        <p className="text-sm text-stone-600 mb-4 max-w-3xl">
+          Esta herramienta permite limpiar el catálogo eliminando de forma definitiva todas las recetas (tanto los elaborados como los platos), ingredientes y menús que hayan sido creados por usuarios con rol de <strong>Alumno</strong>.
+        </p>
+        <div className="p-4 bg-red-50 border border-red-100 rounded-xl max-w-2xl mb-4 flex items-start gap-3">
+          <div className="text-red-600 mt-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <p className="text-xs text-red-800 font-medium leading-relaxed">
+            <strong>ADVERTENCIA:</strong> Esta acción es irreversible. Se eliminarán permanentemente todas las recetas, ingredientes y menús creados por alumnos. No afectará a los datos de docentes o administradores.
+          </p>
+        </div>
+        <button
+          onClick={handleCleanStudentData}
+          disabled={loading}
+          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Trash2 size={16} />
+          {loading ? 'Procesando eliminación...' : 'Eliminar Recetas, Ingredientes y Menús de Alumnos'}
+        </button>
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
