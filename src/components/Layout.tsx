@@ -137,9 +137,9 @@ export default function Layout() {
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 lg:h-auto p-4 border-b border-stone-200 flex items-center gap-3 text-teal-700" style={{ backgroundColor: '#e7f2f5' }}>
+        <div className="h-16 lg:h-auto p-4 border-b border-stone-200 flex items-center justify-center gap-3 text-teal-700" style={{ backgroundColor: '#e7f2f5' }}>
           {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pl-[3px] pt-0 pr-[2px] w-[139.438px] h-[55px]" crossOrigin="anonymous" />
+            <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pt-0 w-[139.438px] h-[55px]" crossOrigin="anonymous" />
           ) : (
             <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
           )}
