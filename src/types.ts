@@ -267,3 +267,37 @@ export interface AppSettings {
   logoUrl?: string;
   processes?: string[];
 }
+
+export interface IdeasBoardItem {
+  id: string;
+  text: string;
+  completed?: boolean;
+}
+
+export interface IdeasBoardNote {
+  id: string;
+  title: string;
+  color?: string;
+  items: IdeasBoardItem[];
+  createdBy: string;
+  group?: string;
+  createdAt: string;
+}
+
+export interface Dossier {
+  id: string;
+  title: string;
+  description: string;
+  clientId?: string;
+  clientName?: string;
+  menuIds: string[];
+  recipeIds: string[];
+  theme: 'gold-minimal' | 'dark-slate' | 'editorial' | 'rustic-green';
+  selectedMenuId?: string | null;
+  clientFeedback?: string;
+  status: 'draft' | 'presented' | 'approved' | 'rejected';
+  createdBy: string;
+  group?: string;
+  createdAt: string;
+}
+

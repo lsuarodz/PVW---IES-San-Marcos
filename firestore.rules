@@ -283,6 +283,18 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidDesignBoard() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'title', 'color', 'items', 'createdBy', 'group', 'createdAt']) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             isValidString(data.title, 1, 200) &&
+             (!('color' in data) || isValidString(data.color, 1, 50)) &&
+             (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
+             data.items is list &&
+             isValidString(data.createdBy, 1, 100) &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -401,6 +413,17 @@ service cloud.firestore {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidWorkList();
       allow delete: if isAdmin();
+    }
+
+    match /design_boards/{boardId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidDesignBoard();
+      allow delete: if isStudentOrAdmin();
+    }
+
+    match /design_dossiers/{dossierId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update, delete: if isStudentOrAdmin();
     }
 
     match /settings/{settingId} {

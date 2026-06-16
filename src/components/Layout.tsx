@@ -16,7 +16,10 @@ import {
   ChevronRight,
   UserCog,
   Menu as MenuIcon,
-  X
+  X,
+  StickyNote,
+  Lightbulb,
+  Compass
 } from 'lucide-react';
 
 export default function Layout() {
@@ -61,6 +64,7 @@ export default function Layout() {
   const [openSections, setOpenSections] = useState({
     produccion: true,
     comercial: true,
+    diseno: true,
     otros: true
   });
 
@@ -87,6 +91,15 @@ export default function Layout() {
   const comercialItems = [
     { name: 'Clientes', path: '/clients', icon: <Users size={20} /> },
     { name: 'Presupuestos', path: '/quotes', icon: <FileText size={20} /> },
+  ];
+
+  // Definición de los elementos del menú para Creación y Diseño
+  const disenoItems = [
+    { name: 'Dossiers', path: '/dossiers', icon: <BookOpen size={20} /> },
+    { name: 'Tablón de Ideas', path: '/ideas-board', icon: <StickyNote size={20} /> },
+    { name: 'Ideas de Platos', path: '/brainstorming', icon: <Lightbulb size={20} /> },
+    { name: 'Benchmarking', path: '/benchmarking', icon: <Compass size={20} /> },
+    { name: 'Fuentes de Ideas', path: '/sources', icon: <FileText size={20} /> },
   ];
 
   // Definición de otros elementos del menú
@@ -137,7 +150,7 @@ export default function Layout() {
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 lg:h-auto p-4 border-b border-stone-200 flex items-center justify-center gap-3 text-teal-700" style={{ backgroundColor: '#e7f2f5' }}>
+        <div className="h-16 lg:h-auto p-4 border-b border-stone-200 flex items-center justify-center gap-3 text-teal-700" style={{ backgroundColor: 'white' }}>
           {settings?.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pt-0 w-[139.438px] h-[55px]" crossOrigin="anonymous" />
           ) : (
@@ -217,6 +230,40 @@ export default function Layout() {
             )}
           </div>
           )}
+
+          {/* Creación y Diseño */}
+          <div style={{ lineHeight: '20px', backgroundColor: '#fcf8ff', borderRadius: '6px' }}>
+            <button 
+              onClick={() => toggleSection('diseno')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-stone-800 transition-colors"
+              style={{ backgroundColor: '#f3e8ff', borderRadius: '6px' }}
+            >
+              <span>Creación y Diseño</span>
+              {openSections.diseno ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {openSections.diseno && (
+              <div className="space-y-1 mt-2">
+                {disenoItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                        isActive 
+                          ? 'bg-violet-50 text-violet-700 font-medium' 
+                          : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Otros */}
           {otherItems.length > 0 && (

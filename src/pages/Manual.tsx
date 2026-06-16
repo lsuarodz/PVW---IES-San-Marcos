@@ -110,6 +110,18 @@ export default function Manual() {
             <li><strong>Añadir Usuarios:</strong> Registro de nombres, correo de Google, rol (Alumno o Docente) y curso/grupo (ej. "1ºCOCINA").</li>
             <li><strong>Acceso:</strong> Únicamente los usuarios en esta lista podrán iniciar sesión de forma segura a través del proveedor de autenticación de Google.</li>
           </ul>
+
+          <h3 className="text-xl font-semibold mt-8 mb-3 text-stone-900">6. Creación y Diseño</h3>
+          <p className="mb-4 leading-relaxed">
+            Módulo interactivo dedicado al desarrollo creativo de elaboraciones y planificación preliminar, fomentando la innovación culinaria.
+          </p>
+          <ul className="list-disc pl-6 mb-4 space-y-3 leading-relaxed">
+            <li><strong>Dossiers:</strong> Herramienta para diseñar catálogos gastronómicos elegantes para clientes. Une menús e ideas de platos bajo plantillas personalizables (Oro, Pizarra, Editorial o Verde Rústico), permitiendo que el cliente elija interactivamente el menú deseado y aporte sus sugerencias en tiempo real.</li>
+            <li><strong>Tablón de Ideas:</strong> Panel de notas adhesivas virtuales de colores (post-its). Permite proponer categorías con un listado interno de sub-conceptos, recetas candidatas y comentarios de retroalimentación sincronizados en tiempo real.</li>
+            <li><strong>Ideas de Platos:</strong> Repositorio dinámico para brainstormings culinarios con sistemas de votaciones técnicas y justificaciones para decidir qué platos entran en producción.</li>
+            <li><strong>Benchmarking:</strong> Matriz comparativa de empresas referentes del sector (cafeterías y brunchs locales) con análisis detallado de precios, puntos destacados, sostenibilidad y valoraciones.</li>
+            <li><strong>Fuentes de Ideas:</strong> Base de datos de páginas web, libros y recursos inspiradores externos.</li>
+          </ul>
         </div>
       </div>
     </div>

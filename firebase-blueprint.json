@@ -289,9 +289,69 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "date", "pax", "tasks", "createdBy", "createdAt"]
+    },
+    "IdeasBoardNote": {
+      "title": "IdeasBoardNote",
+      "description": "A sticky note card on the creation and design ideas board",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "color": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            },
+            "required": ["id", "text"]
+          }
+        },
+        "createdBy": { "type": "string" },
+        "group": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "items", "createdBy", "createdAt"]
+    },
+    "Dossier": {
+      "title": "Dossier",
+      "description": "Elegant showcase dossier for clients containing selected menus and recipes",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "menuIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recipeIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "theme": { "type": "string" },
+        "selectedMenuId": { "type": ["string", "null"] },
+        "clientFeedback": { "type": "string" },
+        "status": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "group": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "menuIds", "recipeIds", "theme", "status", "createdBy", "createdAt"]
     }
   },
   "firestore": {
+    "design_dossiers/{dossierId}": {
+      "schema": { "$ref": "#/entities/Dossier" },
+      "description": "Interactive portfolios and dossiers for clients"
+    },
+    "design_boards/{boardId}": {
+      "schema": { "$ref": "#/entities/IdeasBoardNote" },
+      "description": "Sticky notes ideas board"
+    },
     "commission_tasks/{taskId}": {
       "schema": { "$ref": "#/entities/CommissionTask" },
       "description": "Ideas and responsibilities per commission"
