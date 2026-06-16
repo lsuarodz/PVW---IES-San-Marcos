@@ -52,27 +52,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getUserEmail() {
+      return request.auth.token.email.lower();
+    }
+
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "lsuarodzmail.com@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin')
+        getUserEmail() == "lsuarodzmail.com@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'admin')
       );
     }
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "lsuarodzmail.com@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role in ['admin', 'docente'])
+        getUserEmail() == "lsuarodzmail.com@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'docente'])
       );
     }
 
     function isStudentOrAdmin() {
       return isAuthenticated() && (
         isAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role in ['admin', 'student', 'docente'])
+        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'student', 'docente'])
       );
     }
 
@@ -299,7 +303,7 @@ service cloud.firestore {
     // Rules
     // ===============================================================
     match /users/{userId} {
-      allow read: if isStudentOrAdmin() || request.auth.token.email == userId;
+      allow read: if isStudentOrAdmin() || getUserEmail() == userId.lower();
       allow create, update: if isAdmin() && isValidUser();
       allow delete: if isAdmin();
     }
@@ -307,7 +311,7 @@ service cloud.firestore {
     match /ingredients/{ingredientId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidIngredient();
-      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('name', '').lower().matches('.*kaled.*'));
+      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('name', '').lower().matches('.*kaled.*'));
     }
 
     match /recipes/{recipeId} {
@@ -337,14 +341,14 @@ service cloud.firestore {
     }
 
     match /jornada1_standardization/{userId} {
-      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
-      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
+      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || getUserEmail() == userId.lower());
+      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || getUserEmail() == userId.lower());
       allow delete: if isSuperAdmin();
     }
 
     match /work_team_submissions/{userId} {
-      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || request.auth.token.email == userId);
-      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || request.auth.token.email == userId);
+      allow read: if isStudentOrAdmin() && (request.auth.uid == userId || isAdmin() || getUserEmail() == userId.lower());
+      allow create, update: if isStudentOrAdmin() && (request.auth.uid == userId || getUserEmail() == userId.lower());
       allow delete: if isSuperAdmin();
     }
 
@@ -388,7 +392,7 @@ service cloud.firestore {
     match /standard_wastes/{wasteId} {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidStandardWaste();
-      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.get('name', '').lower().matches('.*kaled.*'));
+      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('name', '').lower().matches('.*kaled.*'));
     }
 
     match /clients/{clientId} {

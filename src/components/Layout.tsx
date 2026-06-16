@@ -97,9 +97,6 @@ export default function Layout() {
   const disenoItems = [
     { name: 'Dossiers', path: '/dossiers', icon: <BookOpen size={20} /> },
     { name: 'Tablón de Ideas', path: '/ideas-board', icon: <StickyNote size={20} /> },
-    { name: 'Ideas de Platos', path: '/brainstorming', icon: <Lightbulb size={20} /> },
-    { name: 'Benchmarking', path: '/benchmarking', icon: <Compass size={20} /> },
-    { name: 'Fuentes de Ideas', path: '/sources', icon: <FileText size={20} /> },
   ];
 
   // Definición de otros elementos del menú
