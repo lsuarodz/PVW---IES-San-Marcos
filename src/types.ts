@@ -268,10 +268,17 @@ export interface AppSettings {
   processes?: string[];
 }
 
+export interface IdeasBoardSubItem {
+  id: string;
+  text: string;
+  completed?: boolean;
+}
+
 export interface IdeasBoardItem {
   id: string;
   text: string;
   completed?: boolean;
+  subItems?: IdeasBoardSubItem[];
 }
 
 export interface IdeasBoardNote {

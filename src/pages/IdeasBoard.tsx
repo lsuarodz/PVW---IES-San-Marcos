@@ -3,8 +3,8 @@ import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, order
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, X, Check, StickyNote, Palette, Sparkles, Filter, CornerDownLeft, CheckSquare, Square, User, Users } from 'lucide-react';
-import { IdeasBoardNote, IdeasBoardItem } from '../types';
+import { Plus, Trash2, Edit2, X, Check, StickyNote, Palette, Sparkles, Filter, CornerDownLeft, CheckSquare, Square, User, Users, CornerDownRight } from 'lucide-react';
+import { IdeasBoardNote, IdeasBoardItem, IdeasBoardSubItem } from '../types';
 import { handleFirestoreError, OperationType } from '../firebase';
 
 const PASTEL_COLORS = [
@@ -38,6 +38,14 @@ export default function IdeasBoard() {
   // Editing state for individual item bullet text
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+
+  // Sub-item input states
+  const [activeSubInputId, setActiveSubInputId] = useState<string | null>(null);
+  const [subItemInputText, setSubItemInputText] = useState('');
+
+  // Editing state for sub-items
+  const [editingSubItemId, setEditingSubItemId] = useState<string | null>(null);
+  const [editingSubItemText, setEditingSubItemText] = useState('');
 
   // Filter conditions
   const [filterType, setFilterType] = useState<'all' | 'mine' | 'group'>('all');
@@ -204,6 +212,127 @@ export default function IdeasBoard() {
       showToast('Idea eliminada', 'success');
     } catch (error) {
       showToast('Error al eliminar la idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `design_boards/${noteId}`);
+    }
+  };
+
+  // Add sub-item to parent list item
+  const handleSaveSubItemAdd = async (noteId: string, itemId: string) => {
+    if (!subItemInputText.trim()) return;
+
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    const updatedItems = note.items.map(item => {
+      if (item.id === itemId) {
+        const subItems = item.subItems || [];
+        const newSub: IdeasBoardSubItem = {
+          id: crypto.randomUUID(),
+          text: subItemInputText.trim(),
+          completed: false
+        };
+        return {
+          ...item,
+          subItems: [...subItems, newSub]
+        };
+      }
+      return item;
+    });
+
+    try {
+      await updateDoc(doc(db, 'design_boards', noteId), {
+        items: updatedItems
+      });
+      setActiveSubInputId(null);
+      setSubItemInputText('');
+      showToast('Sub-idea añadida', 'success');
+    } catch (error) {
+      showToast('Error al añadir sub-idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `design_boards/${noteId}`);
+    }
+  };
+
+  // Toggle completed state of a sub-item
+  const handleToggleSubItem = async (noteId: string, itemId: string, subItemId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    const updatedItems = note.items.map(item => {
+      if (item.id === itemId) {
+        const subItems = (item.subItems || []).map(sub => {
+          if (sub.id === subItemId) {
+            return { ...sub, completed: !sub.completed };
+          }
+          return sub;
+        });
+        return { ...item, subItems };
+      }
+      return item;
+    });
+
+    try {
+      await updateDoc(doc(db, 'design_boards', noteId), {
+        items: updatedItems
+      });
+    } catch (error) {
+      showToast('Error al actualizar sub-idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `design_boards/${noteId}`);
+    }
+  };
+
+  // Save changes to sub-item body text
+  const handleSaveSubItemEdit = async (noteId: string, itemId: string, subItemId: string) => {
+    if (!editingSubItemText.trim()) return;
+
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    const updatedItems = note.items.map(item => {
+      if (item.id === itemId) {
+        const subItems = (item.subItems || []).map(sub => {
+          if (sub.id === subItemId) {
+            return { ...sub, text: editingSubItemText.trim() };
+          }
+          return sub;
+        });
+        return { ...item, subItems };
+      }
+      return item;
+    });
+
+    try {
+      await updateDoc(doc(db, 'design_boards', noteId), {
+        items: updatedItems
+      });
+      setEditingSubItemId(null);
+      setEditingSubItemText('');
+      showToast('Sub-idea modificada', 'success');
+    } catch (error) {
+      showToast('Error al modificar sub-idea', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `design_boards/${noteId}`);
+    }
+  };
+
+  // Delete sub-item from a parent item
+  const handleDeleteSubItem = async (noteId: string, itemId: string, subItemId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    const updatedItems = note.items.map(item => {
+      if (item.id === itemId) {
+        const subItems = (item.subItems || []).filter(sub => sub.id !== subItemId);
+        return { ...item, subItems };
+      }
+      return item;
+    });
+
+    try {
+      await updateDoc(doc(db, 'design_boards', noteId), {
+        items: updatedItems
+      });
+      showToast('Sub-idea eliminada', 'success');
+    } catch (error) {
+      showToast('Error al eliminar sub-idea', 'error');
       handleFirestoreError(error, OperationType.UPDATE, `design_boards/${noteId}`);
     }
   };
@@ -420,78 +549,206 @@ export default function IdeasBoard() {
                   </div>
 
                   {/* Bullet list of idea items */}
-                  <div className="space-y-3 pr-1 my-4">
+                  <div className="space-y-4 pr-1 my-4">
                     {note.items && note.items.map((item) => (
-                      <div key={item.id} className="group/item flex items-start justify-between gap-2.5 text-sm">
-                        <div className="flex-1 flex items-start gap-2 min-w-0">
-                          <button
-                            onClick={() => handleToggleItem(note.id, item.id)}
-                            className={`p-0.5 transition-colors text-stone-500 mt-0.5`}
-                          >
-                            {item.completed ? (
-                              <CheckSquare size={16} className="text-violet-600" />
-                            ) : (
-                              <Square size={16} className="text-stone-400 group-hover/item:text-stone-600" />
-                            )}
-                          </button>
+                      <div key={item.id} className="group/item border-b border-stone-950/5 pb-2.5 last:border-0 last:pb-0">
+                        {/* Parent item row */}
+                        <div className="flex items-start justify-between gap-2.5 text-sm">
+                          <div className="flex-1 flex items-start gap-2 min-w-0">
+                            <button
+                              onClick={() => handleToggleItem(note.id, item.id)}
+                              className="p-0.5 transition-colors text-stone-500 mt-0.5"
+                            >
+                              {item.completed ? (
+                                <CheckSquare size={16} className="text-violet-600" />
+                              ) : (
+                                <Square size={16} className="text-stone-400 group-hover/item:text-stone-600" />
+                              )}
+                            </button>
 
-                          {editingItemId === item.id ? (
-                            <div className="flex-1 flex gap-1.5">
-                              <input
-                                type="text"
-                                value={editingItemText}
-                                onChange={(e) => setEditingItemText(e.target.value)}
-                                className="w-full px-2 py-0.5 bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
-                                onKeyPress={(e) => e.key === 'Enter' && handleSaveItemEdit(note.id, item.id)}
-                              />
-                              <button
-                                onClick={() => handleSaveItemEdit(note.id, item.id)}
-                                className="p-0.5 text-emerald-600"
+                            {editingItemId === item.id ? (
+                              <div className="flex-1 flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={editingItemText}
+                                  onChange={(e) => setEditingItemText(e.target.value)}
+                                  className="w-full px-2 py-0.5 bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                                  onKeyPress={(e) => e.key === 'Enter' && handleSaveItemEdit(note.id, item.id)}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleSaveItemEdit(note.id, item.id)}
+                                  className="p-0.5 text-emerald-600"
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingItemId(null)}
+                                  className="p-0.5 text-stone-500"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span 
+                                className={`leading-relaxed text-stone-800 font-sans cursor-pointer break-words select-none flex-1 font-semibold ${
+                                  item.completed ? 'line-through text-stone-400/80 font-normal' : ''
+                                }`}
+                                onDoubleClick={() => {
+                                  if (canManage) {
+                                    setEditingItemId(item.id);
+                                    setEditingItemText(item.text);
+                                  }
+                                }}
                               >
-                                <Check size={14} />
+                                {item.text}
+                              </span>
+                            )}
+                          </div>
+
+                          {canManage && editingItemId !== item.id && (
+                            <div className="opacity-0 group-hover/item:opacity-100 flex items-center shrink-0">
+                              <button
+                                onClick={() => {
+                                  setActiveSubInputId(activeSubInputId === item.id ? null : item.id);
+                                  setSubItemInputText('');
+                                }}
+                                className="p-1 text-stone-500 hover:text-violet-700 transition-colors mr-0.5"
+                                title="Añadir sub-punto"
+                              >
+                                <CornerDownRight size={13} />
                               </button>
                               <button
-                                onClick={() => setEditingItemId(null)}
-                                className="p-0.5 text-stone-500"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <span 
-                              className={`leading-relaxed text-stone-800 font-sans cursor-pointer break-words select-none flex-1 font-medium ${
-                                item.completed ? 'line-through text-stone-400' : ''
-                              }`}
-                              onDoubleClick={() => {
-                                if (canManage) {
+                                onClick={() => {
                                   setEditingItemId(item.id);
                                   setEditingItemText(item.text);
-                                }
-                              }}
-                            >
-                              {item.text}
-                            </span>
+                                }}
+                                className="p-1 text-stone-500 hover:text-stone-800 transition-colors mr-0.5"
+                                title="Editar idea"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(note.id, item.id)}
+                                className="p-1 text-stone-500 hover:text-red-700 transition-colors"
+                                title="Eliminar idea"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           )}
                         </div>
 
-                        {canManage && editingItemId !== item.id && (
-                          <div className="opacity-0 group-hover/item:opacity-100 flex items-center shrink-0">
-                            <button
-                              onClick={() => {
-                                setEditingItemId(item.id);
-                                setEditingItemText(item.text);
+                        {/* Nested Sub-items list */}
+                        {item.subItems && item.subItems.length > 0 && (
+                          <div className="mt-1.5 space-y-1.5">
+                            {item.subItems.map((subItem) => (
+                              <div key={subItem.id} className="group/subitem pl-6 flex items-start justify-between gap-2 text-xs border-l-2 border-stone-400/20 ml-2.5">
+                                <div className="flex-1 flex items-start gap-1.5 min-w-0">
+                                  <button
+                                    onClick={() => handleToggleSubItem(note.id, item.id, subItem.id)}
+                                    className="p-0.5 text-stone-500 mt-0.5 shrink-0"
+                                  >
+                                    {subItem.completed ? (
+                                      <CheckSquare size={13} className="text-violet-600" />
+                                    ) : (
+                                      <Square size={13} className="text-stone-400 group-hover/subitem:text-stone-600" />
+                                    )}
+                                  </button>
+
+                                  {editingSubItemId === subItem.id ? (
+                                    <div className="flex-1 flex gap-1 items-center">
+                                      <input
+                                        type="text"
+                                        value={editingSubItemText}
+                                        onChange={(e) => setEditingSubItemText(e.target.value)}
+                                        className="w-full px-1.5 py-0.5 bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs text-stone-800"
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSaveSubItemEdit(note.id, item.id, subItem.id)}
+                                        autoFocus
+                                      />
+                                      <button onClick={() => handleSaveSubItemEdit(note.id, item.id, subItem.id)} className="p-0.5 text-emerald-600">
+                                        <Check size={12} />
+                                      </button>
+                                      <button onClick={() => setEditingSubItemId(null)} className="p-0.5 text-stone-500">
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className={`leading-relaxed text-stone-700 font-sans cursor-pointer break-words select-none flex-1 font-normal ${
+                                        subItem.completed ? 'line-through text-stone-400/70' : ''
+                                      }`}
+                                      onDoubleClick={() => {
+                                        if (canManage) {
+                                          setEditingSubItemId(subItem.id);
+                                          setEditingSubItemText(subItem.text);
+                                        }
+                                      }}
+                                    >
+                                      {subItem.text}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {canManage && editingSubItemId !== subItem.id && (
+                                  <div className="opacity-0 group-hover/subitem:opacity-100 flex items-center shrink-0">
+                                    <button
+                                      onClick={() => {
+                                        setEditingSubItemId(subItem.id);
+                                        setEditingSubItemText(subItem.text);
+                                      }}
+                                      className="p-0.5 text-stone-500 hover:text-stone-800 transition-colors mr-0.5"
+                                      title="Editar sub-idea"
+                                    >
+                                      <Edit2 size={11} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSubItem(note.id, item.id, subItem.id)}
+                                      className="p-0.5 text-stone-500 hover:text-red-700 transition-colors"
+                                      title="Eliminar sub-idea"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Sub-item inline insertion field */}
+                        {activeSubInputId === item.id && (
+                          <div className="pl-6 flex items-center gap-1.5 mt-2 border-l-2 border-violet-500/30 ml-2.5">
+                            <input
+                              type="text"
+                              placeholder="Nuevo sub-punto..."
+                              value={subItemInputText}
+                              onChange={(e) => setSubItemInputText(e.target.value)}
+                              className="flex-1 px-2 py-0.5 bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs text-stone-800 placeholder-stone-500/50 shadow-sm"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleSaveSubItemAdd(note.id, item.id);
+                                }
                               }}
-                              className="p-1 text-stone-500 hover:text-stone-800 transition-colors mr-0.5"
-                              title="Editar idea"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSaveSubItemAdd(note.id, item.id)}
+                              disabled={!subItemInputText.trim()}
+                              className="p-1 px-1.5 rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 disabled:opacity-40"
+                              title="Guardar sub-punto"
                             >
-                              <Edit2 size={13} />
+                              <Check size={11} />
                             </button>
                             <button
-                              onClick={() => handleDeleteItem(note.id, item.id)}
-                              className="p-1 text-stone-500 hover:text-red-700 transition-colors"
-                              title="Eliminar idea"
+                              onClick={() => {
+                                setActiveSubInputId(null);
+                                setSubItemInputText('');
+                              }}
+                              className="p-1 px-1.5 rounded-md text-stone-600 bg-stone-50 hover:bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0"
+                              title="Cancelar"
                             >
-                              <Trash2 size={13} />
+                              <X size={11} />
                             </button>
                           </div>
                         )}
