@@ -289,6 +289,7 @@ export interface IdeasBoardNote {
   createdBy: string;
   group?: string;
   createdAt: string;
+  tags?: string[];
 }
 
 export interface Dossier {

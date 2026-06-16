@@ -295,7 +295,12 @@
       "description": "A sticky note card on the creation and design ideas board",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "title": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "color": { "type": "string" },
         "items": {
           "type": "array",

@@ -116,7 +116,7 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-stone-100 print:h-auto print:bg-white text-stone-900">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50 print:hidden">
         <div className="flex items-center gap-3 text-teal-700">
           {settings?.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain" crossOrigin="anonymous" />

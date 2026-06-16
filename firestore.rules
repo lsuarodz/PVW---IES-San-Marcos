@@ -289,14 +289,14 @@ service cloud.firestore {
 
     function isValidDesignBoard() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['id', 'title', 'color', 'items', 'createdBy', 'group', 'createdAt']) &&
-             (!('id' in data) || isValidString(data.id, 1, 100)) &&
-             isValidString(data.title, 1, 200) &&
+      return (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('title' in data) || isValidString(data.title, 1, 200)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 30)) &&
              (!('color' in data) || isValidString(data.color, 1, 50)) &&
              (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
-             data.items is list &&
-             isValidString(data.createdBy, 1, 100) &&
-             data.createdAt is string;
+             (!('items' in data) || data.items is list) &&
+             (!('createdBy' in data) || isValidString(data.createdBy, 1, 100)) &&
+             (!('createdAt' in data) || data.createdAt is string);
     }
 
     // ===============================================================
