@@ -53,7 +53,7 @@ export default function Layout() {
       if (aCourse > bCourse) return 1;
       
       // 3. Ordenar alfabéticamente
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
   }, [users]);
 

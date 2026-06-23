@@ -6,6 +6,20 @@ import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Menu, Recipe } from '../types';
 
+const parseStepStr = (stepStr: string) => {
+  if (!stepStr) return { minutes: 0, seconds: 0, text: '' };
+  if (stepStr.includes('|||')) {
+    const parts = stepStr.split('|||');
+    const durationPart = parts[0] || '00:00';
+    const textPart = parts.slice(1).join('|||');
+    const [mStr, sStr] = durationPart.split(':');
+    const minutes = parseInt(mStr, 10) || 0;
+    const seconds = parseInt(sStr, 10) || 0;
+    return { minutes, seconds, text: textPart };
+  }
+  return { minutes: 0, seconds: 0, text: stepStr };
+};
+
 export default function Translations() {
   // Obtenemos menús y recetas desde el contexto global
   const { menus, recipes, loadingData: loading } = useData();
@@ -261,7 +275,7 @@ export default function Translations() {
                                     <div className="flex gap-3">
                                       <span className="text-xs font-bold text-stone-400 mt-2">{index + 1}.</span>
                                       <div className="flex-1 p-3 bg-stone-50 rounded-lg border border-stone-100 text-stone-700 text-sm">
-                                        {step}
+                                        {recipe.type === 'plato' ? parseStepStr(step).text : step}
                                       </div>
                                     </div>
                                     <div className="flex gap-3">

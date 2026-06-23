@@ -65,10 +65,10 @@ export default function Admin() {
       if (courseA < courseB) return sortOrder === 'asc' ? -1 : 1;
       if (courseA > courseB) return sortOrder === 'asc' ? 1 : -1;
       // Secondary sort by name
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     } else {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
       if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1;
       if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1;
       return 0;

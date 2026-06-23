@@ -94,7 +94,7 @@ export default function Standardization() {
         const data: StandardizationAnswer[] = [];
         snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as StandardizationAnswer));
         // Ordenamos primero por grupo y luego por nombre
-        setAllAnswers(data.sort((a, b) => a.userGroup.localeCompare(b.userGroup) || a.userName.localeCompare(b.userName)));
+        setAllAnswers(data.sort((a, b) => (a.userGroup || '').localeCompare(b.userGroup || '') || (a.userName || '').localeCompare(b.userName || '')));
       });
     }
 

@@ -100,63 +100,63 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Recorremos los documentos que nos manda Firebase y los metemos en un array.
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Ingredient));
       // Ordenamos alfabéticamente y guardamos en el estado.
-      setIngredients(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
+      setIngredients(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
       checkLoading();
     });
 
     const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
       const data: Recipe[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Recipe));
-      setRecipes(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
+      setRecipes(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
       checkLoading();
     });
 
     const unsubMenus = onSnapshot(collection(db, 'menus'), (snapshot) => {
       const data: Menu[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Menu));
-      setMenus(data.sort((a, b) => a.nameES.localeCompare(b.nameES)));
+      setMenus(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
       checkLoading();
     });
 
     const unsubProviders = onSnapshot(collection(db, 'providers'), (snapshot) => {
       const data: Provider[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Provider));
-      setProviders(data.sort((a, b) => a.name.localeCompare(b.name)));
+      setProviders(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
       checkLoading();
     });
 
     const unsubStandardWastes = onSnapshot(collection(db, 'standard_wastes'), (snapshot) => {
       const data: StandardWaste[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as StandardWaste));
-      setStandardWastes(data.sort((a, b) => a.item.localeCompare(b.item)));
+      setStandardWastes(data.sort((a, b) => (a.item || '').localeCompare(b.item || '')));
       checkLoading();
     });
 
     const unsubClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const data: Client[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Client));
-      setClients(data.sort((a, b) => a.name.localeCompare(b.name)));
+      setClients(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
       checkLoading();
     });
 
     const unsubQuotes = onSnapshot(collection(db, 'quotes'), (snapshot) => {
       const data: Quote[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Quote));
-      setQuotes(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setQuotes(data.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()));
       checkLoading();
     });
 
     const unsubProductionIdeas = onSnapshot(collection(db, 'production_ideas'), (snapshot) => {
       const data: ProductionIdea[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as ProductionIdea));
-      setProductionIdeas(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setProductionIdeas(data.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
       checkLoading();
     });
 
     const unsubWorkLists = onSnapshot(collection(db, 'work_lists'), (snapshot) => {
       const data: WorkList[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as WorkList));
-      setWorkLists(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setWorkLists(data.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()));
       checkLoading();
     });
 

@@ -369,12 +369,10 @@ export default function Menus() {
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
-              logging: false,
-              scrollY: 0,
-              y: 0
+              logging: false
             },
             jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
           };
           
           await generatePDF(printRef.current, opt);
@@ -768,7 +766,7 @@ export default function Menus() {
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
           <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
             <style>{`
-              .print-container { background-color: #ffffff !important; color: #1c1917 !important; }
+              .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
               .print-container .text-stone-800 { color: #292524 !important; }
               .print-container .text-stone-700 { color: #44403c !important; }
@@ -780,9 +778,6 @@ export default function Menus() {
               .print-container .border-stone-800 { border-color: #292524 !important; }
               .print-container .border-stone-300 { border-color: #d6d3d1 !important; }
             `}</style>
-            {/* Elegant Borders */}
-            <div className="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
-            <div className="absolute inset-6 border border-stone-300 pointer-events-none"></div>
             
             <div className="z-10 w-full flex flex-col items-center h-full">
               <div className="text-center mb-6 w-full pt-6">

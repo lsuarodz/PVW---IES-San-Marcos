@@ -6,7 +6,7 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
@@ -19,6 +19,33 @@ import { canViewItem } from '../utils/visibility';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
 import { RecipeIngredientInput } from '../components/RecipeIngredientInput';
+
+// Helpers to encode/decode step duration
+const parseStepStr = (stepStr: string) => {
+  if (!stepStr) return { minutes: 0, seconds: 0, text: '' };
+  if (stepStr.includes('|||')) {
+    const parts = stepStr.split('|||');
+    const durationPart = parts[0] || '00:00';
+    const textPart = parts.slice(1).join('|||');
+    const [mStr, sStr] = durationPart.split(':');
+    const minutes = parseInt(mStr, 10) || 0;
+    const seconds = parseInt(sStr, 10) || 0;
+    return { minutes, seconds, text: textPart };
+  }
+  return { minutes: 0, seconds: 0, text: stepStr };
+};
+
+const formatStepStr = (minutes: number, seconds: number, text: string) => {
+  const m = String(minutes || 0).padStart(2, '0');
+  const s = String(seconds || 0).padStart(2, '0');
+  return `${m}:${s}|||${text}`;
+};
+
+const formatSecondsToMinSec = (totalSecs: number) => {
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
 
 export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,6 +66,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Estado para el buscador, paginación y filtro de grupos
   const [search, setSearch] = useState('');
   const [selectedLetter, setSelectedLetter] = useState('todas');
+  const [selectedDishId, setSelectedDishId] = useState<string>('todos');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOtherGroups, setViewOtherGroups] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
@@ -106,10 +134,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   });
 
   const [uploadingImage, setUploadingImage] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // Funciones de ayuda para permisos transversales
-  const isOwner = (recipe: Recipe) => {
-    if (!appUser) return false;
+  const isOwner = (recipe?: Recipe | null) => {
+    if (!appUser || !recipe) return false;
     if (isAdmin && !viewAsStudent) return true;
     return recipe.group === appUser.group;
   };
@@ -402,6 +431,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, steps: newSteps });
   };
 
+  const updateStepText = (index: number, text: string) => {
+    const parsed = parseStepStr(formData.steps[index]);
+    const formatted = formatStepStr(parsed.minutes, parsed.seconds, text);
+    updateStep(index, formatted);
+  };
+
+  const updateStepMinutes = (index: number, mins: number) => {
+    const parsed = parseStepStr(formData.steps[index]);
+    const formatted = formatStepStr(mins, parsed.seconds, parsed.text);
+    updateStep(index, formatted);
+  };
+
+  const updateStepSeconds = (index: number, secs: number) => {
+    const parsed = parseStepStr(formData.steps[index]);
+    const formatted = formatStepStr(parsed.minutes, secs, parsed.text);
+    updateStep(index, formatted);
+  };
+
   const removeStep = (index: number) => {
     const newSteps = formData.steps.filter((_, i) => i !== index);
     setFormData({ ...formData, steps: newSteps });
@@ -551,6 +598,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       }
     }
 
+    if (type === 'elaborado' && selectedDishId !== 'todos') {
+      const selectedDish = recipes.find(dish => dish.id === selectedDishId);
+      if (!selectedDish) return false;
+      const isContained = selectedDish.ingredients?.some(
+        ing => (ing.itemType === 'elaborado' || recipes.find(rec => rec.id === ing.ingredientId)?.type === 'elaborado') && ing.ingredientId === r.id
+      );
+      if (!isContained) return false;
+    }
+
     return r.nameES.toLowerCase().includes(search.toLowerCase()) || 
            r.nameEN?.toLowerCase().includes(search.toLowerCase());
   });
@@ -563,7 +619,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   // Resetear a la página 1 cuando se busca
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [search, type, selectedLetter]);
+  }, [search, type, selectedLetter, selectedDishId]);
+
+  // Resetear filtros cruzados de platos al cambiar de pestaña
+  React.useEffect(() => {
+    setSelectedDishId('todos');
+  }, [type]);
 
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -611,15 +672,42 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between w-full">
-          <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
-            <input
-              type="text"
-              placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-2xl">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+              <input
+                type="text"
+                placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              />
+            </div>
+
+            {type === 'elaborado' && (
+              <div className="relative shrink-0 sm:w-64">
+                <select
+                  value={selectedDishId}
+                  onChange={(e) => setSelectedDishId(e.target.value)}
+                  className="w-full pl-3 pr-8 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm text-stone-700 appearance-none font-medium text-ellipsis overflow-hidden whitespace-nowrap"
+                >
+                  <option value="todos">🍽️ Filtrar por Plato (Todos)</option>
+                  {recipes
+                    .filter(r => !r.type || r.type === 'plato')
+                    .sort((a, b) => (a.nameES || '').localeCompare(b.nameES || ''))
+                    .map(dish => (
+                      <option key={dish.id} value={dish.id}>
+                        🍽️ {dish.nameES || ''}
+                      </option>
+                    ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            )}
           </div>
 
           {(appUser?.course === '2ºPANADERÍA' && appUser?.role === 'student' && (appUser?.commission ? commissionMode : true)) && (
@@ -987,46 +1075,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Imagen de la Receta (opcional)</label>
-                  <div className="flex items-center gap-4">
-                    {formData.imageUrl && (
-                      <img src={formData.imageUrl} alt="Vista previa" className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
-                    )}
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
-                        className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
-                      />
-                      {uploadingImage && <p className="text-xs text-teal-600 mt-1">Subiendo imagen...</p>}
-                    </div>
-                  </div>
-                </div>
+
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Ingredientes (Escandallo)</label>
-                    <div className="flex items-center gap-4 mr-2">
-                      <button
-                        type="button"
-                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onClick={() => setIsIngredientModalOpen(true)}
-                        className="text-sm text-stone-500 hover:text-teal-600 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={16} /> Nuevo ingrediente
-                      </button>
-                      <button
-                        type="button"
-                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onClick={() => setIsElaboradoModalOpen(true)}
-                        className="text-sm text-stone-500 hover:text-indigo-600 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={16} /> Nuevo elaborado
-                      </button>
-                    </div>
                   </div>
                   
                   <div className="space-y-3">
@@ -1086,7 +1139,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             )}
                           </div>
                           
-                          <div className="w-40 shrink-0 pt-4">
+                          <div className="w-40 shrink-0 pt-4 relative">
+                            <div className="absolute top-0 left-1 text-[10px] text-stone-500 font-medium">preelaborar</div>
                             <input
                               type="text"
                               value={ri.preparation || ''}
@@ -1132,54 +1186,112 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       </div>
                     )}
                     <div className="flex gap-4 mt-4">
-                      <button
-                        type="button"
-                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onClick={addIngredientToRecipe}
-                        className="flex-1 py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={18} /> Añadir ingrediente
-                      </button>
-                      <button
-                        type="button"
-                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onClick={addElaboradoToRecipe}
-                        className="flex-1 py-3 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={18} /> Añadir elaborado
-                      </button>
+                      <div className="flex-1 flex flex-col gap-2">
+                        <button
+                          type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onClick={addIngredientToRecipe}
+                          className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={18} /> Añadir ingrediente
+                        </button>
+                        <button
+                          type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onClick={() => setIsIngredientModalOpen(true)}
+                          className="w-full py-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={14} /> Nuevo ingrediente
+                        </button>
+                      </div>
+
+                      <div className="flex-1 flex flex-col gap-2">
+                        <button
+                          type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onClick={addElaboradoToRecipe}
+                          className="w-full py-3 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={18} /> Añadir elaborado
+                        </button>
+                        <button
+                          type="button"
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onClick={() => setIsElaboradoModalOpen(true)}
+                          className="w-full py-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={14} /> Nuevo elaborado
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">Pasos de Elaboración</label>
+                    <label className="block text-sm font-medium text-stone-900">{formData.type === 'plato' ? 'Pasos de emplatado' : 'Pasos de receta'}</label>
                   </div>
                   
                   <div className="space-y-3">
-                    {formData.steps.map((step, index) => (
-                      <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
-                        <div className="pt-2 font-bold text-stone-400 w-6 text-center">{index + 1}.</div>
-                        <textarea
-                          required
-                          rows={2}
-                          value={step}
-                          disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
-                          onChange={e => updateStep(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          placeholder="Describe este paso de la elaboración..."
-                        />
-                        <button
-                          type="button"
-                          disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
-                          onClick={() => removeStep(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))}
+                    {formData.steps.map((step, index) => {
+                      const parsed = parseStepStr(step);
+                      return (
+                        <div key={index} className="flex flex-col md:flex-row gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                          <div className="flex items-center gap-2 w-full md:w-auto self-stretch shrink-0">
+                            <div className="font-bold text-stone-400 w-6 text-center shrink-0">{index + 1}.</div>
+                            {formData.type === 'plato' && (
+                              <div className="flex items-center gap-1.5 bg-white border border-stone-200 px-2 py-1.5 rounded-lg shrink-0">
+                                <span className="text-[10px] text-stone-500 font-medium font-sans">Tiempo:</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={59}
+                                  value={parsed.minutes || ''}
+                                  placeholder="Min"
+                                  disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                                  onChange={e => updateStepMinutes(index, parseInt(e.target.value, 10) || 0)}
+                                  className="w-10 text-center text-xs border-b border-stone-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                />
+                                <span className="text-stone-400 text-xs font-bold">:</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={59}
+                                  value={parsed.seconds || ''}
+                                  placeholder="Seg"
+                                  disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                                  onChange={e => updateStepSeconds(index, parseInt(e.target.value, 10) || 0)}
+                                  className="w-10 text-center text-xs border-b border-stone-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <textarea
+                            required
+                            rows={2}
+                            value={formData.type === 'plato' ? parsed.text : step}
+                            disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                            onChange={e => {
+                              if (formData.type === 'plato') {
+                                updateStepText(index, e.target.value);
+                              } else {
+                                updateStep(index, e.target.value);
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-stone-800"
+                            placeholder={formData.type === 'plato' ? 'Ej: Marcar carne, regenerar puré, montar plato...' : 'Describe este paso de la elaboración...'}
+                          />
+                          <button
+                            type="button"
+                            disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                            onClick={() => removeStep(index)}
+                            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      );
+                    })}
                     {formData.steps.length === 0 && (
                       <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
                         No hay pasos añadidos.
@@ -1251,129 +1363,114 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-stone-900 mb-1">Mise en place</label>
-                  <textarea
-                    rows={3}
-                    value={formData.miseEnPlace}
-                    disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
-                    onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Describe la mise en place necesaria..."
-                  />
-                </div>
-
-                <div className="mt-8 border-t border-stone-200 pt-6">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
-                    <button
-                      type="button"
-                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                      onClick={addWorkListTask}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Plus size={16} /> Añadir Tarea
-                    </button>
+                {formData.type === 'plato' && (
+                  <div>
+                    <label className="block text-sm font-medium text-stone-900 mb-1">Mise en place</label>
+                    <textarea
+                      rows={3}
+                      value={formData.miseEnPlace}
+                      disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                      onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Describe la mise en place necesaria..."
+                    />
                   </div>
-                  <p className="text-xs text-stone-500 mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
-                  
-                  <div className="space-y-3">
-                    {formData.workListTasks.map((task, index) => {
-                      const processes = settings?.processes || [];
-                      const currentProcessLower = task.process?.toLowerCase().trim() || '';
-                      const processOptions = [...processes];
-                      if (currentProcessLower && !processes.map(p => p.toLowerCase()).includes(currentProcessLower)) {
-                        processOptions.push(task.process);
-                      }
+                )}
 
-                      return (
-                        <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex-1 max-w-[200px]">
-                            <select
-                              required
-                              value={task.process}
+                {formData.type === 'plato' && (
+                  <div className="mt-8 border-t border-stone-200 pt-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                        onClick={addWorkListTask}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Plus size={16} /> Añadir Tarea
+                      </button>
+                    </div>
+                    <p className="text-xs text-stone-500 mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
+                    
+                    <div className="space-y-3">
+                      {formData.workListTasks.map((task, index) => {
+                        const processes = settings?.processes || [];
+                        const currentProcessLower = task.process?.toLowerCase().trim() || '';
+                        const processOptions = [...processes];
+                        if (currentProcessLower && !processes.map(p => p.toLowerCase()).includes(currentProcessLower)) {
+                          processOptions.push(task.process);
+                        }
+
+                        return (
+                          <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                            <div className="flex-1 max-w-[200px]">
+                              <select
+                                required
+                                value={task.process}
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                                onChange={e => updateWorkListTask(index, 'process', e.target.value)}
+                                className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-stone-700"
+                              >
+                                <option value="">-- Proceso --</option>
+                                {processOptions.map((p, i) => (
+                                  <option key={i} value={p}>
+                                    {p.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                required
+                                value={task.element}
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                                onChange={e => updateWorkListTask(index, 'element', e.target.value)}
+                                className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
+                                placeholder="Ej: PESCADO CEVICHE"
+                              />
+                            </div>
+                            <button
+                              type="button"
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                              onChange={e => updateWorkListTask(index, 'process', e.target.value)}
-                              className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-stone-700"
+                              onClick={() => removeWorkListTask(index)}
+                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              <option value="">-- Proceso --</option>
-                              {processOptions.map((p, i) => (
-                                <option key={i} value={p}>
-                                  {p.toUpperCase()}
-                                </option>
-                              ))}
-                            </select>
+                              <Trash2 size={18} />
+                            </button>
                           </div>
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            required
-                            value={task.element}
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                            onChange={e => updateWorkListTask(index, 'element', e.target.value)}
-                            className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
-                            placeholder="Ej: PESCADO CEVICHE"
-                          />
+                        );
+                      })}
+                      {formData.workListTasks.length === 0 && (
+                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                          No hay tareas configuradas para esta receta.
                         </div>
-                        <button
-                          type="button"
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                          onClick={() => removeWorkListTask(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                    {formData.workListTasks.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
-                        No hay tareas configuradas para esta receta.
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="mt-8 border-t border-stone-200 pt-6">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">Tips de Sostenibilidad</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      ref={imageFileInputRef}
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
+                    />
                     <button
                       type="button"
-                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
-                      onClick={addTip}
-                      className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                      disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
+                      onClick={() => imageFileInputRef.current?.click()}
+                      className="flex-1 py-3 bg-stone-50 border-2 border-dashed border-stone-300 rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                     >
-                      <Plus size={16} /> Añadir tip
+                      <Camera size={18} />
+                      {uploadingImage ? 'Subiendo imagen...' : (formData.imageUrl ? 'Cambiar Imagen' : 'Añadir Imagen')}
                     </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {formData.sustainabilityTips.map((tip, index) => (
-                      <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
-                        <div className="pt-2 font-bold text-stone-400 w-6 text-center">🌱</div>
-                        <textarea
-                          required
-                          rows={2}
-                          value={tip}
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
-                          onChange={e => updateTip(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          placeholder="Ej: Encender los hornos solo 5 minutos antes..."
-                        />
-                        <button
-                          type="button"
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'sostenibilidad') : false}
-                          onClick={() => removeTip(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))}
-                    {formData.sustainabilityTips.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
-                        No hay tips de sostenibilidad añadidos.
-                      </div>
+                    {formData.imageUrl && (
+                      <img src={formData.imageUrl} alt="Vista previa" className="w-12 h-12 object-cover rounded-lg border border-stone-200 shrink-0" />
                     )}
                   </div>
                 </div>
@@ -1453,17 +1550,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .border-stone-50 { border-color: #fafaf9 !important; }
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
-              .print-container .logo-print { max-width: 10% !important; max-height: 56px !important; object-fit: contain !important; }
+              .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
             `}</style>
             <div className="z-10 w-full">
-              <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-end">
+              <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-start">
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
                   {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
                 </div>
                 {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="logo-print mb-1" crossOrigin="anonymous" />
+                  <img src={settings.logoUrl} alt="Logo" className="logo-print" crossOrigin="anonymous" />
                 )}
               </div>
               
@@ -1486,18 +1583,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <h3 className="text-[10px] font-bold mb-2 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
-                  <table className="w-full text-[8px] text-left mb-2 font-sans">
+                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
+                  <table className="w-[94%] mx-auto text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
                     <thead>
-                      <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-100">
-                        <th className="py-1 font-medium w-[25%]">Ingrediente</th>
-                        <th className="py-1 font-medium w-[35%]">Preelaborar</th>
-                        <th className="py-1 font-medium text-right">Cantidad</th>
-                        <th className="py-1 font-medium text-right">Coste/Ud</th>
-                        <th className="py-1 font-medium text-right">Total</th>
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-200 font-sans">
+                        <th className="py-3 px-3 font-medium w-[28%]">Ingrediente</th>
+                        <th className="py-3 px-3 font-medium w-[36%]">Preelaboración</th>
+                        <th className="py-3 px-3 font-medium text-right w-[13%]">Cantidad</th>
+                        <th className="py-3 px-3 font-medium text-right w-[11%]">Coste/Ud</th>
+                        <th className="py-3 px-3 font-medium text-right w-[12%]">Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-50">
+                    <tbody className="divide-y divide-stone-100 font-sans">
                       {printingRecipe.ingredients.map((ri, idx) => {
                         const ing = ingredients.find(i => i.id === ri.ingredientId);
                         const subRecipe = recipes.find(r => r.id === ri.ingredientId);
@@ -1518,65 +1615,272 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const itemTotalCost = realCostPerUnit * ri.quantity;
 
                         return (
-                          <tr key={idx}>
-                            <td className="py-1.5 font-medium text-stone-800">{name}</td>
-                            <td className="py-1.5 text-stone-600 truncate">{ri.preparation || '-'}</td>
-                            <td className="py-1.5 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
-                            <td className="py-1.5 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
-                            <td className="py-1.5 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
+                          <tr key={idx} className="hover:bg-stone-50/50">
+                            <td className="py-3 px-3 font-medium text-stone-800 break-words">{name}</td>
+                            <td className="py-3 px-3 text-stone-600 break-words">{ri.preparation || '-'}</td>
+                            <td className="py-3 px-3 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
+                            <td className="py-3 px-3 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-3 px-3 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-stone-100 font-bold text-stone-900">
-                        <td colSpan={4} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
-                        <td className="py-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
+                      <tr className="border-t border-stone-200 font-bold text-stone-900 font-sans">
+                        <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
+                        <td className="py-3 px-3 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Elaboración</h3>
-                    {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                      <ol className="space-y-2 list-decimal pl-4 text-[10px] text-stone-700 font-sans">
-                        {printingRecipe.steps.map((step, idx) => (
-                          <li key={idx} className="leading-relaxed pl-1">{step}</li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-[10px] text-stone-400 italic font-sans">No hay pasos definidos.</p>
-                    )}
-                  </div>
+                {printingRecipe.type === 'plato' ? (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      {printingRecipe.miseEnPlace && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="space-y-6">
-                    {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                      <div>
-                        <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Material</h3>
-                        <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
-                          {printingRecipe.equipment.map((eq, idx) => (
-                            <li key={idx} className="leading-relaxed pl-1">{eq}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <div className="space-y-6">
+                      {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-stone-100 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                            {printingRecipe.equipment.map((eq, idx) => (
+                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
-                    {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                      <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
-                        <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
-                          <span>🌱</span> Sostenibilidad
-                        </h3>
-                        <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
-                          {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                            <li key={idx} className="leading-relaxed">• {tip}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                      {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                          <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
+                            <span>🌱</span> Sostenibilidad
+                          </h3>
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                            {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">
+                        Elaboración
+                      </h3>
+                      {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
+                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-stone-700 font-sans">
+                          {printingRecipe.steps.map((step, idx) => {
+                            const parsed = parseStepStr(step);
+                            const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
+                            return (
+                              <li key={idx} className="leading-relaxed pl-1 font-sans">
+                                <span className="font-semibold text-stone-800">{parsed.text}</span>
+                                {hasDuration && (
+                                  <span className="ml-1.5 inline-block text-[8px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded font-mono font-bold leading-none select-none">
+                                    ⏱️ {parsed.minutes}m {parsed.seconds}s
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      ) : (
+                        <p className="text-[10px] text-stone-400 italic font-sans">No hay pasos definidos.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {printingRecipe.miseEnPlace && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                        </div>
+                      )}
+
+                      {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                            {printingRecipe.equipment.map((eq, idx) => (
+                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                          <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
+                            <span>🌱</span> Sostenibilidad
+                          </h3>
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                            {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PROCESO DE EMPLATADO - DIAGRAMA VISUAL DE SECUENCIA Y TIEMPOS (SINCRONIZACIÓN INVERSA) */}
+                {printingRecipe.type === 'plato' && printingRecipe.steps && printingRecipe.steps.length > 0 && (() => {
+                  const parsedSteps = printingRecipe.steps.map((step, idx) => {
+                    const parsed = parseStepStr(step);
+                    const durSec = (parsed.minutes * 60) + parsed.seconds;
+                    return {
+                      index: idx + 1,
+                      text: parsed.text,
+                      durationSec: durSec,
+                      durationText: durSec > 0 ? `${parsed.minutes}m ${parsed.seconds}s` : 'Instante',
+                    };
+                  });
+
+                  const maxDurationSec = Math.max(...parsedSteps.map(s => s.durationSec), 0);
+                  
+                  // Generar ticks para la escala de tiempo (T-menos)
+                  const ticks = [];
+                  if (maxDurationSec > 0) {
+                    for (let i = 0; i <= 4; i++) {
+                      const fraction = i / 4;
+                      const secRemaining = Math.round(maxDurationSec * (1 - fraction));
+                      ticks.push({
+                        percent: fraction * 100,
+                        text: secRemaining === 0 ? 'T-0' : `T-${formatSecondsToMinSec(secRemaining)}`
+                      });
+                    }
+                  }
+
+                  return (
+                    <div className="mt-6 border-t border-stone-250 pt-5 print-avoid-break font-sans">
+                      <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-stone-100 pb-1 flex justify-between items-center">
+                        <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
+                        {maxDurationSec > 0 && (
+                          <span className="text-[8.5px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-mono font-bold select-none">
+                            Tiempo total: {formatSecondsToMinSec(maxDurationSec)}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[8px] text-stone-500 mb-4 select-none italic leading-relaxed">
+                        * Planificación con margen de culminación unificada: todos los procesos finalizan juntos en el mismo instante (T-0) para el montaje del plato en caliente.
+                      </p>
+
+                      <div className="bg-stone-50/70 rounded-2xl border border-stone-200/60 p-4">
+                        {maxDurationSec > 0 ? (
+                          <div className="space-y-4">
+                            {/* Eje de tiempos (Timeline ticks) */}
+                            <div className="relative h-5 border-b border-stone-200/60 mb-2 select-none">
+                              {ticks.map((tick, tIdx) => (
+                                <div 
+                                  key={tIdx} 
+                                  className="absolute text-[8px] font-mono font-semibold text-stone-400 -translate-x-1/2 flex flex-col items-center"
+                                  style={{ left: `${tick.percent}%` }}
+                                >
+                                  <span>{tick.text}</span>
+                                  <div className="w-0.5 h-1 bg-stone-300 mt-0.5" />
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Carriles del Gantt */}
+                            <div className="space-y-3">
+                              {parsedSteps.map((step, idx) => {
+                                const startPct = ((maxDurationSec - step.durationSec) / maxDurationSec) * 100;
+                                const widthPct = (step.durationSec / maxDurationSec) * 100;
+                                const startTimeSec = maxDurationSec - step.durationSec;
+
+                                return (
+                                  <div key={idx} className="grid grid-cols-12 gap-3 items-center">
+                                    {/* Información del Paso (Columna izquierda) */}
+                                    <div className="col-span-5 min-w-0 pr-1">
+                                      <div className="flex items-start gap-1.5">
+                                        <span className="flex items-center justify-center w-4 h-4 bg-teal-700 text-white font-bold text-[8px] rounded-full shrink-0 select-none">
+                                          {step.index}
+                                        </span>
+                                        <div className="min-w-0">
+                                          <div className="text-[9.5px] font-bold text-stone-850 break-words leading-tight">
+                                            {step.text}
+                                          </div>
+                                          <div className="text-[7.5px] text-stone-400 mt-0.5 font-sans">
+                                            Duración: <strong className="text-stone-600 font-mono">{step.durationText}</strong>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Gráfico Gantt (Columna derecha) */}
+                                    <div className="col-span-7">
+                                      {step.durationSec > 0 ? (
+                                        <div className="space-y-1">
+                                          {/* Barra del Gantt */}
+                                          <div className="relative w-full bg-stone-100 rounded-full h-2.5 overflow-hidden border border-stone-200/30">
+                                            <div 
+                                              className="absolute top-0 bottom-0 bg-teal-600 rounded-full flex items-center justify-end pr-2 text-[7px] text-white font-bold font-mono overflow-none"
+                                              style={{ left: `${startPct}%`, width: `${widthPct}%` }}
+                                            >
+                                              {widthPct > 20 && step.durationText}
+                                            </div>
+                                          </div>
+                                          {/* Etiquetas de tiempos de inicio/fin */}
+                                          <div className="flex justify-between text-[7px] font-mono select-none">
+                                            <span className="text-teal-700 font-semibold">
+                                              Iniciar en t+{formatSecondsToMinSec(startTimeSec)}
+                                            </span>
+                                            <span className="text-stone-400">
+                                              Culmina (T-0)
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-between text-[7px] font-mono py-1">
+                                          <span className="text-stone-400">Instantáneo / Sin duración</span>
+                                          <div className="flex items-center gap-1 bg-amber-50 rounded border border-amber-200/40 px-1.5 py-0.5 text-[8px] text-amber-800 font-sans">
+                                            <span>🔸 Al pase</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Culminación Emplatado (Hito Final) */}
+                            <div className="mt-4 pt-4 border-t border-dashed border-stone-200/60 flex items-center justify-between bg-amber-50/40 border border-amber-200/40 rounded-xl p-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-xs select-none">
+                                  ✨
+                                </div>
+                                <div>
+                                  <h4 className="text-[9.5px] font-bold text-amber-900 leading-tight">Emplatado, Terminación y Pase</h4>
+                                  <p className="text-[7.5px] text-amber-700 font-sans mt-0.5">Todos los procesos de cocción, temperaturas y salsas listas y sincronizadas.</p>
+                                </div>
+                              </div>
+                              <span className="text-[8.5px] font-bold text-amber-800 font-mono bg-amber-100/50 px-2 py-1 rounded select-none">
+                                T-00:00 (Servicio h+{formatSecondsToMinSec(maxDurationSec)})
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-250 rounded-xl">
+                            Añade tiempos en minutos y segundos a los pasos de emplatado para visualizar el cronograma de sincronización inversa.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="mt-auto pt-8 text-center">
