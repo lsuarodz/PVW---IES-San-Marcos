@@ -111,11 +111,28 @@ export interface ProductionIdea {
 export interface AppUser {
   uid: string;
   email: string;
-  role: 'admin' | 'student' | 'docente';
+  role: 'admin' | 'student' | 'docente' | 'compras';
   name: string;
   group?: string;
   commission?: string;
   course?: '1ºCOCINA' | '1ºPANADERÍA' | '2ºPANADERÍA' | '2ºCOCINA' | '2ºSUPERIOR COCINA';
+}
+
+export interface OrderItem {
+  type: 'recipe' | 'menu' | 'ingredient';
+  id: string;
+  quantity: number; // For recipe: quantity, For menu: diners, For ingredient: quantity
+  justification?: string;
+}
+
+export interface Order {
+  id: string;
+  title: string;
+  userId: string;
+  userName: string;
+  items: OrderItem[];
+  createdAt: string;
+  status: 'pending' | 'completed';
 }
 
 export interface CommissionTask {

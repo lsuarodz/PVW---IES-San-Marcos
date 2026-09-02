@@ -346,9 +346,39 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "description", "menuIds", "recipeIds", "theme", "status", "createdBy", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A persistent purchase order made by a teacher",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["recipe", "menu", "ingredient"] },
+              "quantity": { "type": "number" },
+              "justification": { "type": "string" }
+            },
+            "required": ["id", "type", "quantity"]
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "completed"] }
+      },
+      "required": ["title", "userId", "userName", "items", "createdAt", "status"]
     }
   },
   "firestore": {
+    "orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Purchase orders made by teachers"
+    },
     "design_dossiers/{dossierId}": {
       "schema": { "$ref": "#/entities/Dossier" },
       "description": "Interactive portfolios and dossiers for clients"

@@ -13,6 +13,7 @@ import { Ingredient } from '../types';
 export default function Ingredients() {
   // Obtenemos el usuario actual y sus permisos desde el contexto de autenticación
   const { appUser, commissionMode } = useAuth();
+  const canManageIngredients = appUser?.role === 'admin' || appUser?.role === 'compras';
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
   const isSuperAdmin = appUser?.role === 'admin';
   const { showToast } = useToast();
@@ -366,7 +367,7 @@ export default function Ingredients() {
           <p className="text-stone-500 text-lg">Gestiona el listado de ingredientes y sus costes.</p>
         </div>
         <div className="flex gap-3">
-          {activeTab === 'ingredients' && selectedIds.size > 0 && (isAdmin || isGastos || isKaled) && (
+          {activeTab === 'ingredients' && selectedIds.size > 0 && canManageIngredients && (
             <button
               onClick={handleBulkDelete}
               className="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 border border-red-200"
@@ -376,25 +377,29 @@ export default function Ingredients() {
             </button>
           )}
           {activeTab === 'ingredients' ? (
-            <button
-              onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Nuevo Ingrediente
-            </button>
+            canManageIngredients && (
+              <button
+                onClick={() => { resetForm(); setIsModalOpen(true); }}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Nuevo Ingrediente
+              </button>
+            )
           ) : (
-            <button
-              onClick={() => {
-                setWasteFormData({ item: '', percentage: '', notes: '' });
-                setEditingWasteId(null);
-                setIsWasteModalOpen(true);
-              }}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Nueva Merma
-            </button>
+            canManageIngredients && (
+              <button
+                onClick={() => {
+                  setWasteFormData({ item: '', percentage: '', notes: '' });
+                  setEditingWasteId(null);
+                  setIsWasteModalOpen(true);
+                }}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Nueva Merma
+              </button>
+            )
           )}
         </div>
       </div>
@@ -535,7 +540,7 @@ export default function Ingredients() {
                         step="0.01"
                         min="0"
                         value={ing.purchasePrice || ing.costPerUnit}
-                        disabled={!isAdmin && !isKaled && !isGastos}
+                        disabled={!canManageIngredients}
                         onChange={(e) => {
                           const newPrice = Number(e.target.value) || 0;
                           const waste = ing.wastePercentage || 0;
@@ -544,7 +549,7 @@ export default function Ingredients() {
                           setDoc(doc(db, 'ingredients', ing.id), { ...ing, purchasePrice: newPrice, costPerUnit: newCost });
                         }}
                         onFocus={e => e.target.select()}
-                        className="w-16 px-1 py-0.5 text-sm font-bold bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-right"
+                        className="w-16 px-1 py-0.5 text-sm font-bold bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-right disabled:opacity-50"
                       />
                       <span className="text-sm font-bold text-stone-900">€/{ing.unit}</span>
                     </div>
@@ -556,7 +561,7 @@ export default function Ingredients() {
                         min="0"
                         max="99"
                         value={ing.wastePercentage || 0}
-                        disabled={!isAdmin && !isKaled && !isGastos}
+                        disabled={!canManageIngredients}
                         onChange={(e) => {
                           const newWaste = Number(e.target.value) || 0;
                           const safeWaste = Math.min(Math.max(newWaste, 0), 99);
@@ -565,7 +570,7 @@ export default function Ingredients() {
                           setDoc(doc(db, 'ingredients', ing.id), { ...ing, wastePercentage: safeWaste, costPerUnit: newCost });
                         }}
                         onFocus={e => e.target.select()}
-                        className="w-10 px-1 py-0 text-xs bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-orange-600 text-right"
+                        className="w-10 px-1 py-0 text-xs bg-transparent border border-transparent hover:border-stone-200 focus:border-teal-500 focus:bg-white rounded transition-colors text-orange-600 text-right disabled:opacity-50"
                       />
                       <span className="text-orange-600">%</span>
                     </div>
@@ -576,7 +581,7 @@ export default function Ingredients() {
                 </td>
                 <td className="px-6 py-2 text-sm text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {(isAdmin || isKaled || isGastos) && (
+                    {canManageIngredients && (
                       <button
                         onClick={() => openEdit(ing)}
                         className="text-stone-400 hover:text-teal-600 p-2 hover:bg-teal-50 rounded-lg transition-colors"
@@ -585,7 +590,7 @@ export default function Ingredients() {
                         <Edit2 size={18} />
                       </button>
                     )}
-                    {(isAdmin || isGastos || isKaled) && (
+                    {canManageIngredients && (
                       <button
                         onClick={() => handleDelete(ing.id)}
                         className="text-stone-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

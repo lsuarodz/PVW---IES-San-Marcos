@@ -36,7 +36,6 @@ import Benchmarking from './pages/Benchmarking';
 import Sources from './pages/Sources';
 import Brainstorming from './pages/Brainstorming';
 import IdeasBoard from './pages/IdeasBoard';
-import Dossiers from './pages/Dossiers';
 import Commissions from './pages/Commissions';
 import TestRecipe from './pages/TestRecipe';
 import Providers from './pages/Providers';
@@ -45,6 +44,7 @@ import Quotes from './pages/Quotes';
 import Marketing from './pages/Marketing';
 import WorkLists from './pages/WorkLists';
 import Home from './pages/Home';
+import KitchenHub from './pages/KitchenHub';
 
 // ============================================================================
 // COMPONENTE: ProtectedRoute (Ruta Protegida)
@@ -117,6 +117,7 @@ function AppRoutes() {
         
         {/* "index" significa que si entramos a "/", nos muestra la pantalla de inicio (Home) */}
         <Route index element={<Home />} />
+        <Route path="kitchen-hub" element={<KitchenHub />} />
         
         {/* Aquí listamos todas las páginas y la URL que les corresponde */}
         <Route path="presentation" element={<ProjectPresentation />} />
@@ -125,7 +126,6 @@ function AppRoutes() {
         <Route path="sources" element={<Sources />} />
         <Route path="brainstorming" element={<Brainstorming />} />
         <Route path="ideas-board" element={<IdeasBoard />} />
-        <Route path="dossiers" element={<Dossiers />} />
         <Route path="commissions" element={<Commissions />} />
         <Route path="test-recipe" element={<TestRecipe />} />
         <Route path="providers" element={<Providers />} />

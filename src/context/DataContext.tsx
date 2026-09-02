@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings, AppUser, WorkList } from '../types';
+import { Ingredient, Recipe, Menu, Provider, StandardWaste, Client, Quote, ProductionIdea, AppSettings, AppUser, WorkList, Order } from '../types';
 
 // ============================================================================
 // INTERFACES (Definición de Tipos)
@@ -20,6 +20,7 @@ interface DataContextType {
   quotes: Quote[];
   productionIdeas: ProductionIdea[];
   workLists: WorkList[];
+  orders: Order[];
   users: AppUser[];
   settings: AppSettings | null;
   loadingData: boolean;
@@ -52,6 +53,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [productionIdeas, setProductionIdeas] = useState<ProductionIdea[]>([]);
   const [workLists, setWorkLists] = useState<WorkList[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   
@@ -72,6 +74,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setQuotes([]);
       setProductionIdeas([]);
       setWorkLists([]);
+      setOrders([]);
       setSettings(null);
       setLoadingData(false);
       return; // Salimos de la función, no hacemos nada más.
@@ -86,7 +89,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Wait, now we have 10 collections (WorkLists added).
     const checkLoading = () => {
       loadedCount++;
-      if (loadedCount === 10) setLoadingData(false);
+      if (loadedCount === 11) setLoadingData(false);
     };
 
     // 3. CONEXIÓN EN TIEMPO REAL A FIREBASE (onSnapshot)
@@ -102,12 +105,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Ordenamos alfabéticamente y guardamos en el estado.
       setIngredients(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching ingredients:', error);
+      checkLoading();
     });
 
     const unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot) => {
       const data: Recipe[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Recipe));
       setRecipes(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
+      checkLoading();
+    }, (error) => {
+      console.error('Error fetching recipes:', error);
       checkLoading();
     });
 
@@ -116,12 +125,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Menu));
       setMenus(data.sort((a, b) => (a.nameES || '').localeCompare(b.nameES || '')));
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching menus:', error);
+      checkLoading();
     });
 
     const unsubProviders = onSnapshot(collection(db, 'providers'), (snapshot) => {
       const data: Provider[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Provider));
       setProviders(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+      checkLoading();
+    }, (error) => {
+      console.error('Error fetching providers:', error);
       checkLoading();
     });
 
@@ -130,12 +145,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as StandardWaste));
       setStandardWastes(data.sort((a, b) => (a.item || '').localeCompare(b.item || '')));
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching standard wastes:', error);
+      checkLoading();
     });
 
     const unsubClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const data: Client[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Client));
       setClients(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+      checkLoading();
+    }, (error) => {
+      console.error('Error fetching clients:', error);
       checkLoading();
     });
 
@@ -144,6 +165,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Quote));
       setQuotes(data.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()));
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching quotes:', error);
+      checkLoading();
     });
 
     const unsubProductionIdeas = onSnapshot(collection(db, 'production_ideas'), (snapshot) => {
@@ -151,12 +175,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as ProductionIdea));
       setProductionIdeas(data.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching production ideas:', error);
+      checkLoading();
     });
 
     const unsubWorkLists = onSnapshot(collection(db, 'work_lists'), (snapshot) => {
       const data: WorkList[] = [];
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as WorkList));
       setWorkLists(data.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()));
+      checkLoading();
+    }, (error) => {
+      console.error('Error fetching work lists:', error);
+      checkLoading();
+    });
+
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const data: Order[] = [];
+      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Order));
+      setOrders(data.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+      checkLoading();
+    }, (error) => {
+      console.error('Error fetching orders:', error);
       checkLoading();
     });
 
@@ -169,12 +209,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       setSettings(globalSettings);
       checkLoading();
+    }, (error) => {
+      console.error('Error fetching settings:', error);
+      checkLoading();
     });
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       const data: AppUser[] = [];
       snapshot.forEach((doc) => data.push({ uid: doc.id, ...doc.data() } as AppUser));
       setUsers(data);
+    }, (error) => {
+      console.error('Error fetching users:', error);
     });
 
     // 4. LIMPIEZA (Cleanup)
@@ -190,6 +235,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       unsubQuotes();
       unsubProductionIdeas();
       unsubWorkLists();
+      unsubOrders();
       unsubSettings();
       unsubUsers();
     };
@@ -199,7 +245,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Aquí devolvemos el "Context.Provider" envolviendo a los "children" (nuestra app).
   // En la propiedad "value" metemos todos los datos que queremos compartir.
   return (
-    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, workLists, users, settings, loadingData }}>
+    <DataContext.Provider value={{ ingredients, recipes, menus, providers, standardWastes, clients, quotes, productionIdeas, workLists, orders, users, settings, loadingData }}>
       {children}
     </DataContext.Provider>
   );

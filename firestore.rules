@@ -72,11 +72,19 @@ service cloud.firestore {
       );
     }
 
-    function isStudentOrAdmin() {
+    function isComprasOrAdmin() {
       return isAuthenticated() && (
         isAdmin() ||
         (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
-         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'student', 'docente'])
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'compras')
+      );
+    }
+
+    function isStudentOrAdmin() {
+      return isAuthenticated() && (
+        isAdmin() || isComprasOrAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'student', 'docente', 'compras'])
       );
     }
 
@@ -299,6 +307,18 @@ service cloud.firestore {
              (!('createdAt' in data) || data.createdAt is string);
     }
 
+    function isValidOrder() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'title', 'userId', 'userName', 'items', 'createdAt', 'status']) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             isValidString(data.title, 1, 200) &&
+             isValidString(data.userId, 1, 100) &&
+             isValidString(data.userName, 1, 150) &&
+             data.items is list &&
+             data.createdAt is string &&
+             data.status in ['pending', 'completed'];
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -310,8 +330,8 @@ service cloud.firestore {
 
     match /ingredients/{ingredientId} {
       allow read: if isStudentOrAdmin();
-      allow create, update: if isStudentOrAdmin() && isValidIngredient();
-      allow delete: if isAdmin() || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('name', '').lower().matches('.*kaled.*'));
+      allow create, update: if isComprasOrAdmin() && isValidIngredient();
+      allow delete: if isComprasOrAdmin() || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('commission', '').lower() == 'gastos') || (exists(/databases/$(database)/documents/users/$(getUserEmail())) && get(/databases/$(database)/documents/users/$(getUserEmail())).data.get('name', '').lower().matches('.*kaled.*'));
     }
 
     match /recipes/{recipeId} {
@@ -423,6 +443,12 @@ service cloud.firestore {
       allow read: if isStudentOrAdmin();
       allow create, update: if isStudentOrAdmin() && isValidDesignBoard();
       allow delete: if isStudentOrAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update: if isStudentOrAdmin() && isValidOrder();
+      allow delete: if isAdmin() || isSuperAdmin();
     }
 
     match /design_dossiers/{dossierId} {

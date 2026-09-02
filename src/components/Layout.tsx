@@ -19,7 +19,9 @@ import {
   X,
   StickyNote,
   Lightbulb,
-  Compass
+  Compass,
+  Bug,
+  Home as HomeIcon
 } from 'lucide-react';
 
 export default function Layout() {
@@ -36,6 +38,50 @@ export default function Layout() {
     logout 
   } = useAuth();
   const { settings, users } = useData();
+
+  const [isErrorReportOpen, setIsErrorReportOpen] = useState(false);
+  const [errorDescription, setErrorDescription] = useState('');
+  const [isSendingError, setIsSendingError] = useState(false);
+  const [errorSentMessage, setErrorSentMessage] = useState('');
+
+  const handleReportError = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!errorDescription.trim()) return;
+
+    setIsSendingError(true);
+    setErrorSentMessage('');
+
+    try {
+      const response = await fetch("https://formsubmit.co/ajax/lsuarodzmail.com@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: "Reporte de Error de Aplicación",
+          email: appUser?.email || "usuario@desconocido.com",
+          message: `Usuario: ${appUser?.name || 'Desconocido'} (${appUser?.role || 'Sin rol'})\n\nDescripción del error:\n${errorDescription}`
+        })
+      });
+
+      if (response.ok) {
+        setErrorSentMessage('Error enviado correctamente. Gracias por tu ayuda.');
+        setTimeout(() => {
+          setIsErrorReportOpen(false);
+          setErrorDescription('');
+          setErrorSentMessage('');
+        }, 3000);
+      } else {
+        throw new Error("Error al enviar el reporte.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorSentMessage('Hubo un problema al enviar el reporte. Por favor, inténtalo más tarde.');
+    } finally {
+      setIsSendingError(false);
+    }
+  };
 
   const sortedUsers = useMemo(() => {
     if (!users) return [];
@@ -78,14 +124,14 @@ export default function Layout() {
 
   // Definición de los elementos del menú para Producción
   const productionItems = [
-    { name: 'Proveedores', path: '/providers', icon: <Users size={20} /> },
+    { name: 'Proveedores', path: '/providers', icon: <Users size={20} />, roles: ['admin', 'compras'] },
     { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
     { name: 'Elaborados', path: '/elaborados', icon: <BookOpen size={20} /> },
     { name: 'Platos', path: '/recipes', icon: <BookOpen size={20} /> },
-    { name: 'Menús', path: '/menus', icon: <Utensils size={20} /> },
+    { name: 'Menús', path: '/menus', icon: <Utensils size={20} />, roles: ['admin'] },
     { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
-    { name: 'Listas de Trabajo', path: '/work-lists', icon: <ClipboardList size={20} /> },
-  ];
+    { name: 'Listas de Trabajo', path: '/work-lists', icon: <ClipboardList size={20} />, roles: ['admin'] },
+  ].filter(item => !item.roles || item.roles.includes(appUser?.role || ''));
 
   // Definición de los elementos del menú para Gestión Comercial
   const comercialItems = [
@@ -95,7 +141,6 @@ export default function Layout() {
 
   // Definición de los elementos del menú para Creación y Diseño
   const disenoItems = [
-    { name: 'Dossiers', path: '/dossiers', icon: <BookOpen size={20} /> },
     { name: 'Tablón de Ideas', path: '/ideas-board', icon: <StickyNote size={20} /> },
   ];
 
@@ -378,9 +423,96 @@ export default function Layout() {
       </aside>
 
       {/* Contenido principal (aquí se renderizan las páginas hijas según la ruta) */}
-      <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0">
+      <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0 relative">
         <Outlet />
       </main>
+
+      {/* Controles Flotantes Superiores (Inicio / Reportar Error) */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-3 print:hidden">
+        <Link
+          to="/"
+          className="bg-teal-600 text-white p-2.5 rounded-full shadow-lg hover:bg-teal-700 transition-colors flex items-center justify-center group"
+          title="Ir al Inicio"
+        >
+          <HomeIcon size={24} />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-sm font-medium">
+            <span className="pl-2 pr-1">Ir al Inicio</span>
+          </span>
+        </Link>
+        <button 
+          onClick={() => setIsErrorReportOpen(true)}
+          className="bg-red-600 text-white p-2.5 rounded-full shadow-lg hover:bg-red-700 transition-colors flex items-center justify-center group"
+          title="Reportar un error"
+        >
+          <Bug size={24} />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-sm font-medium">
+            <span className="pl-2 pr-1">Reportar Error</span>
+          </span>
+        </button>
+      </div>
+
+      {/* Modal para reportar errores */}
+      {isErrorReportOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-stone-200 flex justify-between items-center bg-red-50">
+              <h2 className="text-lg font-bold text-red-900 flex items-center gap-2">
+                <Bug size={20} />
+                Reportar Error
+              </h2>
+              <button
+                onClick={() => {
+                  setIsErrorReportOpen(false);
+                  setErrorSentMessage('');
+                }}
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg transition-colors hover:bg-stone-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleReportError} className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-stone-600">
+                Describe detalladamente el problema que has encontrado. Este reporte será enviado automáticamente al administrador.
+              </p>
+              
+              <textarea
+                value={errorDescription}
+                onChange={(e) => setErrorDescription(e.target.value)}
+                placeholder="Ej: Al intentar añadir un nuevo ingrediente, el botón de guardar se queda cargando infinitamente..."
+                className="w-full h-32 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 resize-none text-sm"
+                required
+              />
+
+              {errorSentMessage && (
+                <div className={`p-3 rounded-xl text-sm font-medium ${errorSentMessage.includes('correctamente') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {errorSentMessage}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsErrorReportOpen(false);
+                    setErrorSentMessage('');
+                  }}
+                  className="px-4 py-2 text-stone-600 font-medium hover:bg-stone-100 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingError || !errorDescription.trim()}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+                >
+                  {isSendingError ? 'Enviando...' : 'Enviar Reporte'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
