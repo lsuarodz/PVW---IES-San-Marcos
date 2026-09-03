@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, ChefHat } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import MenuTile from '../components/MenuTile';
 
 export default function Home() {
   const { appUser } = useAuth();
@@ -16,14 +16,13 @@ export default function Home() {
         {/* Left Icon: Link to Kitchen Hub (Elaborados/Platos) */}
         <Link 
           to="/kitchen-hub"
-          className="bg-white p-4 rounded-2xl shadow-md border border-stone-100 flex items-center justify-center w-40 h-40 hover:shadow-lg hover:-translate-y-1 transition-all text-teal-600"
-          title="Elaborados y Platos"
+          title="Elaborados y Platos (Recetas)"
         >
-          <ChefHat size={80} strokeWidth={1.5} />
+          <MenuTile label="RECETAS" icon="recetas" className="w-40 h-40" />
         </Link>
 
         {/* Center: Logo */}
-        <div className="bg-white p-4 rounded-2xl shadow-md border border-stone-100 flex items-center justify-center w-40 h-40"> 
+        <div className="bg-white p-4 rounded-[28px] shadow-md border border-stone-100 flex items-center justify-center w-40 h-40"> 
           <img 
             src="/logoSolo.png" 
             alt="Logotipo IES San Marcos" 
@@ -36,10 +35,9 @@ export default function Home() {
         {appUser?.role !== 'student' ? (
           <Link 
             to="/orders"
-            className="bg-white p-4 rounded-2xl shadow-md border border-stone-100 flex items-center justify-center w-40 h-40 hover:shadow-lg hover:-translate-y-1 transition-all text-emerald-600"
             title="Pedidos"
           >
-            <ShoppingCart size={80} strokeWidth={1.5} />
+            <MenuTile label="PEDIDOS" icon="pedidos" className="w-40 h-40" />
           </Link>
         ) : (
           <div className="w-40 h-40 opacity-0 pointer-events-none" /> /* Placeholder to keep logo centered */
