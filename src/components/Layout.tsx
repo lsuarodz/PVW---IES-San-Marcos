@@ -24,6 +24,8 @@ import {
   Home as HomeIcon
 } from 'lucide-react';
 
+import { PWAInstallButton } from './PWAInstallButton';
+
 export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
     const { 
@@ -427,8 +429,9 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {/* Controles Flotantes Superiores (Inicio / Reportar Error) */}
+      {/* Controles Flotantes Superiores (Inicio / Reportar Error / PWA) */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3 print:hidden">
+        <PWAInstallButton />
         <Link
           to="/"
           className="bg-teal-600 text-white p-2.5 rounded-full shadow-lg hover:bg-teal-700 transition-colors flex items-center justify-center group"
