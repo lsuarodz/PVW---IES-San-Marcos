@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/ConfirmModal';
+import BackupRestore from '../components/BackupRestore';
 
 const getAvailableGroups = (course?: string): number[] => {
   switch (course) {
@@ -371,6 +372,8 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      <BackupRestore />
 
       {/* Sección de Mantenimiento de Datos */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-red-500">

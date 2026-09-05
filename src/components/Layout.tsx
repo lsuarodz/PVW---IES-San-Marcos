@@ -164,13 +164,16 @@ export default function Layout() {
     <div className="flex h-screen bg-stone-100 print:h-auto print:bg-white text-stone-900">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50 print:hidden">
-        <div className="flex items-center gap-3 text-teal-700">
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="flex items-center gap-3 text-teal-700 text-left focus:outline-none"
+        >
           {settings?.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain" crossOrigin="anonymous" />
           ) : (
             <h1 className="text-lg font-bold tracking-tight">Proyecto Intermodular</h1>
           )}
-        </div>
+        </button>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
