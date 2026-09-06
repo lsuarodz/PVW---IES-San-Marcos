@@ -131,6 +131,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     workListTasks: [] as { id: string; process: string; element: string; }[],
     ingredients: [] as RecipeIngredient[],
     imageUrl: '',
+    isPublic: false
   });
 
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -396,13 +397,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       workListTasks: recipe.workListTasks || [],
       ingredients: recipe.ingredients,
       imageUrl: recipe.imageUrl || '',
+      isPublic: recipe.isPublic || false
     });
     setEditingId(recipe.id);
     setIsModalOpen(true);
   };
 
   const resetForm = () => {
-    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '' });
+    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
     setEditingId(null);
   };
 
@@ -987,6 +989,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
                   </div>
                 )}
+                
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={formData.isPublic}
+                    onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                    disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                    className="w-4 h-4 text-teal-600 bg-stone-50 border-stone-300 rounded focus:ring-teal-500"
+                  />
+                  <label htmlFor="isPublic" className="text-sm font-medium text-stone-700">
+                    Hacer público (visible para todos los usuarios)
+                  </label>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>

@@ -47,6 +47,7 @@ export interface Recipe {
   feedback?: string;
   workListTasks?: { id: string; process: string; element: string; }[];
   createdAt: string;
+  isPublic?: boolean;
 }
 
 export interface ExtraConcept {
@@ -97,6 +98,7 @@ export interface Menu {
   marketingImageUrl?: string;
   marketingStatus?: 'boceto' | 'publicado';
   marketingCanvasElements?: CanvasElement[];
+  isPublic?: boolean;
 }
 
 export interface ProductionIdea {

@@ -127,12 +127,12 @@ export default function Layout() {
   // Definición de los elementos del menú para Producción
   const productionItems = [
     { name: 'Proveedores', path: '/providers', icon: <Users size={20} />, roles: ['admin', 'compras'] },
-    { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} /> },
+    { name: 'Ingredientes', path: '/ingredients', icon: <ChefHat size={20} />, roles: ['admin', 'compras'] },
     { name: 'Elaborados', path: '/elaborados', icon: <BookOpen size={20} /> },
     { name: 'Platos', path: '/recipes', icon: <BookOpen size={20} /> },
-    { name: 'Menús', path: '/menus', icon: <Utensils size={20} />, roles: ['admin'] },
-    { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} /> },
-    { name: 'Listas de Trabajo', path: '/work-lists', icon: <ClipboardList size={20} />, roles: ['admin'] },
+    { name: 'Menús', path: '/menus', icon: <Utensils size={20} />, roles: ['admin', 'docente'] },
+    { name: 'Pedidos', path: '/orders', icon: <ShoppingCart size={20} />, roles: ['admin', 'compras', 'docente'] },
+    { name: 'Listas de Trabajo', path: '/work-lists', icon: <ClipboardList size={20} />, roles: ['admin', 'compras'] },
   ].filter(item => !item.roles || item.roles.includes(appUser?.role || ''));
 
   // Definición de los elementos del menú para Gestión Comercial
@@ -155,8 +155,8 @@ export default function Layout() {
 
   const otherItems = isFirstYear ? [] : [...baseOtherItems];
 
-  // Si el usuario es administrador o docente, añadimos la sección de gestión de usuarios
-  if (appUser?.role === 'admin' || appUser?.role === 'docente') {
+  // Si el usuario es administrador, añadimos la sección de gestión de usuarios
+  if (appUser?.role === 'admin') {
     otherItems.push({ name: 'Usuarios', path: '/admin', icon: <UserCog size={20} /> });
   }
 
@@ -243,7 +243,7 @@ export default function Layout() {
           </div>
 
           {/* Gestión Comercial */}
-          {appUser?.role !== 'student' && (
+          {(appUser?.role === 'admin' || appUser?.role === 'compras') && (
           <div style={{ lineHeight: '20px', backgroundColor: '#ECF5E7', borderRadius: '6px' }}>
             <button 
               onClick={() => toggleSection('comercial')}
@@ -381,25 +381,7 @@ export default function Layout() {
               </div>
             </button>
           )}
-          {appUser?.role === 'admin' && (
-            <button
-              onClick={() => setViewAsStudent(!viewAsStudent)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl transition-colors mb-2 ${
-                viewAsStudent 
-                  ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                  : 'text-stone-600 hover:bg-stone-50 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Users size={18} />
-                <span>Vista Alumno</span>
-              </div>
-              <div className={`w-8 h-4 rounded-full relative transition-colors ${viewAsStudent ? 'bg-amber-500' : 'bg-stone-300'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${viewAsStudent ? 'left-[18px]' : 'left-0.5'}`} />
-              </div>
-            </button>
-          )}
-          {(actualAppUser?.role === 'admin' || actualAppUser?.role === 'docente') && users && (
+          {actualAppUser?.role === 'admin' && users && (
             <div className="mb-2">
               <label className="block text-xs font-medium text-stone-500 mb-1 px-1">Ver como usuario:</label>
               <select

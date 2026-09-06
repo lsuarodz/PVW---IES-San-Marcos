@@ -20,6 +20,8 @@ export function canViewItem(
 ): boolean {
   if (!currentUser) return false;
   
+  if (item.isPublic) return true;
+  
   // Si es un admin real actuando como admin, lo ve todo
   if (currentUser.role === 'admin' && !options?.viewAsStudent) {
     return true;

@@ -58,6 +58,7 @@ export default function Orders() {
   // Consolidate Tab States
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<'provider' | 'teacher'>('provider');
+  const [printMode, setPrintMode] = useState<'provider' | 'ingredient'>('provider');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Print Setup
@@ -363,19 +364,20 @@ export default function Orders() {
     return Object.keys(groupedByTeacher).sort((a, b) => a.localeCompare(b));
   }, [groupedByTeacher]);
 
-  const filteredRecipes = recipes.filter(r => {
+  const filteredRecipes = search.trim() === '' ? [] : recipes.filter(r => {
     if (!canViewItem(r, appUser, users, { commissionMode })) return false;
     return r.nameES.toLowerCase().includes(search.toLowerCase()) &&
            !orderItems.find(item => item.id === r.id && item.type === 'recipe');
   });
 
-  const filteredMenus = menus.filter(m => {
-    if (!canViewItem(m, appUser, users, { commissionMode })) return false;
+  const filteredMenus = search.trim() === '' ? [] : menus.filter(m => {
+    const isOwner = m.createdBy === appUser?.name || m.createdBy === appUser?.uid || m.createdBy === appUser?.email || (appUser?.group && m.group === appUser?.group);
+    if (!isOwner && !m.isPublic) return false;
     return m.nameES.toLowerCase().includes(search.toLowerCase()) &&
            !orderItems.find(item => item.id === m.id && item.type === 'menu');
   });
 
-  const filteredIngredients = ingredients.filter(i => {
+  const filteredIngredients = search.trim() === '' ? [] : ingredients.filter(i => {
     return i.nameES.toLowerCase().includes(search.toLowerCase()) &&
            !orderItems.find(item => item.id === i.id && item.type === 'ingredient');
   });
@@ -442,7 +444,7 @@ export default function Orders() {
             y: 0
           },
           jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+          pagebreak: { mode: ['css', 'legacy'] }
         };
         
         generatePDF(printRef.current, opt)
@@ -466,11 +468,10 @@ export default function Orders() {
   }, [orders, appUser]);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto font-sans">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+    <div className="p-4 max-w-7xl mx-auto font-sans">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-2">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
-          <p className="text-stone-500 mt-2">Sistema de compras integrado y consolidado por profesor y proveedor con soporte de justificaciones directas.</p>
         </div>
 
         {/* Tab Switcher */}
@@ -494,30 +495,30 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* ==================== LEFT COLUMN ==================== */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 space-y-4">
           {activeTab === 'create' ? (
             /* ================= CREATE ORDER VIEW ================= */
             <>
-              <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-                <h2 className="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2 border-b border-stone-100 pb-2">
-                  <ShoppingCart size={20} className="text-teal-600" />
+              <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
+                <h2 className="text-base font-bold text-stone-900 mb-3 flex items-center gap-2 border-b border-stone-100 pb-2">
+                  <ShoppingCart size={18} className="text-teal-600" />
                   Nueva Comanda de Producción
                 </h2>
 
-                <div className="mb-4">
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Título o Identificador del Pedido</label>
+                <div className="mb-3">
+                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Título o Identificador del Pedido</label>
                   <input
                     type="text"
-                    placeholder={`Ej: Repostería Jueves (${appUser?.name || 'Profesor'})`}
+                    placeholder="PTU RA1..."
                     value={orderTitle}
                     onChange={(e) => setOrderTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    className="w-full px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                   />
                 </div>
                 
-                <div className="space-y-3 mb-6 max-h-[350px] overflow-y-auto pr-1">
+                <div className="space-y-2 mb-4 max-h-[350px] overflow-y-auto pr-1">
                   {orderItems.map(item => {
                     const isRecipe = item.type === 'recipe';
                     const isMenu = item.type === 'menu';
@@ -586,11 +587,6 @@ export default function Orders() {
                       </div>
                     );
                   })}
-                  {orderItems.length === 0 && (
-                    <div className="text-center py-12 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-xl bg-stone-50/50">
-                      El pedido está vacío. Añade recetas, menús o ingredientes directos abajo.
-                    </div>
-                  )}
                 </div>
 
                 {orderItems.length > 0 && (
@@ -605,16 +601,16 @@ export default function Orders() {
               </div>
 
               {/* SEARCH RECIPES, MENUS & DIRECT INGREDIENTS */}
-              <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-                <h3 className="text-sm font-bold text-stone-900 mb-3 uppercase tracking-wider">Añadir al Pedido</h3>
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+              <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
+                <h3 className="text-sm font-bold text-stone-900 mb-2 uppercase tracking-wider">Añadir al Pedido</h3>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
                   <input
                     type="text"
                     placeholder="Buscar recetas, menús o ingredientes..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    className="w-full pl-9 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                   />
                 </div>
                 
@@ -684,8 +680,8 @@ export default function Orders() {
                     </div>
                   )}
                   
-                  {filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
-                    <div className="text-center py-4 text-stone-400 text-xs">
+                  {search.trim() !== '' && filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
+                    <div className="text-center py-2 text-stone-400 text-xs">
                       No se encontraron resultados en recetas, menús ni ingredientes.
                     </div>
                   )}
@@ -694,8 +690,8 @@ export default function Orders() {
 
               {/* MY SAVED ORDERS HISTORY */}
               {mySavedOrders.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-                  <h3 className="text-sm font-bold text-stone-900 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
+                  <h3 className="text-sm font-bold text-stone-900 mb-2 uppercase tracking-wider flex items-center gap-2">
                     <Calendar size={16} className="text-teal-600" />
                     Mis Pedidos Guardados
                   </h3>
@@ -736,8 +732,8 @@ export default function Orders() {
             </>
           ) : (
             /* ================= CONSOLIDATE VIEW ================= */
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4 space-y-3">
+              <div className="flex justify-between items-center border-b border-stone-100 pb-2">
                 <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
                   <User size={20} className="text-teal-600" />
                   Pedidos del Profesorado
@@ -808,9 +804,9 @@ export default function Orders() {
                   );
                 })}
                 {orders.length === 0 && (
-                  <div className="text-center py-16 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-xl bg-stone-50/50">
-                    <FolderOpen size={36} className="mx-auto text-stone-300 mb-2" />
-                    No hay ningún pedido guardado en el sistema.
+                  <div className="text-center py-8 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-lg bg-stone-50/50">
+                    <FolderOpen size={24} className="mx-auto text-stone-300 mb-1" />
+                    No hay ningún pedido guardado.
                   </div>
                 )}
               </div>
@@ -842,12 +838,12 @@ export default function Orders() {
 
         {/* ==================== RIGHT COLUMN ==================== */}
         <div className="lg:col-span-7">
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden sticky top-8">
-            <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 overflow-hidden sticky top-8">
+            <div className="p-4 border-b border-stone-100 bg-stone-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div className="flex items-center gap-2">
-                <Calculator size={22} className="text-teal-600" />
+                <Calculator size={20} className="text-teal-600" />
                 <div>
-                  <h2 className="text-lg font-bold text-stone-900">
+                  <h2 className="text-base font-bold text-stone-900">
                     {activeTab === 'create' ? 'Mi Lista de la Compra' : 'Lista de Compra Consolidada'}
                   </h2>
                   <p className="text-xs text-stone-500">
@@ -856,18 +852,28 @@ export default function Orders() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 self-stretch md:self-auto justify-between md:justify-end">
-                <button
-                  onClick={exportPDF}
-                  disabled={isPrinting || aggregatedList.length === 0}
-                  className="p-2.5 text-stone-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl border border-stone-200 transition-colors disabled:opacity-50"
-                  title="Imprimir Lista PDF"
-                >
-                  <Printer size={20} />
-                </button>
+              <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end">
+                <div className="flex items-center gap-2 mr-2 border-r border-stone-200 pr-4">
+                  <select
+                    value={printMode}
+                    onChange={(e) => setPrintMode(e.target.value as 'provider' | 'ingredient')}
+                    className="text-xs border border-stone-200 rounded-lg bg-stone-50 text-stone-600 focus:ring-teal-500 py-1.5 pl-2 pr-6"
+                  >
+                    <option value="provider">Imprimir por Proveedor</option>
+                    <option value="ingredient">Imprimir solo Ingredientes</option>
+                  </select>
+                  <button
+                    onClick={exportPDF}
+                    disabled={isPrinting || aggregatedList.length === 0}
+                    className="p-2 text-stone-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg border border-stone-200 transition-colors disabled:opacity-50"
+                    title="Imprimir Lista PDF"
+                  >
+                    <Printer size={18} />
+                  </button>
+                </div>
                 <div className="text-right">
                   <div className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
-                  <div className="text-2xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
+                  <div className="text-xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
                 </div>
               </div>
             </div>
@@ -1016,7 +1022,7 @@ export default function Orders() {
       {/* ==================== HIDDEN PRINT LAYOUT ==================== */}
       {isPrinting && (
         <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="px-12 py-16 bg-white text-stone-900 font-sans w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+          <div ref={printRef} className="bg-white text-stone-900 font-sans w-[794px] mx-auto flex flex-col relative overflow-hidden">
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-8 mb-10 flex justify-between items-end">
                 <div>
@@ -1035,95 +1041,102 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* Included Production Breakdown */}
-              {consolidatedProduction.length > 0 && (
-                <div className="mb-10 text-stone-900">
-                  <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">Producción e Ingredientes Directos Incluidos</h3>
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-3">
-                    {consolidatedProduction.map((item, idx) => (
-                      <div key={idx} className="flex flex-col text-[11px] border-b border-stone-50 pb-1.5">
-                        <div className="flex justify-between w-full">
-                          <span className="text-stone-700 font-semibold">
-                            {item.name} <span className="text-[9px] text-stone-400 uppercase">({item.type})</span>
-                          </span>
-                          <span className="font-bold text-stone-900">x{item.quantity}</span>
-                        </div>
-                        <div className="flex justify-between w-full text-[9px] text-stone-500 mt-0.5">
-                          <span className="italic text-teal-600 font-medium" style={{ fontSize: '75%' }}>{formatTeacherName(item.teacherName)}</span>
-                          {item.justification && (
-                            <span className="text-amber-800 italic">Justificación: {item.justification}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Detailed Shopping list by Supplier */}
+              {/* Detailed Shopping list */}
               <div>
-                <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">
-                  Desglose de Ingredientes por Proveedor y Profesor
-                </h3>
-                {sortedProviders.map((provider) => {
-                  const providerItems = groupedIngredients[provider];
-                  const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
+                {printMode === 'provider' ? (
+                  <>
+                    <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">
+                      Desglose de Ingredientes por Proveedor
+                    </h3>
+                    {sortedProviders.map((provider) => {
+                      const providerItems = groupedIngredients[provider];
+                      const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
 
-                  return (
-                    <div key={provider} className="mb-6 print-avoid-break text-stone-900">
-                      <h4 className="text-[11px] font-bold text-stone-900 bg-stone-50 px-2 py-1 mb-2 uppercase tracking-wider border-l-2 border-stone-400">
-                        {provider}
-                      </h4>
+                      return (
+                        <div key={provider} className="mb-6 print-avoid-break text-stone-900">
+                          <h4 className="text-[11px] font-bold text-stone-900 bg-stone-50 px-2 py-1 mb-2 uppercase tracking-wider border-l-2 border-stone-400">
+                            {provider}
+                          </h4>
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="text-stone-400 uppercase tracking-wider text-[9px] border-b border-stone-100">
+                                <th className="py-1 font-medium">Ingrediente / Petición</th>
+                                <th className="py-1 font-medium text-right">Cantidad</th>
+                                <th className="py-1 font-medium text-right">Coste Est.</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-50">
+                              {providerItems.map((item) => (
+                                <React.Fragment key={item.ingredientId}>
+                                  <tr>
+                                    <td className="py-1.5 text-[11px] font-bold text-stone-800">{item.name}</td>
+                                    <td className="py-1.5 text-[11px] text-right font-bold text-stone-900">{item.totalQuantity.toFixed(3)} {item.unit}</td>
+                                    <td className="py-1.5 text-[11px] text-right text-stone-600">{item.totalCost.toFixed(2)} €</td>
+                                  </tr>
+                                  {/* BREAKDOWN PER TEACHER WITH JUSTIFICATION */}
+                                  {Object.keys(item.byTeacher).length > 0 && (
+                                    <tr>
+                                      <td colSpan={3} className="pb-2 pt-0.5 pl-4 bg-stone-50/10">
+                                        <div className="text-[9px] text-stone-500 flex flex-col gap-y-0.5">
+                                          {Object.entries(item.byTeacher).map(([teacher, qty]) => {
+                                            const parts = teacher.split(' (Justificación:');
+                                            const nameOnly = parts[0];
+                                            const formattedName = formatTeacherName(nameOnly);
+                                            const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
+                                            return (
+                                              <div key={teacher} className="text-stone-600 text-[9px]">
+                                                • <strong className="font-semibold text-stone-700" style={{ fontSize: '75%' }}>{formattedName}</strong>: <span className="font-medium text-stone-700">{qty.toFixed(3)} {item.unit}</span>
+                                                {justification && <span className="text-stone-500 italic ml-1">{justification}</span>}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-stone-100 font-medium text-stone-700">
+                                <td colSpan={2} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Subtotal {provider}</td>
+                                <td className="py-2 text-right text-[11px] font-bold text-stone-950">{providerTotal.toFixed(2)} €</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">
+                      Lista de Ingredientes
+                    </h3>
+                    <div className="print-avoid-break text-stone-900">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="text-stone-400 uppercase tracking-wider text-[9px] border-b border-stone-100">
-                            <th className="py-1 font-medium">Ingrediente / Petición</th>
+                            <th className="py-1 font-medium">Ingrediente</th>
                             <th className="py-1 font-medium text-right">Cantidad</th>
                             <th className="py-1 font-medium text-right">Coste Est.</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-stone-50">
-                          {providerItems.map((item) => (
+                          {aggregatedList.map((item) => (
                             <React.Fragment key={item.ingredientId}>
                               <tr>
                                 <td className="py-1.5 text-[11px] font-bold text-stone-800">{item.name}</td>
                                 <td className="py-1.5 text-[11px] text-right font-bold text-stone-900">{item.totalQuantity.toFixed(3)} {item.unit}</td>
                                 <td className="py-1.5 text-[11px] text-right text-stone-600">{item.totalCost.toFixed(2)} €</td>
                               </tr>
-                              {/* BREAKDOWN PER TEACHER WITH JUSTIFICATION */}
-                              {Object.keys(item.byTeacher).length > 0 && (
-                                <tr>
-                                  <td colSpan={3} className="pb-2 pt-0.5 pl-4 bg-stone-50/10">
-                                    <div className="text-[9px] text-stone-500 flex flex-col gap-y-0.5">
-                                      {Object.entries(item.byTeacher).map(([teacher, qty]) => {
-                                        const parts = teacher.split(' (Justificación:');
-                                        const nameOnly = parts[0];
-                                        const formattedName = formatTeacherName(nameOnly);
-                                        const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
-                                        return (
-                                          <div key={teacher} className="text-stone-600 text-[9px]">
-                                            • <strong className="font-semibold text-stone-700" style={{ fontSize: '75%' }}>{formattedName}</strong>: <span className="font-medium text-stone-700">{qty.toFixed(3)} {item.unit}</span>
-                                            {justification && <span className="text-stone-500 italic ml-1">{justification}</span>}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
                             </React.Fragment>
                           ))}
                         </tbody>
-                        <tfoot>
-                          <tr className="border-t border-stone-100 font-medium text-stone-700">
-                            <td colSpan={2} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Subtotal {provider}</td>
-                            <td className="py-2 text-right text-[11px] font-bold text-stone-950">{providerTotal.toFixed(2)} €</td>
-                          </tr>
-                        </tfoot>
                       </table>
                     </div>
-                  );
-                })}
+                  </>
+                )}
 
                 <div className="border-t-2 border-stone-200 mt-8 pt-4 flex justify-between items-center font-bold text-stone-900 print-avoid-break">
                   <div className="text-right uppercase tracking-widest text-[11px] text-stone-500 w-full">Total Pedido</div>

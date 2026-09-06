@@ -146,6 +146,7 @@ export default function Menus() {
     recipes: [] as string[],
     extraConcepts: [] as { name: string; cost: number }[],
     price: 0,
+    isPublic: false
   });
 
   // Referencias y estados para la funcionalidad de impresión a PDF
@@ -311,6 +312,7 @@ export default function Menus() {
       recipes: menu.recipes,
       extraConcepts: menu.extraConcepts || [],
       price: menu.price,
+      isPublic: menu.isPublic || false
     });
     setEditingId(menu.id);
     setIsModalOpen(true);
@@ -329,7 +331,8 @@ export default function Menus() {
       diners: null, 
       recipes: [], 
       extraConcepts: [],
-      price: 0 
+      price: 0,
+      isPublic: false
     });
     setEditingId(null);
     setRecipeSearch('');
@@ -974,6 +977,21 @@ export default function Menus() {
                     Estás editando un menú de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
                   </div>
                 )}
+                
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={formData.isPublic}
+                    onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                    disabled={editingId ? !isOwner(menus.find(m => m.id === editingId)!) : false}
+                    className="w-4 h-4 text-teal-600 bg-stone-50 border-stone-300 rounded focus:ring-teal-500"
+                  />
+                  <label htmlFor="isPublic" className="text-sm font-medium text-stone-700">
+                    Hacer público (visible para todos los usuarios)
+                  </label>
+                </div>
+
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Nombre</label>

@@ -54,7 +54,7 @@ import KitchenHub from './pages/KitchenHub';
 // Recibe dos "props" (parámetros):
 // - children: El contenido que queremos proteger (la página en sí).
 // - requireAdmin: Un valor opcional (true/false) que indica si se necesita ser jefe/admin.
-function ProtectedRoute({ children, requireAdmin, requireNonStudent }: { children: React.ReactNode, requireAdmin?: boolean, requireNonStudent?: boolean }) {
+function ProtectedRoute({ children, requireAdmin, requireNonStudent, requireComprasOrAdmin }: { children: React.ReactNode, requireAdmin?: boolean, requireNonStudent?: boolean, requireComprasOrAdmin?: boolean }) {
   // Obtenemos el usuario actual (appUser) y si la app está cargando (loading) desde el contexto de autenticación.
   const { appUser, loading } = useAuth();
 
@@ -75,13 +75,17 @@ function ProtectedRoute({ children, requireAdmin, requireNonStudent }: { childre
   }
 
   // 3. Si la página exige ser administrador (requireAdmin es true), 
-  // pero el usuario tiene un rol normal (no es 'admin' ni 'docente'),
+  // pero el usuario tiene un rol normal (no es 'admin'),
   // lo devolvemos a la página principal ("/").
-  if (requireAdmin && appUser.role !== 'admin' && appUser.role !== 'docente') {
+  if (requireAdmin && appUser.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 
   if (requireNonStudent && appUser.role === 'student') {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireComprasOrAdmin && appUser.role !== 'admin' && appUser.role !== 'compras') {
     return <Navigate to="/" replace />;
   }
 
@@ -129,15 +133,15 @@ function AppRoutes() {
         <Route path="commissions" element={<Commissions />} />
         <Route path="test-recipe" element={<TestRecipe />} />
         <Route path="providers" element={<Providers />} />
-        <Route path="clients" element={<ProtectedRoute requireNonStudent><Clients /></ProtectedRoute>} />
-        <Route path="quotes" element={<ProtectedRoute requireNonStudent><Quotes /></ProtectedRoute>} />
-        <Route path="marketing" element={<ProtectedRoute requireNonStudent><Marketing /></ProtectedRoute>} />
-        <Route path="ingredients" element={<Ingredients />} />
+        <Route path="clients" element={<ProtectedRoute requireComprasOrAdmin><Clients /></ProtectedRoute>} />
+        <Route path="quotes" element={<ProtectedRoute requireComprasOrAdmin><Quotes /></ProtectedRoute>} />
+        <Route path="marketing" element={<ProtectedRoute requireComprasOrAdmin><Marketing /></ProtectedRoute>} />
+        <Route path="ingredients" element={<ProtectedRoute requireComprasOrAdmin><Ingredients /></ProtectedRoute>} />
         <Route path="elaborados" element={<Recipes type="elaborado" />} />
         <Route path="recipes" element={<Recipes type="plato" />} />
         <Route path="menus" element={<Menus />} />
-        <Route path="orders" element={<Orders />} />
-        <Route path="work-lists" element={<WorkLists />} />
+        <Route path="orders" element={<ProtectedRoute requireNonStudent><Orders /></ProtectedRoute>} />
+        <Route path="work-lists" element={<ProtectedRoute requireComprasOrAdmin><WorkLists /></ProtectedRoute>} />
         <Route path="coffee-brunch" element={<CoffeeBrunch />} />
         <Route path="standardization" element={<Standardization />} />
         <Route path="translations" element={<Translations />} />
