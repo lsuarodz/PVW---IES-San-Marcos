@@ -57,8 +57,7 @@ export default function Orders() {
 
   // Consolidate Tab States
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [groupBy, setGroupBy] = useState<'provider' | 'teacher'>('provider');
-  const [printMode, setPrintMode] = useState<'provider' | 'ingredient'>('provider');
+  const [groupBy, setGroupBy] = useState<'provider' | 'teacher' | 'ingredient'>('provider');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Print Setup
@@ -853,51 +852,33 @@ export default function Orders() {
               </div>
 
               <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end">
-                <div className="flex items-center gap-2 mr-2 border-r border-stone-200 pr-4">
-                  <select
-                    value={printMode}
-                    onChange={(e) => setPrintMode(e.target.value as 'provider' | 'ingredient')}
-                    className="text-xs border border-stone-200 rounded-lg bg-stone-50 text-stone-600 focus:ring-teal-500 py-1.5 pl-2 pr-6"
-                  >
-                    <option value="provider">Imprimir por Proveedor</option>
-                    <option value="ingredient">Imprimir solo Ingredientes</option>
-                  </select>
-                  <button
-                    onClick={exportPDF}
+                {activeTab === 'consolidate' && (
+                  <div className="flex items-center gap-2 mr-2 border-r border-stone-200 pr-4">
+                    <select
+                      value={groupBy}
+                      onChange={(e) => setGroupBy(e.target.value as 'provider' | 'teacher' | 'ingredient')}
+                      className="text-xs border border-stone-200 rounded-lg bg-stone-50 text-stone-600 focus:ring-teal-500 py-1.5 pl-2 pr-6"
+                    >
+                      <option value="provider">Ordenado por Proveedor</option>
+                      <option value="teacher">Ordenado por Profesor</option>
+                      <option value="ingredient">Ordenado por Lista</option>
+                    </select>
+                  </div>
+                )}
+                <button
+                  onClick={exportPDF}
                     disabled={isPrinting || aggregatedList.length === 0}
                     className="p-2 text-stone-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg border border-stone-200 transition-colors disabled:opacity-50"
                     title="Imprimir Lista PDF"
                   >
                     <Printer size={18} />
                   </button>
-                </div>
                 <div className="text-right">
                   <div className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
                   <div className="text-xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
                 </div>
               </div>
             </div>
-
-            {/* View grouping selector (Only if consolidating) */}
-            {activeTab === 'consolidate' && aggregatedList.length > 0 && (
-              <div className="px-6 py-3 bg-stone-50/50 border-b border-stone-100 flex justify-between items-center text-sm">
-                <span className="text-stone-600 font-medium">Agrupar ingredientes por:</span>
-                <div className="flex bg-stone-100 p-1 rounded-lg border border-stone-200">
-                  <button
-                    onClick={() => setGroupBy('provider')}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${groupBy === 'provider' ? 'bg-white text-teal-800 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
-                  >
-                    Proveedor
-                  </button>
-                  <button
-                    onClick={() => setGroupBy('teacher')}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${groupBy === 'teacher' ? 'bg-white text-teal-800 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
-                  >
-                    Profesor
-                  </button>
-                </div>
-              </div>
-            )}
 
             <div className="p-0 max-h-[600px] overflow-y-auto">
               {aggregatedList.length > 0 ? (
@@ -960,7 +941,7 @@ export default function Orders() {
                         ))}
                       </tbody>
                     </table>
-                  ) : (
+                  ) : groupBy === 'teacher' ? (
                     /* ================= GROUPED BY TEACHER VIEW ================= */
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -1006,6 +987,36 @@ export default function Orders() {
                         })}
                       </tbody>
                     </table>
+                  ) : (
+                    /* ================= GROUPED BY INGREDIENT VIEW ================= */
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-stone-50 border-b border-stone-200">
+                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
+                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
+                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Coste Est.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {aggregatedList.map((item) => (
+                          <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors bg-white">
+                            <td className="px-6 py-3 pl-8">
+                              <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <div className="text-sm font-bold text-stone-900">
+                                {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <div className="text-sm text-stone-600 font-medium">
+                                {item.totalCost.toFixed(2)} €
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
                 </>
               ) : (
@@ -1043,7 +1054,7 @@ export default function Orders() {
 
               {/* Detailed Shopping list */}
               <div>
-                {printMode === 'provider' ? (
+                {groupBy === 'provider' ? (
                   <>
                     <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">
                       Desglose de Ingredientes por Proveedor
@@ -1101,6 +1112,52 @@ export default function Orders() {
                               <tr className="border-t border-stone-100 font-medium text-stone-700">
                                 <td colSpan={2} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Subtotal {provider}</td>
                                 <td className="py-2 text-right text-[11px] font-bold text-stone-950">{providerTotal.toFixed(2)} €</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : groupBy === 'teacher' ? (
+                  <>
+                    <h3 className="text-xs font-bold mb-4 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-2">
+                      Desglose de Ingredientes por Profesor
+                    </h3>
+                    {sortedTeachers.map((teacher) => {
+                      const teacherItems = groupedByTeacher[teacher];
+                      const teacherTotal = teacherItems.reduce((sum, item) => sum + item.totalCost, 0);
+                      const parts = teacher.split(' (Justificación:');
+                      const nameOnly = parts[0];
+                      const formattedName = formatTeacherName(nameOnly);
+                      const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
+
+                      return (
+                        <div key={teacher} className="mb-6 print-avoid-break text-stone-900">
+                          <h4 className="text-[11px] font-bold text-teal-900 bg-teal-50 px-2 py-1 mb-2 uppercase tracking-wider border-l-2 border-teal-400">
+                            {formattedName} {justification && <span className="font-normal italic text-stone-500 ml-1">{justification}</span>}
+                          </h4>
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="text-stone-400 uppercase tracking-wider text-[9px] border-b border-stone-100">
+                                <th className="py-1 font-medium">Ingrediente</th>
+                                <th className="py-1 font-medium text-right">Cantidad</th>
+                                <th className="py-1 font-medium text-right">Proveedor</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-50">
+                              {teacherItems.map((item, idx) => (
+                                <tr key={`${teacher}-${item.ingredientId}-${idx}`}>
+                                  <td className="py-1.5 text-[11px] font-bold text-stone-800">{item.name}</td>
+                                  <td className="py-1.5 text-[11px] text-right font-bold text-stone-900">{item.quantity.toFixed(3)} {item.unit}</td>
+                                  <td className="py-1.5 text-[11px] text-right text-stone-500 italic">{item.provider || 'Sin proveedor'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-stone-100 font-medium text-stone-700">
+                                <td colSpan={2} className="py-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Subtotal</td>
+                                <td className="py-2 text-right text-[11px] font-bold text-stone-950">{teacherTotal.toFixed(2)} €</td>
                               </tr>
                             </tfoot>
                           </table>
