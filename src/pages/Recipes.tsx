@@ -548,7 +548,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (printRef.current) {
         try {
           const opt = {
-            margin: 20,
+            margin: 10,
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
@@ -556,9 +556,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               useCORS: true, 
               logging: false,
               scrollY: 0,
+              windowWidth: 794,
               y: 0
             },
-            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
           };
           

@@ -366,15 +366,15 @@ export default function Menus() {
       if (printRef.current) {
         try {
           const opt = {
-            margin: 20,
+            margin: 10,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
-              logging: false
+              logging: false, windowWidth: 794, scrollY: 0, y: 0
             },
-            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
           };
           
@@ -413,17 +413,18 @@ export default function Menus() {
       if (printEquipmentRef.current) {
         try {
           const opt = {
-            margin: 20,
+            margin: 10,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
-              logging: false,
+              logging: false, windowWidth: 794, scrollY: 0, y: 0,
               scrollY: 0,
+              windowWidth: 794,
               y: 0
             },
-            jsPDF: { unit: 'px', format: [794, 1122] as [number, number], orientation: 'portrait' as const },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
           
