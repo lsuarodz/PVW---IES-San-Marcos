@@ -245,7 +245,7 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
         )}
       </td>
       <td className="px-2 py-2 text-center">
-        <div className="w-5 h-5 mx-auto border-2 border-stone-800 rounded-sm print:border-black flex items-center justify-center realizado-box">
+        <div className="w-5 h-5  border-2 border-stone-800 rounded-sm print:border-black flex items-center justify-center realizado-box">
           {task.completed && <Check size={14} className="text-stone-900 realizado-icon" />}
         </div>
         <button 
@@ -397,12 +397,12 @@ export default function WorkLists() {
 
       await generatePDF(printRef.current, {
         filename: fileName,
-        margin: [0.5, 0.4, 0.8, 0.4], // Top 0.5in, Right 0.4in, Bottom 0.8in, Left 0.4in
+        margin: 0, // Top 0.5in, Right 0.4in, Bottom 0.8in, Left 0.4in
         pagebreak: { mode: 'css', avoid: 'tr' },
         html2canvas: {
           scale: 2,
           useCORS: true,
-          logging: false,
+          logging: false, windowWidth: 1122, scrollY: 0, scrollX: 0,
           backgroundColor: '#ffffff'
         },
         jsPDF: {
@@ -688,7 +688,7 @@ export default function WorkLists() {
         </div>
 
         {/* Paper format for printing and editing */}
-        <div ref={printRef} className={`bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px] mx-auto w-full ${isExportingPDF ? 'print-export-mode' : ''}`}>
+        <div ref={printRef} className={`bg-white rounded-xl shadow-sm border border-stone-200 overflow-visible print:overflow-visible flex-1 print:flex-none print:shadow-none print:border-none print:m-0 flex flex-col print:block max-w-[1400px]  w-full ${isExportingPDF ? 'px-8 py-8 ' : ''}${isExportingPDF ? 'print-export-mode' : ''}`}>
           <style>{`
               @media print {
               @page { size: landscape; margin: 15mm 10mm 20mm 10mm; }
@@ -994,7 +994,7 @@ export default function WorkLists() {
 
   // Lista principal (Cards view)
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl ">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-800">Listas de Trabajo</h1>
@@ -1078,7 +1078,7 @@ export default function WorkLists() {
         
         {filteredLists.length === 0 && (
           <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-stone-200 border-dashed">
-            <ClipboardList size={48} className="mx-auto text-stone-300 mb-4" />
+            <ClipboardList size={48} className=" text-stone-300 mb-4" />
             <h3 className="text-lg font-medium text-stone-900 mb-1">No hay listas de trabajo</h3>
             <p className="text-stone-500">Crea tu primera lista para organizar la producción.</p>
           </div>

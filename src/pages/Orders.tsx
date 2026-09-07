@@ -432,14 +432,14 @@ export default function Orders() {
     setTimeout(() => {
       if (printRef.current) {
         const opt = {
-          margin: 10,
+          margin: 0,
           filename: `Pedido_Consolidado_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
           image: { type: 'jpeg' as const, quality: 0.98 },
           html2canvas: { 
             scale: 2, 
             useCORS: true, 
             logging: false,
-            scrollY: 0,
+            scrollX: 0, scrollY: 0, 
               windowWidth: 794,
             y: 0
           },
@@ -468,7 +468,7 @@ export default function Orders() {
   }, [orders, appUser]);
 
   return (
-    <div className="p-4 max-w-7xl mx-auto font-sans">
+    <div className="p-4 max-w-7xl  font-sans">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-2">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
@@ -805,7 +805,7 @@ export default function Orders() {
                 })}
                 {orders.length === 0 && (
                   <div className="text-center py-8 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-lg bg-stone-50/50">
-                    <FolderOpen size={24} className="mx-auto text-stone-300 mb-1" />
+                    <FolderOpen size={24} className=" text-stone-300 mb-1" />
                     No hay ningún pedido guardado.
                   </div>
                 )}
@@ -1022,7 +1022,7 @@ export default function Orders() {
                 </>
               ) : (
                 <div className="p-16 text-center text-stone-500">
-                  <Calculator size={48} className="mx-auto text-stone-300 mb-4" />
+                  <Calculator size={48} className=" text-stone-300 mb-4" />
                   <p className="text-sm font-medium">Añade o selecciona pedidos para ver la lista de la compra detallada.</p>
                 </div>
               )}
@@ -1033,8 +1033,8 @@ export default function Orders() {
 
       {/* ==================== HIDDEN PRINT LAYOUT ==================== */}
       {isPrinting && (
-        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="bg-white text-stone-900 font-sans w-[794px] mx-auto flex flex-col relative overflow-hidden">
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
+          <div ref={printRef} className="bg-white text-stone-900 font-sans w-[794px] px-12 py-12 flex flex-col relative overflow-hidden">
             <div className="z-10 w-full">
               <div className="border-b border-stone-200 pb-8 mb-10 flex justify-between items-end">
                 <div>

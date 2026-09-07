@@ -548,14 +548,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       if (printRef.current) {
         try {
           const opt = {
-            margin: 10,
+            margin: 0,
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
               logging: false,
-              scrollY: 0,
+              scrollX: 0, scrollY: 0, 
               windowWidth: 794,
               y: 0
             },
@@ -633,7 +633,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
   return (
     <div className="min-h-full p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl ">
         <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -1546,8 +1546,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Hidden Print Layout */}
       {printingRecipe && (
-        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] mx-auto flex flex-col relative overflow-hidden">
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px]  flex flex-col relative overflow-hidden">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
@@ -1602,7 +1602,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               <div className="grid grid-cols-1 gap-6">
                 <div>
                   <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
-                  <table className="w-[94%] mx-auto text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
+                  <table className="w-[94%]  text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
                     <thead>
                       <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-200 font-sans">
                         <th className="py-3 px-3 font-medium w-[28%]">Ingrediente</th>

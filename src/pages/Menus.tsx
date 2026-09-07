@@ -366,13 +366,13 @@ export default function Menus() {
       if (printRef.current) {
         try {
           const opt = {
-            margin: 10,
+            margin: 0,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
               scale: 2, 
-              useCORS: true, 
-              logging: false, windowWidth: 794, scrollY: 0, y: 0
+              useCORS: true,
+              logging: false, windowWidth: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
@@ -413,16 +413,13 @@ export default function Menus() {
       if (printEquipmentRef.current) {
         try {
           const opt = {
-            margin: 10,
+            margin: 0,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.95 },
             html2canvas: { 
               scale: 2, 
-              useCORS: true, 
-              logging: false, windowWidth: 794, scrollY: 0, y: 0,
-              scrollY: 0,
-              windowWidth: 794,
-              y: 0
+              useCORS: true,
+              logging: false, windowWidth: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
@@ -476,7 +473,7 @@ export default function Menus() {
 
   return (
     <div className="min-h-full p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl ">
         <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -767,8 +764,8 @@ export default function Menus() {
 
       {/* Hidden PDF Template */}
       {printingMenu && (
-        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col items-center relative overflow-hidden">
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px]  flex flex-col items-center relative overflow-hidden">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
@@ -820,7 +817,7 @@ export default function Menus() {
                     <div key={recipe.id} className="text-center w-full">
                       <h3 className="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
                       {recipe.descriptionES && (
-                        <p className="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm mx-auto">{recipe.descriptionES}</p>
+                        <p className="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm ">{recipe.descriptionES}</p>
                       )}
                       {recipeAllergens.length > 0 && (
                         <div className="flex justify-center gap-2 mt-2 opacity-60">
@@ -876,8 +873,8 @@ export default function Menus() {
 
       {/* Hidden PDF Template for Equipment */}
       {printingEquipmentMenu && (
-        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <div ref={printEquipmentRef} className="print-container px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px] mx-auto flex flex-col relative overflow-hidden">
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
+          <div ref={printEquipmentRef} className="print-container px-16 py-20 bg-white text-stone-900 font-serif w-[794px] min-h-[1122px]  flex flex-col relative overflow-hidden">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
