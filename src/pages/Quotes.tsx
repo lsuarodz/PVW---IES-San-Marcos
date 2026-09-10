@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, FileText, Printer, PlusCircle, MinusCircle, Check, Star, Sparkles, Layers, Info } from 'lucide-react';
+import { Plus, Trash2, Edit2, FileText, Printer, PlusCircle, MinusCircle, Check, Star, Sparkles, Layers, Info, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { Quote, QuoteItem, Menu } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
 import { ALLERGENS } from '../constants/allergens';
@@ -41,6 +41,9 @@ export default function Quotes() {
     message: '',
     onConfirm: () => {}
   });
+
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null);
 
   const isItemCountedInTotal = (item: QuoteItem): boolean => {
     if (!item.isOption) return true;
@@ -319,6 +322,18 @@ export default function Quotes() {
       subtotal: totals.subtotal,
       total: totals.total
     });
+  };
+
+  const moveItem = (fromIndex: number, toIndex: number) => {
+    if (!formData.items) return;
+    if (toIndex < 0 || toIndex >= formData.items.length) return;
+    const newItems = [...formData.items];
+    const [moved] = newItems.splice(fromIndex, 1);
+    newItems.splice(toIndex, 0, moved);
+    setFormData(prev => ({
+      ...prev,
+      items: newItems
+    }));
   };
 
   const removeItem = (index: number) => {
@@ -633,13 +648,13 @@ export default function Quotes() {
             height: 297mm;
             max-height: 297mm;
             box-sizing: border-box;
-            padding: 10mm 15mm;
+            padding: 13mm 15mm;
             margin: 0 auto;
             background: white;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: space-between;
           }
           .menu-page {
             width: 210mm;
@@ -667,13 +682,16 @@ export default function Quotes() {
               width: 210mm;
               height: 297mm;
               max-height: 297mm;
-              padding: 10mm 15mm;
+              padding: 13mm 15mm;
               margin: 0;
               page-break-after: always;
               break-after: page;
               page-break-inside: avoid;
               break-inside: avoid;
               overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
             }
             .menu-page {
               width: 210mm;
@@ -695,187 +713,202 @@ export default function Quotes() {
       </head>
       <body>
         <div class="quote-page">
-          <!-- Encabezado Compacto -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1.5px solid #e7e5e4; padding-bottom: 6px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 38px; max-width: 140px; object-fit: contain;" crossorigin="anonymous" />` : ''}
-              <div>
-                <h1 style="font-size: 18px; font-weight: 800; color: #0f766e; margin: 0; line-height: 1.1; letter-spacing: 0.02em;">PRESUPUESTO</h1>
-                <p style="margin: 0; font-size: 10px; color: #78716c;">Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
+          <!-- 1. Encabezado Superior y Datos del Cliente -->
+          <div style="flex-shrink: 0;">
+            <!-- Encabezado Principal -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e7e5e4; padding-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 40px; max-width: 140px; object-fit: contain;" crossorigin="anonymous" />` : ''}
+                <div>
+                  <h1 style="font-size: 19px; font-weight: 800; color: #0f766e; margin: 0; line-height: 1.1; letter-spacing: 0.02em;">PRESUPUESTO</h1>
+                  <p style="margin: 0; font-size: 10.5px; color: #78716c; font-weight: 500;">Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
+                </div>
+              </div>
+              <div style="text-align: right; font-size: 11px; color: #57534e; line-height: 1.35;">
+                <div><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</div>
+                <div><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
               </div>
             </div>
-            <div style="text-align: right; font-size: 11px; color: #57534e; line-height: 1.3;">
-              <div><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</div>
-              <div><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
+
+            <!-- Espacio dedicado encima de los datos del cliente (solicitado) -->
+            <div style="margin-top: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 7px; padding: 7px 12px; font-size: 11px;">
+                <div style="flex: 1;">
+                  <span style="font-size: 9.5px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 5px;">Cliente:</span>
+                  <strong style="color: #1c1917; font-size: 11.5px;">${client?.name || 'Cliente'}</strong>
+                  ${client?.company ? `<span style="color: #57534e;"> (${client.company})</span>` : ''}
+                  ${(client?.email || client?.phone) ? `
+                    <span style="color: #78716c; margin-left: 8px; font-size: 10.5px;">· ${[client?.email, client?.phone].filter(Boolean).join(' · ')}</span>
+                  ` : ''}
+                </div>
+                ${(quote.eventDate || quote.eventType || quote.guests) ? `
+                <div style="border-left: 1.5px solid #e7e5e4; padding-left: 12px; white-space: nowrap; font-size: 11px;">
+                  <span style="font-size: 9.5px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 5px;">Evento:</span>
+                  ${[
+                    quote.eventType ? `<strong>${quote.eventType}</strong>` : '',
+                    quote.eventDate ? `${new Date(quote.eventDate).toLocaleDateString('es-ES')}` : '',
+                    quote.guests ? `<strong>${quote.guests} comensales</strong>` : ''
+                  ].filter(Boolean).join(' · ')}
+                </div>
+                ` : ''}
+              </div>
             </div>
           </div>
 
-          <!-- Datos del Cliente y Evento en Línea (Reducidos en altura y padding) -->
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px; padding: 5px 10px; margin-bottom: 8px; font-size: 11px;">
-            <div style="flex: 1;">
-              <span style="font-size: 9px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 4px;">Cliente:</span>
-              <strong style="color: #1c1917;">${client?.name || 'Cliente'}</strong>
-              ${client?.company ? `<span style="color: #57534e;"> (${client.company})</span>` : ''}
-              ${(client?.email || client?.phone) ? `
-                <span style="color: #78716c; margin-left: 6px; font-size: 10px;">· ${[client?.email, client?.phone].filter(Boolean).join(' · ')}</span>
+          <!-- 2. Zona Central: Lista de Conceptos Centrada Verticalmente en la Página -->
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; padding: 14px 0;">
+            <div style="width: 100%;">
+              <!-- Tabla de Conceptos y Menú Base -->
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #0f766e;">
+                    <th style="padding: 6px 8px; text-align: left; color: #0f766e; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;">Descripción del Concepto / Servicio</th>
+                    <th style="padding: 6px 8px; text-align: right; color: #0f766e; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;">Cant.</th>
+                    <th style="padding: 6px 8px; text-align: right; color: #0f766e; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;">Precio Ud.</th>
+                    <th style="padding: 6px 8px; text-align: right; color: #0f766e; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${fixedItems.map(item => `
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                      <td style="padding: 6.5px 8px; font-size: 11.5px; color: #1c1917;">
+                        <strong>${item.description}</strong>
+                      </td>
+                      <td style="padding: 6.5px 8px; text-align: right; font-size: 11.5px; color: #1c1917;">${item.quantity}</td>
+                      <td style="padding: 6.5px 8px; text-align: right; font-size: 11.5px; color: #1c1917;">${item.unitPrice.toFixed(2)} €</td>
+                      <td style="padding: 6.5px 8px; text-align: right; font-weight: 600; font-size: 11.5px; color: #1c1917;">${item.total.toFixed(2)} €</td>
+                    </tr>
+                  `).join('')}
+
+                  ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
+                    const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
+                    const cleanBaseDesc = baseItem.description.startsWith('Menú: ') 
+                      ? baseItem.description.replace('Menú: ', '') 
+                      : baseItem.description;
+                    return `
+                      <tr style="border-bottom: 1px solid #f1f5f9; background: #fafaf9;">
+                        <td style="padding: 6.5px 8px; font-size: 11.5px; color: #1c1917;">
+                          <strong style="color: #0f766e; text-transform: uppercase;">${groupName}</strong>
+                          <div style="font-size: 10px; color: #57534e; margin-top: 1px;">
+                            Propuesta base: <strong>${cleanBaseDesc}</strong> <span style="color: #78716c;">(ver ${groupItems.length} opciones abajo)</span>
+                          </div>
+                        </td>
+                        <td style="padding: 6.5px 8px; text-align: right; font-size: 11.5px; color: #1c1917;">${baseItem.quantity}</td>
+                        <td style="padding: 6.5px 8px; text-align: right; font-size: 11.5px; color: #1c1917;">${baseItem.unitPrice.toFixed(2)} €</td>
+                        <td style="padding: 6.5px 8px; text-align: right; font-weight: 600; font-size: 11.5px; color: #1c1917;">${baseItem.total.toFixed(2)} €</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+
+              <!-- Cuadro de Opciones Alternativas Agrupadas (si existen) -->
+              ${hasOptionGroups ? `
+                <div style="margin-top: 6px; padding: 6px 10px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px;">
+                  <div style="font-weight: 700; color: #0f766e; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+                    Opciones de Menú Alternativas
+                  </div>
+                  ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
+                    const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
+                    return `
+                      <div style="margin-bottom: 5px;">
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                          <span style="font-weight: 700; font-size: 10.5px; color: #166534; text-transform: uppercase;">
+                            ${groupName}
+                          </span>
+                          <span style="font-size: 9.5px; font-weight: 600; color: #166534;">
+                            Precio base presupuestado: ${baseItem.unitPrice.toFixed(2)} € / comensal
+                          </span>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; background: white; font-size: 10px;">
+                          <thead>
+                            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569;">
+                              <th style="padding: 3px 6px; text-align: left; font-weight: 600;">Propuesta de menú</th>
+                              <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Precio / comensal</th>
+                              <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Ajuste respecto a opción base</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${groupItems.map(item => {
+                              const isBase = item === baseItem || Boolean(item.isIncludedInTotal);
+                              const diff = item.unitPrice - baseItem.unitPrice;
+                              const diffText = isBase 
+                                ? '<span style="color: #0f766e; font-weight: 600;">★ Opción base presupuestada</span>'
+                                : diff > 0 
+                                  ? `<span style="color: #b45309; font-weight: 600;">+${diff.toFixed(2)} € / comensal</span>`
+                                  : diff < 0 
+                                    ? `<span style="color: #0f766e; font-weight: 600;">-${Math.abs(diff).toFixed(2)} € / comensal</span>`
+                                    : '<span style="color: #57534e;">Mismo precio que opción base</span>';
+
+                              const cleanName = item.description.startsWith('Menú: ') 
+                                ? item.description.replace('Menú: ', '') 
+                                : item.description;
+
+                              return `
+                                <tr style="border-bottom: 1px solid #f1f5f9; ${isBase ? 'background: #f0fdf4/40;' : ''}">
+                                  <td style="padding: 3px 6px; color: #1c1917;">
+                                    <strong>${cleanName}</strong>
+                                    ${isBase ? ' <span style="font-size: 8px; background: #ccfbf1; color: #0f766e; padding: 1px 4px; border-radius: 3px; font-weight: 600;">BASE</span>' : ''}
+                                  </td>
+                                  <td style="padding: 3px 6px; text-align: right; font-weight: 600; color: #1c1917;">
+                                    ${item.unitPrice.toFixed(2)} €
+                                  </td>
+                                  <td style="padding: 3px 6px; text-align: right;">
+                                    ${diffText}
+                                  </td>
+                                </tr>
+                              `;
+                            }).join('')}
+                          </tbody>
+                        </table>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
               ` : ''}
             </div>
-            ${(quote.eventDate || quote.eventType || quote.guests) ? `
-            <div style="border-left: 1px solid #e7e5e4; padding-left: 10px; white-space: nowrap; font-size: 10.5px;">
-              <span style="font-size: 9px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 4px;">Evento:</span>
-              ${[
-                quote.eventType ? `<strong>${quote.eventType}</strong>` : '',
-                quote.eventDate ? `${new Date(quote.eventDate).toLocaleDateString('es-ES')}` : '',
-                quote.guests ? `<strong>${quote.guests} comensales</strong>` : ''
-              ].filter(Boolean).join(' · ')}
+          </div>
+
+          <!-- 3. Bloque Inferior: Totales, Notas y Pie de Página -->
+          <div style="flex-shrink: 0; padding-top: 10px; border-top: 1.5px solid #e7e5e4;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="font-size: 9.5px; color: #78716c; max-width: 380px; line-height: 1.35;">
+                ${hasOptionGroups ? '* El importe total incluye los conceptos fijos y la opción base de cada menú. Las opciones alternativas no incrementan el presupuesto a menos que sean elegidas.' : ''}
+              </div>
+              <div style="width: 250px; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
+                  <span>Subtotal:</span>
+                  <span style="font-weight: 600; color: #1c1917;">${quote.subtotal.toFixed(2)} €</span>
+                </div>
+                ${quote.tax > 0 ? `
+                <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
+                  <span>IGIC (${quote.tax}%):</span>
+                  <span style="font-weight: 600; color: #1c1917;">${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
+                </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; padding: 4px 0 2px 0; border-top: 2px solid #0f766e; margin-top: 4px; font-weight: bold; font-size: 13.5px; color: #0f766e;">
+                  <span>TOTAL:</span>
+                  <span>${quote.total.toFixed(2)} €</span>
+                </div>
+              </div>
+            </div>
+
+            ${quote.notes ? `
+            <div style="margin-top: 8px; padding-top: 5px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 9.5px; line-height: 1.35;">
+              <strong style="color: #1c1917;">Notas y Condiciones:</strong> ${quote.notes.replace(/\n/g, '<br>')}
             </div>
             ` : ''}
-          </div>
 
-          <!-- Tabla de Conceptos y Menú Base -->
-          <div style="margin-bottom: 8px;">
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
-              <thead>
-                <tr style="border-bottom: 1.5px solid #e7e5e4;">
-                  <th style="padding: 4px 6px; text-align: left; color: #57534e; font-weight: 600; font-size: 10.5px;">Descripción del Concepto / Servicio</th>
-                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Cant.</th>
-                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Precio Ud.</th>
-                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${fixedItems.map(item => `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 4px 6px; font-size: 11px; color: #1c1917;">
-                      <strong>${item.description}</strong>
-                    </td>
-                    <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${item.quantity}</td>
-                    <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${item.unitPrice.toFixed(2)} €</td>
-                    <td style="padding: 4px 6px; text-align: right; font-weight: 600; font-size: 11px; color: #1c1917;">${item.total.toFixed(2)} €</td>
-                  </tr>
-                `).join('')}
-
-                ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
-                  const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
-                  const cleanBaseDesc = baseItem.description.startsWith('Menú: ') 
-                    ? baseItem.description.replace('Menú: ', '') 
-                    : baseItem.description;
-                  return `
-                    <tr style="border-bottom: 1px solid #f1f5f9; background: #fafaf9;">
-                      <td style="padding: 4px 6px; font-size: 11px; color: #1c1917;">
-                        <strong style="color: #0f766e; text-transform: uppercase;">${groupName}</strong>
-                        <div style="font-size: 9.5px; color: #57534e; margin-top: 1px;">
-                          Propuesta base: <strong>${cleanBaseDesc}</strong> <span style="color: #78716c;">(ver ${groupItems.length} opciones abajo)</span>
-                        </div>
-                      </td>
-                      <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${baseItem.quantity}</td>
-                      <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${baseItem.unitPrice.toFixed(2)} €</td>
-                      <td style="padding: 4px 6px; text-align: right; font-weight: 600; font-size: 11px; color: #1c1917;">${baseItem.total.toFixed(2)} €</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Cuadro de Opciones Alternativas Agrupadas (Sin disclaimers ni texto 'no acumulativas') -->
-          ${hasOptionGroups ? `
-            <div style="margin-top: 4px; margin-bottom: 8px; padding: 6px 10px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px;">
-              <div style="font-weight: 700; color: #0f766e; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
-                Opciones de Menú Alternativas
-              </div>
-              ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
-                const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
-                return `
-                  <div style="margin-bottom: 6px;">
-                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                      <span style="font-weight: 700; font-size: 10.5px; color: #166534; text-transform: uppercase;">
-                        ${groupName}
-                      </span>
-                      <span style="font-size: 9.5px; font-weight: 600; color: #166534;">
-                        Precio base presupuestado: ${baseItem.unitPrice.toFixed(2)} € / comensal
-                      </span>
-                    </div>
-                    <table style="width: 100%; border-collapse: collapse; background: white; font-size: 10px;">
-                      <thead>
-                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569;">
-                          <th style="padding: 3px 6px; text-align: left; font-weight: 600;">Propuesta de menú</th>
-                          <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Precio / comensal</th>
-                          <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Ajuste respecto a opción base</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${groupItems.map(item => {
-                          const isBase = item === baseItem || Boolean(item.isIncludedInTotal);
-                          const diff = item.unitPrice - baseItem.unitPrice;
-                          const diffText = isBase 
-                            ? '<span style="color: #0f766e; font-weight: 600;">★ Opción base presupuestada</span>'
-                            : diff > 0 
-                              ? `<span style="color: #b45309; font-weight: 600;">+${diff.toFixed(2)} € / comensal</span>`
-                              : diff < 0 
-                                ? `<span style="color: #0f766e; font-weight: 600;">-${Math.abs(diff).toFixed(2)} € / comensal</span>`
-                                : '<span style="color: #57534e;">Mismo precio que opción base</span>';
-
-                          const cleanName = item.description.startsWith('Menú: ') 
-                            ? item.description.replace('Menú: ', '') 
-                            : item.description;
-
-                          return `
-                            <tr style="border-bottom: 1px solid #f1f5f9; ${isBase ? 'background: #f0fdf4/40;' : ''}">
-                              <td style="padding: 3px 6px; color: #1c1917;">
-                                <strong>${cleanName}</strong>
-                                ${isBase ? ' <span style="font-size: 8px; background: #ccfbf1; color: #0f766e; padding: 1px 4px; border-radius: 3px; font-weight: 600;">BASE</span>' : ''}
-                              </td>
-                              <td style="padding: 3px 6px; text-align: right; font-weight: 600; color: #1c1917;">
-                                ${item.unitPrice.toFixed(2)} €
-                              </td>
-                              <td style="padding: 3px 6px; text-align: right;">
-                                ${diffText}
-                              </td>
-                            </tr>
-                          `;
-                        }).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                `;
-              }).join('')}
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e7e5e4; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #a8a29e;">
+              <span>Documento de presupuesto informativo · Precios sujetos a confirmación y disponibilidad</span>
+              <span>Página 1</span>
             </div>
-          ` : ''}
 
-          <!-- Totales -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 4px;">
-            <div style="font-size: 9.5px; color: #78716c; max-width: 380px; line-height: 1.3;">
-              ${hasOptionGroups ? '* El importe total incluye los conceptos fijos y la opción base de cada menú. Las opciones alternativas no incrementan el presupuesto a menos que sean elegidas.' : ''}
+            <div style="margin-top: 10px; text-align: center;">
+              <button onclick="window.print()" style="padding: 8px 20px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13.5px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                Imprimir Presupuesto
+              </button>
             </div>
-            <div style="width: 240px; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
-                <span>Subtotal:</span>
-                <span style="font-weight: 600; color: #1c1917;">${quote.subtotal.toFixed(2)} €</span>
-              </div>
-              ${quote.tax > 0 ? `
-              <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
-                <span>IGIC (${quote.tax}%):</span>
-                <span style="font-weight: 600; color: #1c1917;">${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
-              </div>
-              ` : ''}
-              <div style="display: flex; justify-content: space-between; padding: 4px 0 2px 0; border-top: 1.5px solid #1c1917; margin-top: 3px; font-weight: bold; font-size: 13px; color: #0f766e;">
-                <span>TOTAL:</span>
-                <span>${quote.total.toFixed(2)} €</span>
-              </div>
-            </div>
-          </div>
-
-          ${quote.notes ? `
-          <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 9.5px; line-height: 1.3;">
-            <strong style="color: #1c1917;">Notas y Condiciones:</strong> ${quote.notes.replace(/\n/g, '<br>')}
-          </div>
-          ` : ''}
-
-          <div style="margin-top: 14px; text-align: center;">
-            <button onclick="window.print()" style="padding: 8px 18px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
-              Imprimir Presupuesto
-            </button>
           </div>
         </div>
         
@@ -1127,7 +1160,7 @@ export default function Quotes() {
                       <div>
                         <h3 className="text-lg font-medium text-stone-900">Conceptos y Opciones</h3>
                         <p className="text-xs text-stone-500">
-                          Combina conceptos fijos (ej. Coffee Break) y opciones alternativas (ej. 3 cocktails a elegir).
+                          Combina conceptos fijos y opciones alternativas. Puedes reordenar los conceptos arrastrando o usando las flechas de posición.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1183,7 +1216,28 @@ export default function Quotes() {
                         return (
                           <div 
                             key={index} 
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (draggedItemIndex !== null && draggedItemIndex !== index) {
+                                setDragOverItemIndex(index);
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverItemIndex === index) {
+                                setDragOverItemIndex(null);
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (draggedItemIndex !== null && draggedItemIndex !== index) {
+                                moveItem(draggedItemIndex, index);
+                              }
+                              setDraggedItemIndex(null);
+                              setDragOverItemIndex(null);
+                            }}
                             className={`p-3 rounded-xl border transition-all ${
+                              dragOverItemIndex === index ? 'ring-2 ring-teal-500 border-teal-500 shadow-md bg-teal-50/50' : ''
+                            } ${draggedItemIndex === index ? 'opacity-40 border-dashed border-stone-400' : ''} ${
                               item.isOption 
                                 ? isIncluded 
                                   ? 'bg-teal-50/60 border-teal-200' 
@@ -1191,11 +1245,57 @@ export default function Quotes() {
                                 : 'bg-stone-50 border-stone-200'
                             }`}
                           >
-                            {/* Cabecera / Clasificación del Concepto */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-stone-200/60 text-xs">
-                              <div className="flex items-center gap-2">
+                            {/* Cabecera / Clasificación del Concepto y Reordenación */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2 border-b border-stone-200/60 text-xs">
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                {/* Controles de ordenación (Grip + Posición + Subir/Bajar) */}
+                                <div className="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded-lg border border-stone-200 shadow-xs">
+                                  <div
+                                    draggable
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      setDraggedItemIndex(index);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedItemIndex(null);
+                                      setDragOverItemIndex(null);
+                                    }}
+                                    className="cursor-grab active:cursor-grabbing p-0.5 text-stone-400 hover:text-stone-700 transition-colors"
+                                    title="Arrastrar para mover de posición"
+                                  >
+                                    <GripVertical size={14} />
+                                  </div>
+
+                                  <span className="font-mono text-[11px] font-bold text-stone-700 min-w-[20px] text-center" title={`Concepto número ${index + 1}`}>
+                                    #{index + 1}
+                                  </span>
+
+                                  <div className="flex items-center border-l border-stone-200 pl-1 ml-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={index === 0}
+                                      onClick={() => moveItem(index, index - 1)}
+                                      className="p-1 text-stone-500 hover:text-teal-700 hover:bg-stone-100 rounded transition-colors disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                      title="Subir concepto"
+                                      aria-label="Subir concepto"
+                                    >
+                                      <ArrowUp size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={index === (formData.items?.length || 0) - 1}
+                                      onClick={() => moveItem(index, index + 1)}
+                                      className="p-1 text-stone-500 hover:text-teal-700 hover:bg-stone-100 rounded transition-colors disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                      title="Bajar concepto"
+                                      aria-label="Bajar concepto"
+                                    >
+                                      <ArrowDown size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+
                                 {item.isOption ? (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 border border-amber-300">
                                       <Layers size={12} />
                                       Opción
@@ -1206,7 +1306,7 @@ export default function Quotes() {
                                         type="text"
                                         value={item.optionGroup || 'Opciones'}
                                         onChange={e => handleItemOptionGroupChange(index, e.target.value)}
-                                        className="px-2 py-0.5 bg-white border border-stone-300 rounded text-xs w-36 font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                        className="px-2 py-0.5 bg-white border border-stone-300 rounded text-xs w-32 sm:w-36 font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
                                         placeholder="Nombre grupo..."
                                       />
                                     </div>
