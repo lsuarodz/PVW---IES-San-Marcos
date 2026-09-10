@@ -233,7 +233,10 @@
               "quantity": { "type": "number" },
               "unitPrice": { "type": "number" },
               "total": { "type": "number" },
-              "menuId": { "type": "string" }
+              "menuId": { "type": "string" },
+              "isOption": { "type": "boolean" },
+              "optionGroup": { "type": "string" },
+              "isIncludedInTotal": { "type": "boolean" }
             },
             "required": ["description", "quantity", "unitPrice", "total"]
           }

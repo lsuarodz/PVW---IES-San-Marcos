@@ -238,6 +238,9 @@ export interface QuoteItem {
   unitPrice: number;
   total: number;
   menuId?: string;
+  isOption?: boolean;
+  optionGroup?: string;
+  isIncludedInTotal?: boolean;
 }
 
 export interface Quote {

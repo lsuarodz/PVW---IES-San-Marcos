@@ -4,8 +4,8 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, FileText, Printer, PlusCircle, MinusCircle } from 'lucide-react';
-import { Quote, QuoteItem } from '../types';
+import { Plus, Trash2, Edit2, FileText, Printer, PlusCircle, MinusCircle, Check, Star, Sparkles, Layers, Info } from 'lucide-react';
+import { Quote, QuoteItem, Menu } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
 import { ALLERGENS } from '../constants/allergens';
 import { getMenuAllergens } from '../utils/calculations';
@@ -25,6 +25,16 @@ export default function Quotes() {
     date: new Date().toISOString().split('T')[0]
   });
 
+  const [addOptionModal, setAddOptionModal] = useState<{
+    isOpen: boolean;
+    selectedMenuId: string;
+    optionGroup: string;
+  }>({
+    isOpen: false,
+    selectedMenuId: '',
+    optionGroup: 'Almuerzo Cóctel'
+  });
+
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -32,23 +42,33 @@ export default function Quotes() {
     onConfirm: () => {}
   });
 
+  const isItemCountedInTotal = (item: QuoteItem): boolean => {
+    if (!item.isOption) return true;
+    return Boolean(item.isIncludedInTotal);
+  };
+
   const calculateTotals = (items: QuoteItem[], taxRate: number) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const subtotal = items.reduce((sum, item) => {
+      if (isItemCountedInTotal(item)) {
+        return sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0));
+      }
+      return sum;
+    }, 0);
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
     return { subtotal, taxAmount, total };
   };
 
-  const handleItemChange = (index: number, field: keyof QuoteItem, value: string | number) => {
+  const handleItemChange = (index: number, field: keyof QuoteItem, value: any) => {
     const newItems = [...(formData.items || [])];
     newItems[index] = { ...newItems[index], [field]: value };
     
     // Recalculate item total
     if (field === 'quantity' || field === 'unitPrice') {
-      newItems[index].total = Number(newItems[index].quantity) * Number(newItems[index].unitPrice);
+      newItems[index].total = Number(newItems[index].quantity || 0) * Number(newItems[index].unitPrice || 0);
     }
 
-    const totals = calculateTotals(newItems, formData.tax || 7);
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
     
     setFormData({
       ...formData,
@@ -58,28 +78,58 @@ export default function Quotes() {
     });
   };
 
-  const addItem = () => {
+  const addItem = (asOption = false, optionGroup = 'Opciones') => {
+    const defaultQty = formData.guests || 1;
+    const cleanGroup = optionGroup.trim() || 'Opciones';
+    const existingGroupItems = (formData.items || []).filter(
+      i => i.isOption && ((i.optionGroup || 'Opciones').trim().toLowerCase() === cleanGroup.toLowerCase())
+    );
+    const hasBase = existingGroupItems.some(i => i.isIncludedInTotal);
+
+    const newItem: QuoteItem = {
+      description: '',
+      quantity: defaultQty,
+      unitPrice: 0,
+      total: 0,
+      isOption: asOption,
+      optionGroup: asOption ? cleanGroup : undefined,
+      isIncludedInTotal: asOption ? !hasBase : true
+    };
+    const newItems = [...(formData.items || []), newItem];
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
     setFormData({
       ...formData,
-      items: [...(formData.items || []), { description: '', quantity: 1, unitPrice: 0, total: 0 }]
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
     });
   };
 
-  const addMenuToQuote = (menuId: string) => {
+  const addMenuToQuote = (menuId: string, asOption = false, optionGroup = 'Almuerzo Cóctel') => {
     const menu = menus.find(m => m.id === menuId);
     if (!menu) return;
 
     const quantity = formData.guests || 1;
+    const cleanGroup = optionGroup.trim() || 'Opciones';
+    
+    const existingGroupItems = (formData.items || []).filter(
+      item => item.isOption && ((item.optionGroup || 'Opciones').trim().toLowerCase() === cleanGroup.toLowerCase())
+    );
+    const hasBaseInGroup = existingGroupItems.some(item => item.isIncludedInTotal);
+
     const newItem: QuoteItem = {
       description: `Menú: ${menu.nameES}`,
       quantity: quantity,
       unitPrice: menu.price,
       total: quantity * menu.price,
-      menuId: menu.id
+      menuId: menu.id,
+      isOption: asOption,
+      optionGroup: asOption ? cleanGroup : undefined,
+      isIncludedInTotal: asOption ? !hasBaseInGroup : true
     };
 
     const newItems = [...(formData.items || []), newItem];
-    const totals = calculateTotals(newItems, formData.tax || 7);
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
 
     setFormData({
       ...formData,
@@ -87,16 +137,149 @@ export default function Quotes() {
       subtotal: totals.subtotal,
       total: totals.total
     });
-    showToast('Menú añadido al presupuesto', 'success');
+
+    if (asOption) {
+      showToast(
+        newItem.isIncludedInTotal 
+          ? `Menú añadido como Opción Base computada (${cleanGroup})`
+          : `Menú añadido como Opción Alternativa (${cleanGroup})`, 
+        'success'
+      );
+    } else {
+      showToast('Menú añadido como concepto fijo', 'success');
+    }
+  };
+
+  const toggleItemOption = (index: number) => {
+    const newItems = [...(formData.items || [])];
+    const current = newItems[index];
+    const willBeOption = !current.isOption;
+
+    if (willBeOption) {
+      // Find existing groups or default to 'Almuerzo'
+      const existingGroups = Array.from(new Set(newItems.filter(i => i.isOption && i.optionGroup).map(i => i.optionGroup!)));
+      const groupName = existingGroups[0] || 'Almuerzo Cóctel';
+      const sameGroup = newItems.filter(i => i.isOption && (i.optionGroup || '').trim().toLowerCase() === groupName.toLowerCase());
+      const hasBase = sameGroup.some(i => i.isIncludedInTotal);
+
+      newItems[index] = {
+        ...current,
+        isOption: true,
+        optionGroup: groupName,
+        isIncludedInTotal: !hasBase
+      };
+    } else {
+      newItems[index] = {
+        ...current,
+        isOption: false,
+        optionGroup: undefined,
+        isIncludedInTotal: true
+      };
+    }
+
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
+    setFormData({
+      ...formData,
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
+  };
+
+  const setOptionAsBase = (index: number) => {
+    const newItems = [...(formData.items || [])];
+    const target = newItems[index];
+    if (!target.isOption) return;
+
+    const group = (target.optionGroup || 'Opciones').trim().toLowerCase();
+    newItems.forEach((item, idx) => {
+      if (item.isOption && (item.optionGroup || 'Opciones').trim().toLowerCase() === group) {
+        newItems[idx] = {
+          ...item,
+          isIncludedInTotal: idx === index
+        };
+      }
+    });
+
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
+    setFormData({
+      ...formData,
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
+    showToast(`"${target.description}" establecida como opción base computada en el total`, 'info');
+  };
+
+  const handleItemOptionGroupChange = (index: number, newGroup: string) => {
+    const newItems = [...(formData.items || [])];
+    const target = newItems[index];
+    const cleanGroup = newGroup.trim().toLowerCase();
+
+    // Check if new group has an existing base option
+    const sameGroup = newItems.filter(
+      (it, idx) => idx !== index && it.isOption && (it.optionGroup || 'Opciones').trim().toLowerCase() === cleanGroup
+    );
+    const hasBase = sameGroup.some(it => it.isIncludedInTotal);
+
+    newItems[index] = {
+      ...target,
+      optionGroup: newGroup,
+      isIncludedInTotal: !hasBase
+    };
+
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
+    setFormData({
+      ...formData,
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
   };
 
   const removeItem = (index: number) => {
     const newItems = [...(formData.items || [])];
+    const removed = newItems[index];
     newItems.splice(index, 1);
-    const totals = calculateTotals(newItems, formData.tax || 7);
+
+    // If removed was base option, promote next option in the same group
+    if (removed.isOption && removed.isIncludedInTotal) {
+      const removedGroup = (removed.optionGroup || 'Opciones').trim().toLowerCase();
+      const firstSiblingIndex = newItems.findIndex(
+        i => i.isOption && (i.optionGroup || 'Opciones').trim().toLowerCase() === removedGroup
+      );
+      if (firstSiblingIndex !== -1) {
+        newItems[firstSiblingIndex] = { ...newItems[firstSiblingIndex], isIncludedInTotal: true };
+      }
+    }
+
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
     setFormData({
       ...formData,
       items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
+  };
+
+  const handleGuestsChange = (guests: number) => {
+    const updatedItems = (formData.items || []).map(item => {
+      // If it's a menu item, synchronize quantity with guests
+      if (item.menuId && guests > 0) {
+        return {
+          ...item,
+          quantity: guests,
+          total: guests * item.unitPrice
+        };
+      }
+      return item;
+    });
+
+    const totals = calculateTotals(updatedItems, formData.tax ?? 7);
+    setFormData({
+      ...formData,
+      guests,
+      items: updatedItems,
       subtotal: totals.subtotal,
       total: totals.total
     });
@@ -134,9 +317,18 @@ export default function Quotes() {
       eventDate: formData.eventDate || '',
       eventType: formData.eventType || '',
       guests: Number(formData.guests) || 0,
-      items: formData.items || [],
+      items: (formData.items || []).map(item => ({
+        description: item.description.trim() || 'Concepto',
+        quantity: Number(item.quantity) || 0,
+        unitPrice: Number(item.unitPrice) || 0,
+        total: Number(item.total) || 0,
+        ...(item.menuId ? { menuId: item.menuId } : {}),
+        isOption: Boolean(item.isOption),
+        ...(item.optionGroup ? { optionGroup: item.optionGroup.trim() } : {}),
+        isIncludedInTotal: Boolean(isItemCountedInTotal(item))
+      })),
       subtotal: formData.subtotal || 0,
-      tax: formData.tax || 7,
+      tax: formData.tax ?? 7,
       total: formData.total || 0,
       notes: formData.notes || '',
       status: formData.status as any || 'draft',
@@ -198,18 +390,17 @@ export default function Quotes() {
 
     const quoteMenus = quote.items
       .map(item => {
-        if (item.menuId) return menus.find(m => m.id === item.menuId);
-        if (item.description.startsWith('Menú: ')) {
+        let menu: Menu | undefined;
+        if (item.menuId) menu = menus.find(m => m.id === item.menuId);
+        if (!menu && item.description.startsWith('Menú: ')) {
           const menuName = item.description.replace('Menú: ', '').trim();
-          return menus.find(m => m.nameES === menuName);
+          menu = menus.find(m => m.nameES === menuName);
         }
-        return null;
+        return menu ? { menu, item } : null;
       })
-      .filter(Boolean);
+      .filter((entry): entry is { menu: Menu; item: QuoteItem } => Boolean(entry));
 
-    const menusHtml = quoteMenus.map(menu => {
-      if (!menu) return '';
-      
+    const menusHtml = quoteMenus.map(({ menu, item }) => {
       const recipesHtml = menu.recipes.map((recipeId, index) => {
         const recipe = recipes.find(r => r.id === recipeId);
         if (!recipe) return '';
@@ -246,6 +437,29 @@ export default function Quotes() {
                      menu.type === 'cafeteria' ? 'Cafetería' :
                      'Menú Pedagógico';
 
+      const roleBadge = !item.isOption 
+        ? `<div class="mb-3"><span class="px-3 py-1 bg-stone-100 text-stone-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-stone-300">Menú Incluido en Presupuesto</span></div>`
+        : item.isIncludedInTotal
+          ? `<div class="mb-3"><span class="px-3 py-1 bg-teal-50 text-teal-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-teal-200">★ Opción Base Presupuestada (${item.optionGroup || 'Opciones'})</span></div>`
+          : `<div class="mb-3"><span class="px-3 py-1 bg-amber-50 text-amber-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-amber-200">Opción Alternativa a Elegir (${item.optionGroup || 'Opciones'})</span></div>`;
+
+      const baseOption = item.isOption 
+        ? quote.items.find(i => i.isOption && i.optionGroup === item.optionGroup && i.isIncludedInTotal)
+        : null;
+      const diff = (item.isOption && baseOption && !item.isIncludedInTotal)
+        ? (item.unitPrice - baseOption.unitPrice)
+        : 0;
+      const diffHtml = (item.isOption && !item.isIncludedInTotal)
+        ? `<div class="text-[11px] text-amber-800 font-semibold mb-1 font-sans">
+             ${diff > 0 ? `+${diff.toFixed(2)} € / comensal respecto a opción base` : diff < 0 ? `-${Math.abs(diff).toFixed(2)} € / comensal respecto a opción base` : `Mismo precio que opción base`}
+           </div>
+           <div class="text-[10px] text-stone-500 font-sans mb-1">
+             Importe orientativo para ${item.quantity} pax: ${(item.quantity * item.unitPrice).toFixed(2)} €
+           </div>`
+        : item.isOption && item.isIncludedInTotal
+          ? `<div class="text-[10px] text-teal-700 font-semibold mb-1 font-sans">★ Opción base incluida en el cálculo del total</div>`
+          : '';
+
       return `
         <div class="menu-page bg-white text-stone-900 font-serif mx-auto flex flex-col items-center relative overflow-hidden" style="box-sizing: border-box;">
           <div class="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
@@ -257,6 +471,7 @@ export default function Quotes() {
                 ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" class="h-16 object-contain" crossorigin="anonymous" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`}
               </div>
               <div class="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
+              ${roleBadge}
               <h1 class="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">${menu.nameES}</h1>
               ${menu.eventDate ? `<h2 class="text-lg text-stone-600 font-serif mb-1">${menu.eventDate}${menu.eventTime ? ` a las ${menu.eventTime}` : ''}</h2>` : ''}
               ${menu.eventPlace ? `<h2 class="text-lg text-stone-600 font-serif mb-3">${menu.eventPlace}</h2>` : ''}
@@ -276,7 +491,8 @@ export default function Quotes() {
 
             <div class="mt-auto w-full flex flex-col items-center pb-6">
               <div class="text-center mb-6">
-                <div class="text-3xl font-serif font-bold text-stone-900 mb-2">${menu.price.toFixed(2)} €</div>
+                <div class="text-3xl font-serif font-bold text-stone-900 mb-1">${menu.price.toFixed(2)} €</div>
+                ${diffHtml}
                 <div class="text-[9px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
               </div>
 
@@ -290,6 +506,10 @@ export default function Quotes() {
         </div>
       `;
     }).join('');
+
+    const includedItems = quote.items.filter(i => isItemCountedInTotal(i));
+    const alternativeItems = quote.items.filter(i => i.isOption && !i.isIncludedInTotal);
+    const hasOptions = quote.items.some(i => i.isOption);
 
     const html = `
       <!DOCTYPE html>
@@ -320,14 +540,14 @@ export default function Quotes() {
           .client-info h3 { margin-top: 0; color: #0f766e; }
           .event-info { display: flex; gap: 20px; margin-bottom: 30px; }
           .event-info div { flex: 1; }
-          table { border-collapse: collapse; margin-bottom: 30px; width: 100%; }
-          th { text-align: left; padding: 12px; border-bottom: 2px solid #e7e5e4; color: #57534e; font-weight: 600; }
-          td { padding: 12px; border-bottom: 1px solid #e7e5e4; }
+          table { border-collapse: collapse; margin-bottom: 24px; width: 100%; }
+          th { text-align: left; padding: 10px 12px; border-bottom: 2px solid #e7e5e4; color: #57534e; font-weight: 600; font-size: 13px; }
+          td { padding: 10px 12px; border-bottom: 1px solid #e7e5e4; }
           .text-right { text-align: right; }
-          .totals { width: 300px; margin-left: auto; }
+          .totals { width: 320px; margin-left: auto; }
           .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
           .total-row.final { font-weight: bold; font-size: 1.2em; border-top: 2px solid #1c1917; margin-top: 8px; padding-top: 16px; }
-          .notes { margin-top: 50px; padding-top: 20px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 0.9em; }
+          .notes { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 0.9em; }
           .menu-page { width: 100%; min-height: 100vh; padding: 40px; box-sizing: border-box; page-break-before: always; }
           @media print {
             body { padding: 0; background: white; }
@@ -368,30 +588,87 @@ export default function Quotes() {
           </div>
           ` : ''}
 
-          <table>
-            <thead>
-              <tr>
-                <th>Descripción</th>
-                <th class="text-right">Cant.</th>
-                <th class="text-right">Precio Ud.</th>
-                <th class="text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${quote.items.map(item => `
+          <div style="margin-bottom: 24px;">
+            ${hasOptions ? `
+              <div style="font-weight: 600; color: #1c1917; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Servicios y Menús Incluidos en el Total
+              </div>
+            ` : ''}
+            <table>
+              <thead>
                 <tr>
-                  <td>${item.description}</td>
-                  <td class="text-right">${item.quantity}</td>
-                  <td class="text-right">${item.unitPrice.toFixed(2)} €</td>
-                  <td class="text-right">${item.total.toFixed(2)} €</td>
+                  <th>Descripción</th>
+                  <th class="text-right">Cant.</th>
+                  <th class="text-right">Precio Ud.</th>
+                  <th class="text-right">Total</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${includedItems.map(item => `
+                  <tr>
+                    <td>
+                      <strong>${item.description}</strong>
+                      ${item.isOption ? `<div style="font-size: 11px; color: #0f766e; font-weight: 500;">★ Opción de menú presupuestada (Grupo: ${item.optionGroup || 'Opciones'})</div>` : ''}
+                    </td>
+                    <td class="text-right">${item.quantity}</td>
+                    <td class="text-right">${item.unitPrice.toFixed(2)} €</td>
+                    <td class="text-right font-medium">${item.total.toFixed(2)} €</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          ${alternativeItems.length > 0 ? `
+            <div style="margin-top: 20px; margin-bottom: 28px; padding: 16px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                <div style="font-weight: bold; color: #0f766e; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Opciones de Menú Alternativas a Elegir (No acumulativas)
+                </div>
+                <div style="font-size: 11px; color: #78716c;">
+                  1 opción a elegir por grupo
+                </div>
+              </div>
+              <p style="font-size: 12px; color: #57534e; margin: 0 0 12px 0; line-height: 1.4;">
+                Se presentan las siguientes opciones gastronómicas alternativas para este evento. El importe total del presupuesto contempla la opción base indicada arriba. En caso de elegir alguna de estas alternativas, se aplicará el ajuste por comensal correspondiente:
+              </p>
+              <table style="margin-bottom: 0; background: white;">
+                <thead>
+                  <tr style="background: #f5f5f4;">
+                    <th>Opción Alternativa</th>
+                    <th>Grupo</th>
+                    <th class="text-right">Precio Ud.</th>
+                    <th class="text-right">Diferencia / comensal</th>
+                    <th class="text-right">Total Est. (${quote.guests || alternativeItems[0]?.quantity || 1} pax)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${alternativeItems.map(item => {
+                    const baseItem = quote.items.find(i => i.isOption && i.optionGroup === item.optionGroup && i.isIncludedInTotal);
+                    const diff = baseItem ? (item.unitPrice - baseItem.unitPrice) : 0;
+                    const diffText = diff > 0 ? `+${diff.toFixed(2)} €` : diff < 0 ? `-${Math.abs(diff).toFixed(2)} €` : `0,00 € (Mismo precio)`;
+                    const diffColor = diff > 0 ? '#b45309' : diff < 0 ? '#0f766e' : '#57534e';
+                    return `
+                      <tr>
+                        <td>
+                          <strong>${item.description}</strong>
+                          <div style="font-size: 11px; color: #78716c;">Opción alternativa a elegir</div>
+                        </td>
+                        <td style="font-size: 12px; color: #57534e;">${item.optionGroup || 'Opciones'}</td>
+                        <td class="text-right font-mono">${item.unitPrice.toFixed(2)} €</td>
+                        <td class="text-right font-mono font-medium" style="color: ${diffColor};">${diffText}</td>
+                        <td class="text-right font-mono" style="color: #78716c;">${item.total.toFixed(2)} €</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
 
           <div class="totals">
             <div class="total-row">
-              <span>Subtotal:</span>
+              <span>Subtotal Presupuesto:</span>
               <span>${quote.subtotal.toFixed(2)} €</span>
             </div>
             ${quote.tax > 0 ? `
@@ -401,10 +678,15 @@ export default function Quotes() {
             </div>
             ` : ''}
             <div class="total-row final">
-              <span>TOTAL:</span>
+              <span>TOTAL PRESUPUESTO:</span>
               <span>${quote.total.toFixed(2)} €</span>
             </div>
           </div>
+          ${hasOptions ? `
+            <div style="font-size: 11px; color: #78716c; text-align: right; margin-top: 8px; line-height: 1.4;">
+              * El importe total incluye los conceptos fijos y 1 opción de menú presupuestada como base. Las opciones alternativas no duplican ni incrementan este presupuesto a menos que sean formalmente elegidas.
+            </div>
+          ` : ''}
 
           ${quote.notes ? `
           <div class="notes">
@@ -510,7 +792,13 @@ export default function Quotes() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-stone-900">
-                      {quote.total.toFixed(2)} €
+                      <div>{quote.total.toFixed(2)} €</div>
+                      {quote.items?.some(i => i.isOption) && (
+                        <div className="text-[10px] text-teal-700 font-normal flex items-center justify-end gap-1">
+                          <Layers size={11} />
+                          {quote.items.filter(i => i.isOption).length} opciones
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -636,8 +924,9 @@ export default function Quotes() {
                         type="number"
                         min="0"
                         value={formData.guests || ''}
-                        onChange={e => setFormData({...formData, guests: Number(e.target.value)})}
+                        onChange={e => handleGuestsChange(Number(e.target.value))}
                         className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="Nº de comensales"
                       />
                     </div>
                     <div>
@@ -657,93 +946,205 @@ export default function Quotes() {
 
                   {/* Líneas del Presupuesto */}
                   <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-medium text-stone-900">Conceptos</h3>
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+                      <div>
+                        <h3 className="text-lg font-medium text-stone-900">Conceptos y Opciones</h3>
+                        <p className="text-xs text-stone-500">
+                          Combina conceptos fijos (ej. Coffee Break) y opciones alternativas (ej. 3 cocktails a elegir).
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
                         <select
                           onChange={(e) => {
                             if (e.target.value) {
-                              addMenuToQuote(e.target.value);
-                              e.target.value = ''; // Reset select
+                              addMenuToQuote(e.target.value, false);
+                              e.target.value = '';
                             }
                           }}
-                          className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
                         >
-                          <option value="">Añadir menú...</option>
+                          <option value="">+ Menú fijo...</option>
                           {menus.map(menu => (
                             <option key={menu.id} value={menu.id}>{menu.nameES} ({menu.price.toFixed(2)} €)</option>
                           ))}
                         </select>
+
                         <button
                           type="button"
-                          onClick={addItem}
-                          className="text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 text-sm"
+                          onClick={() => {
+                            if (menus.length === 0) {
+                              showToast('No hay menús registrados para añadir como opción', 'error');
+                              return;
+                            }
+                            setAddOptionModal({
+                              isOpen: true,
+                              selectedMenuId: menus[0]?.id || '',
+                              optionGroup: 'Almuerzo Cóctel'
+                            });
+                          }}
+                          className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                          title="Añade menús como opciones alternativas a elegir por el cliente"
                         >
-                          <PlusCircle size={16} />
-                          Añadir línea
+                          <Sparkles size={14} />
+                          + Menú como Opción...
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => addItem(false)}
+                          className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
+                        >
+                          <PlusCircle size={14} />
+                          Línea libre
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
-                      <div className="grid grid-cols-12 gap-3 text-sm font-medium text-stone-500 px-2">
-                        <div className="col-span-6">Descripción</div>
-                        <div className="col-span-2 text-right">Cantidad</div>
-                        <div className="col-span-2 text-right">Precio Ud.</div>
-                        <div className="col-span-2 text-right">Total</div>
-                      </div>
-                      
-                      {formData.items?.map((item, index) => (
-                        <div key={index} className="grid grid-cols-12 gap-3 items-center bg-stone-50 p-2 rounded-lg border border-stone-200">
-                          <div className="col-span-6">
-                            <input
-                              type="text"
-                              required
-                              value={item.description}
-                              onChange={e => handleItemChange(index, 'description', e.target.value)}
-                              className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
-                              placeholder="Concepto..."
-                            />
+                      {formData.items?.map((item, index) => {
+                        const isIncluded = isItemCountedInTotal(item);
+                        return (
+                          <div 
+                            key={index} 
+                            className={`p-3 rounded-xl border transition-all ${
+                              item.isOption 
+                                ? isIncluded 
+                                  ? 'bg-teal-50/60 border-teal-200' 
+                                  : 'bg-amber-50/40 border-amber-200'
+                                : 'bg-stone-50 border-stone-200'
+                            }`}
+                          >
+                            {/* Cabecera / Clasificación del Concepto */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-stone-200/60 text-xs">
+                              <div className="flex items-center gap-2">
+                                {item.isOption ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                                      <Layers size={12} />
+                                      Opción
+                                    </span>
+                                    <div className="flex items-center gap-1 text-stone-600">
+                                      <span className="text-stone-400">Grupo:</span>
+                                      <input
+                                        type="text"
+                                        value={item.optionGroup || 'Opciones'}
+                                        onChange={e => handleItemOptionGroupChange(index, e.target.value)}
+                                        className="px-2 py-0.5 bg-white border border-stone-300 rounded text-xs w-36 font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                        placeholder="Nombre grupo..."
+                                      />
+                                    </div>
+                                    {isIncluded ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 border border-teal-300">
+                                        <Check size={12} />
+                                        Opción Base (computa en total)
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setOptionAsBase(index)}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-300 transition-colors"
+                                        title="Hacer que esta sea la opción de menú calculada en el presupuesto"
+                                      >
+                                        <Star size={11} />
+                                        Fijar como opción base
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-stone-200 text-stone-700">
+                                    Concepto Fijo
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleItemOption(index)}
+                                  className="text-stone-500 hover:text-teal-700 underline text-xs"
+                                >
+                                  {item.isOption ? 'Cambiar a fijo' : 'Convertir en opción'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(index)}
+                                  className="text-stone-400 hover:text-red-600 transition-colors p-1"
+                                  title="Eliminar concepto"
+                                >
+                                  <MinusCircle size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Fila de Campos de Entrada */}
+                            <div className="grid grid-cols-12 gap-3 items-center">
+                              <div className="col-span-12 sm:col-span-6">
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.description}
+                                  onChange={e => handleItemChange(index, 'description', e.target.value)}
+                                  className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                                  placeholder="Descripción del concepto o menú..."
+                                />
+                              </div>
+                              <div className="col-span-4 sm:col-span-2">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] text-stone-400 sm:hidden">Cantidad</span>
+                                  <input
+                                    type="number"
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    value={item.quantity}
+                                    onChange={e => handleItemChange(index, 'quantity', Number(e.target.value))}
+                                    className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-right text-sm"
+                                    placeholder="Cant."
+                                  />
+                                </div>
+                              </div>
+                              <div className="col-span-4 sm:col-span-2">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] text-stone-400 sm:hidden">Precio Ud.</span>
+                                  <input
+                                    type="number"
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unitPrice}
+                                    onChange={e => handleItemChange(index, 'unitPrice', Number(e.target.value))}
+                                    className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-right text-sm"
+                                    placeholder="Precio €"
+                                  />
+                                </div>
+                              </div>
+                              <div className="col-span-4 sm:col-span-2 text-right">
+                                {isIncluded ? (
+                                  <div className="font-semibold text-stone-800 text-sm">
+                                    {item.total.toFixed(2)} €
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-medium text-stone-400 line-through text-xs">
+                                      {item.total.toFixed(2)} €
+                                    </div>
+                                    <div className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider">
+                                      Opción alt.
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="col-span-2">
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              step="0.01"
-                              value={item.quantity}
-                              onChange={e => handleItemChange(index, 'quantity', Number(e.target.value))}
-                              className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              step="0.01"
-                              value={item.unitPrice}
-                              onChange={e => handleItemChange(index, 'unitPrice', Number(e.target.value))}
-                              className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"
-                            />
-                          </div>
-                          <div className="col-span-1 text-right font-medium text-stone-700">
-                            {item.total.toFixed(2)} €
-                          </div>
-                          <div className="col-span-1 text-right">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(index)}
-                              className="text-stone-400 hover:text-red-600 transition-colors p-1"
-                            >
-                              <MinusCircle size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
+
                       {(!formData.items || formData.items.length === 0) && (
-                        <div className="text-center py-6 text-stone-500 text-sm border border-dashed border-stone-300 rounded-lg">
-                          No hay conceptos añadidos. Pulsa "Añadir línea" para empezar.
+                        <div className="text-center py-8 text-stone-500 text-sm border border-dashed border-stone-300 rounded-xl bg-stone-50/50">
+                          <p className="font-medium text-stone-700 mb-1">No hay conceptos añadidos todavía</p>
+                          <p className="text-xs text-stone-400">
+                            Añade un menú fijo (ej. Coffee Break) o pulsa "+ Menú como Opción" para presentar alternativas sin sumar todo.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -802,6 +1203,17 @@ export default function Quotes() {
                         />
                         <label htmlFor="include-tax">Aplicar IGIC al presupuesto</label>
                       </div>
+                      {formData.items?.some(i => i.isOption && !i.isIncludedInTotal) && (
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+                          <Info size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                          <div>
+                            <span className="font-semibold">Opciones alternativas excluidas del total:</span>
+                            <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                              Hay {formData.items.filter(i => i.isOption && !i.isIncludedInTotal).length} concepto(s) alternativo(s) sin computar. En el documento final se presentarán como alternativas a elegir sin sumar su importe al total.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="pt-3 border-t border-stone-200 flex justify-between items-center font-bold text-lg text-stone-900">
                         <span>Total</span>
                         <span>{(formData.total || 0).toFixed(2)} €</span>
@@ -824,6 +1236,111 @@ export default function Quotes() {
                   className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
                 >
                   Guardar Presupuesto
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal para Añadir Menú como Opción */}
+        {addOptionModal.isOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-stone-200 overflow-hidden">
+              <div className="p-5 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center">
+                    <Sparkles size={18} />
+                  </div>
+                  <h3 className="font-bold text-stone-900">Añadir Menú como Opción</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddOptionModal({ ...addOptionModal, isOpen: false })}
+                  className="text-stone-400 hover:text-stone-600 p-1 rounded-lg text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Seleccionar Menú
+                  </label>
+                  <select
+                    value={addOptionModal.selectedMenuId}
+                    onChange={e => setAddOptionModal({ ...addOptionModal, selectedMenuId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+                  >
+                    {menus.map(menu => (
+                      <option key={menu.id} value={menu.id}>
+                        {menu.nameES} — {menu.price.toFixed(2)} € ({menu.recipes.length} platos)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Grupo de Opciones (ej. Almuerzo Cóctel)
+                  </label>
+                  <input
+                    type="text"
+                    value={addOptionModal.optionGroup}
+                    onChange={e => setAddOptionModal({ ...addOptionModal, optionGroup: e.target.value })}
+                    placeholder="Nombre del grupo..."
+                    className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2 font-medium"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {['Almuerzo Cóctel', 'Almuerzo Sentado', 'Cóctel Bienvenida', 'Buffet', 'Postres'].map(sugg => (
+                      <button
+                        key={sugg}
+                        type="button"
+                        onClick={() => setAddOptionModal({ ...addOptionModal, optionGroup: sugg })}
+                        className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                          addOptionModal.optionGroup === sugg
+                            ? 'bg-teal-100 text-teal-800 border-teal-300 font-semibold'
+                            : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
+                        }`}
+                      >
+                        {sugg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed space-y-1">
+                  <p className="font-semibold text-stone-800 flex items-center gap-1">
+                    <Info size={14} className="text-teal-600" />
+                    ¿Cómo se calcula en el presupuesto?
+                  </p>
+                  <p>
+                    El <strong>primer menú</strong> de este grupo figurará como la <strong>opción base</strong> y se incluirá en el total del presupuesto.
+                  </p>
+                  <p>
+                    Los <strong>siguientes menús</strong> del mismo grupo se añadirán como <strong>opciones alternativas</strong>: se presentarán al cliente para elegir en el presupuesto impreso/PDF pero <strong>no sumarán su importe dos veces</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-stone-100 bg-stone-50 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddOptionModal({ ...addOptionModal, isOpen: false })}
+                  className="px-4 py-2 text-sm text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!addOptionModal.selectedMenuId) return;
+                    addMenuToQuote(addOptionModal.selectedMenuId, true, addOptionModal.optionGroup);
+                    setAddOptionModal({ ...addOptionModal, isOpen: false });
+                  }}
+                  className="px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  Añadir Opción
                 </button>
               </div>
             </div>
