@@ -56,7 +56,7 @@ export const getRecipeAllergens = (
 export const calculateMenuTotalCost = (
   recipeIds: string[],
   allRecipes: Recipe[],
-  extraConcepts: ExtraConcept[] = []
+  extraConcepts: (ExtraConcept | { name: string; cost: number | string })[] = []
 ): number => {
   const recipesCost = recipeIds.reduce((total, id) => {
     const recipe = allRecipes.find(r => r.id === id);
@@ -64,7 +64,9 @@ export const calculateMenuTotalCost = (
   }, 0);
 
   const extrasCost = extraConcepts.reduce((total, concept) => {
-    return total + (Number(concept.cost) || 0);
+    const rawCost = typeof concept.cost === 'string' ? concept.cost.replace(',', '.') : concept.cost;
+    const num = parseFloat(String(rawCost));
+    return total + (isNaN(num) ? 0 : num);
   }, 0);
 
   return recipesCost + extrasCost;

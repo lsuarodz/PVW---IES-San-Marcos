@@ -166,7 +166,7 @@ service cloud.firestore {
 
     function isValidMenu() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'extraConcepts', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners', 'marketingDescription', 'marketingImageUrl', 'marketingStatus', 'marketingCanvasElements']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'eventDate', 'eventTime', 'eventPlace', 'type', 'clientId', 'location', 'occasion', 'recipes', 'extraConcepts', 'totalCost', 'price', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'diners', 'marketingDescription', 'marketingImageUrl', 'marketingStatus', 'marketingCanvasElements', 'isPublic']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('eventDate' in data) || data.eventDate == "" || isValidString(data.eventDate, 1, 100)) &&
@@ -188,6 +188,7 @@ service cloud.firestore {
              (!('marketingImageUrl' in data) || data.marketingImageUrl == "" || data.marketingImageUrl is string) &&
              (!('marketingStatus' in data) || data.marketingStatus in ['boceto', 'publicado']) &&
              (!('marketingCanvasElements' in data) || data.marketingCanvasElements is list) &&
+             (!('isPublic' in data) || data.isPublic is bool) &&
              data.createdAt is string &&
              (!('diners' in data) || data.diners == null || (data.diners is number && data.diners > 0));
     }

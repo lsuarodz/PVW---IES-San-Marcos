@@ -144,8 +144,8 @@ export default function Menus() {
     occasion: '',
     diners: null as number | null,
     recipes: [] as string[],
-    extraConcepts: [] as { name: string; cost: number }[],
-    price: 0,
+    extraConcepts: [] as { name: string; cost: number | string }[],
+    price: 0 as number | string,
     isPublic: false
   });
 
@@ -165,7 +165,9 @@ export default function Menus() {
   };
 
   const canEditMenuField = (menu: Menu | null, fieldType: 'gastos' | 'general') => {
-    if (!appUser || !menu) return false;
+    if (!appUser) return false;
+    // Si no hay menú existente (creando un nuevo menú), el usuario tiene plenos permisos para editar
+    if (!menu) return true;
     if (isAdmin && !viewAsStudent) return true;
     
     const isMenuOwner = menu.group === appUser.group;
@@ -190,6 +192,9 @@ export default function Menus() {
     return false;
   };
 
+  const currentEditingMenu = editingId ? menus.find(m => m.id === editingId) || null : null;
+  const canEditGastos = !editingId || canEditMenuField(currentEditingMenu, 'gastos');
+
   const canEditAnyPartOfMenu = (menu: Menu) => {
     return isOwner(menu) || canEditMenuField(menu, 'gastos');
   };
@@ -199,25 +204,64 @@ export default function Menus() {
     if (!appUser) return;
 
     const id = editingId || doc(collection(db, 'menus')).id;
-    const totalCost = calculateMenuTotalCost(formData.recipes, recipes, formData.extraConcepts);
+
+    // Sanitizar conceptos extra asegurando valores numéricos limpios para la base de datos
+    const sanitizedExtraConcepts = formData.extraConcepts
+      .filter(c => c.name.trim() !== '' || (Number(String(c.cost).replace(',', '.')) || 0) > 0)
+      .map(c => ({
+        name: c.name.trim(),
+        cost: parseFloat(String(c.cost).replace(',', '.')) || 0
+      }));
+
+    const sanitizedPrice = parseFloat(String(formData.price).replace(',', '.')) || 0;
+    const sanitizedDiners = formData.diners && Number(formData.diners) > 0 ? Math.round(Number(formData.diners)) : null;
+
+    const totalCost = calculateMenuTotalCost(formData.recipes, recipes, sanitizedExtraConcepts);
 
     const existing = editingId ? menus.find(m => m.id === editingId) : null;
 
-    const menuData = {
-      ...formData,
+    const menuData: Record<string, any> = {
       nameES: formData.nameES.trim() || 'Menú sin nombre',
-      diners: formData.diners || null,
       nameEN: existing?.nameEN || '',
-      totalCost,
-      createdBy: existing?.createdBy || appUser.name,
+      eventDate: formData.eventDate || '',
+      eventTime: formData.eventTime || '',
+      eventPlace: formData.eventPlace || '',
+      type: formData.type || 'brunch',
+      clientId: formData.clientId || '',
+      location: formData.location || 'centro',
+      occasion: formData.occasion || '',
+      recipes: formData.recipes || [],
+      extraConcepts: sanitizedExtraConcepts,
+      totalCost: isNaN(totalCost) ? 0 : totalCost,
+      price: isNaN(sanitizedPrice) ? 0 : sanitizedPrice,
+      createdBy: existing?.createdBy || appUser.name || 'Usuario',
       group: existing?.group !== undefined ? existing.group : (appUser.group || ''),
-      score: existing?.score || null,
-      feedback: existing?.feedback || '',
       createdAt: existing?.createdAt || new Date().toISOString(),
+      isPublic: Boolean(formData.isPublic)
     };
 
-    if (menuData.score === null) delete menuData.score;
-    if (menuData.feedback === null) delete menuData.feedback;
+    if (sanitizedDiners !== null) {
+      menuData.diners = sanitizedDiners;
+    }
+
+    if (existing?.score !== undefined && existing?.score !== null) {
+      menuData.score = existing.score;
+    }
+    if (existing?.feedback) {
+      menuData.feedback = existing.feedback;
+    }
+    if (existing?.marketingDescription) {
+      menuData.marketingDescription = existing.marketingDescription;
+    }
+    if (existing?.marketingImageUrl) {
+      menuData.marketingImageUrl = existing.marketingImageUrl;
+    }
+    if (existing?.marketingStatus) {
+      menuData.marketingStatus = existing.marketingStatus;
+    }
+    if (existing?.marketingCanvasElements) {
+      menuData.marketingCanvasElements = existing.marketingCanvasElements;
+    }
 
     try {
       if (editingId) {
@@ -229,8 +273,11 @@ export default function Menus() {
           
           if (commission === 'gastos' && commissionMode) {
             patch.price = menuData.price;
-            patch.diners = menuData.diners;
+            if (sanitizedDiners !== null) {
+              patch.diners = sanitizedDiners;
+            }
             patch.extraConcepts = menuData.extraConcepts;
+            patch.totalCost = menuData.totalCost;
           }
 
           if (Object.keys(patch).length > 0) {
@@ -632,10 +679,10 @@ export default function Menus() {
               
               {menuAllergens.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {menuAllergens.map(a => {
-                    const allergen = ALLERGENS.find(al => al.id === a);
+                  {Array.from(new Set(menuAllergens)).map((a, idx) => {
+                    const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
                     return allergen ? (
-                      <span key={a} title={allergen.name} className="text-lg">{allergen.icon}</span>
+                      <span key={`${a}-${idx}`} title={allergen.name} className="text-lg">{allergen.icon}</span>
                     ) : null;
                   })}
                 </div>
@@ -821,10 +868,10 @@ export default function Menus() {
                       )}
                       {recipeAllergens.length > 0 && (
                         <div className="flex justify-center gap-2 mt-2 opacity-60">
-                          {recipeAllergens.map(a => {
-                            const allergen = ALLERGENS.find(al => al.id === a);
+                          {Array.from(new Set(recipeAllergens)).map((a, idx) => {
+                            const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
                             return allergen ? (
-                              <span key={a} title={allergen.name} className="text-xs">{allergen.icon}</span>
+                              <span key={`${a}-${idx}`} title={allergen.name} className="text-xs">{allergen.icon}</span>
                             ) : null;
                           })}
                         </div>
@@ -1095,14 +1142,26 @@ export default function Menus() {
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Precio de Venta (€)</label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.price === 0 ? '' : formData.price}
-                      disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
-                      onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={formData.price !== undefined && formData.price !== null ? formData.price : ''}
+                      disabled={!canEditGastos}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '' || /^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                          setFormData({ ...formData, price: val });
+                        }
+                      }}
+                      onBlur={() => {
+                        const raw = String(formData.price ?? '').replace(',', '.');
+                        if (raw !== '') {
+                          const parsed = parseFloat(raw);
+                          setFormData({ ...formData, price: isNaN(parsed) ? 0 : parsed });
+                        }
+                      }}
                       onFocus={e => e.target.select()}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-mono"
                     />
                   </div>
                 </div>
@@ -1111,10 +1170,12 @@ export default function Menus() {
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Número de Comensales</label>
                     <input
-                      type="number" min="1" step="1"
-                      value={formData.diners || ''}
-                      disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
-                      onChange={e => setFormData({...formData, diners: parseInt(e.target.value) || null})}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={formData.diners ?? ''}
+                      disabled={!canEditGastos}
+                      onChange={e => setFormData({ ...formData, diners: e.target.value === '' ? null : parseInt(e.target.value) || null })}
                       onFocus={e => e.target.select()}
                       className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Opcional"
@@ -1238,12 +1299,12 @@ export default function Menus() {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-stone-900">Otros Conceptos (Bebidas, café, etc.)</label>
-                    {canEditMenuField(editingId ? menus.find(m => m.id === editingId)! : null, 'gastos') && (
+                    {canEditGastos && (
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({
                           ...prev,
-                          extraConcepts: [...prev.extraConcepts, { name: '', cost: 0 }]
+                          extraConcepts: [...prev.extraConcepts, { name: '', cost: '' }]
                         }))}
                         className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                       >
@@ -1264,33 +1325,44 @@ export default function Menus() {
                                 type="text"
                                 placeholder="Nombre (ej. Bebidas)"
                                 value={concept.name}
-                                disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
+                                disabled={!canEditGastos}
                                 onChange={(e) => {
                                   const newExtras = [...formData.extraConcepts];
                                   newExtras[index].name = e.target.value;
                                   setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
                                 }}
-                                className="w-full px-3 py-1 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                className="w-full px-3 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
                               />
                               <div className="flex items-center gap-2">
                                 <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="Coste"
-                                  value={concept.cost === 0 ? '' : concept.cost}
-                                  disabled={editingId ? !canEditMenuField(menus.find(m => m.id === editingId)!, 'gastos') : false}
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0.00"
+                                  value={concept.cost !== undefined && concept.cost !== null ? concept.cost : ''}
+                                  disabled={!canEditGastos}
                                   onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === '' || /^[0-9]*[.,]?[0-9]*$/.test(raw)) {
+                                      const newExtras = [...formData.extraConcepts];
+                                      newExtras[index].cost = raw;
+                                      setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
+                                    }
+                                  }}
+                                  onBlur={() => {
                                     const newExtras = [...formData.extraConcepts];
-                                    newExtras[index].cost = parseFloat(e.target.value) || 0;
+                                    const raw = String(newExtras[index].cost ?? '').replace(',', '.');
+                                    if (raw !== '') {
+                                      const parsed = parseFloat(raw);
+                                      newExtras[index].cost = isNaN(parsed) ? '' : parsed;
+                                    }
                                     setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
                                   }}
-                                  className="w-full px-3 py-1 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                  className="w-full px-3 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 font-mono"
                                 />
-                                <span className="text-sm text-stone-400">€</span>
+                                <span className="text-sm font-medium text-stone-500">€</span>
                               </div>
                             </div>
-                            {canEditMenuField(editingId ? menus.find(m => m.id === editingId)! : null, 'gastos') && (
+                            {canEditGastos && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1298,6 +1370,7 @@ export default function Menus() {
                                   setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
                                 }}
                                 className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                title="Eliminar concepto"
                               >
                                 <Trash2 size={16} />
                               </button>

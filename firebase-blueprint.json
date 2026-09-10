@@ -134,6 +134,7 @@
         "group": { "type": "string" },
         "score": { "type": "number" },
         "feedback": { "type": "string" },
+        "isPublic": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["nameES", "type", "recipes", "totalCost", "price", "createdBy", "createdAt"]

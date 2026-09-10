@@ -410,21 +410,21 @@ export default function Layout() {
       </aside>
 
       {/* Contenido principal (aquí se renderizan las páginas hijas según la ruta) */}
-      <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0 relative">
+      <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0 pb-24 relative">
         <Outlet />
       </main>
 
-      {/* Controles Flotantes Superiores (Inicio / Reportar Error / PWA) */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-3 print:hidden">
+      {/* Controles Flotantes Inferiores (Inicio / Reportar Error / PWA) reubicados en la esquina izquierda para evitar solapar botones de acción */}
+      <div className="fixed bottom-4 left-4 lg:left-70 z-30 flex items-center gap-2.5 print:hidden pointer-events-auto">
         <PWAInstallButton />
         <Link
           to="/"
           className="bg-teal-600 text-white p-2.5 rounded-full shadow-lg hover:bg-teal-700 transition-colors flex items-center justify-center group"
           title="Ir al Inicio"
         >
-          <HomeIcon size={24} />
-          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-sm font-medium">
-            <span className="pl-2 pr-1">Ir al Inicio</span>
+          <HomeIcon size={22} />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-xs font-medium">
+            <span className="pl-2 pr-1">Inicio</span>
           </span>
         </Link>
         <button 
@@ -432,8 +432,8 @@ export default function Layout() {
           className="bg-red-600 text-white p-2.5 rounded-full shadow-lg hover:bg-red-700 transition-colors flex items-center justify-center group"
           title="Reportar un error"
         >
-          <Bug size={24} />
-          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-sm font-medium">
+          <Bug size={22} />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out text-xs font-medium">
             <span className="pl-2 pr-1">Reportar Error</span>
           </span>
         </button>

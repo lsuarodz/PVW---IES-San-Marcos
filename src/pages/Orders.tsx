@@ -468,10 +468,13 @@ export default function Orders() {
   }, [orders, appUser]);
 
   return (
-    <div className="p-4 max-w-7xl  font-sans">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-2">
+    <div className="p-4 max-w-7xl font-sans pb-28 relative z-10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
         <div>
           <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
+          <p className="text-sm text-stone-500 mt-0.5">
+            {activeTab === 'create' ? 'Configura tu comanda de producción semanal' : 'Consolidación de pedidos para compras y economato'}
+          </p>
         </div>
 
         {/* Tab Switcher */}

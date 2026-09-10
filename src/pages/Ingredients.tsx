@@ -5,9 +5,10 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, AlertCircle, ChevronLeft, ChevronRight, CheckSquare, Square } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, AlertCircle, ChevronLeft, ChevronRight, CheckSquare, Square, FileSpreadsheet } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import ConfirmModal from '../components/ConfirmModal';
+import ImportCatalogModal from '../components/ImportCatalogModal';
 import { Ingredient } from '../types';
 
 export default function Ingredients() {
@@ -25,6 +26,7 @@ export default function Ingredients() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const isKaled = (appUser?.name?.toLowerCase().includes('kaled') || appUser?.email?.toLowerCase().includes('kaled')) && commissionMode;
   const isGastos = commissionMode && appUser?.commission?.toLowerCase() === 'gastos';
@@ -361,6 +363,10 @@ export default function Ingredients() {
         onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         isDestructive={confirmModal.isDestructive}
       />
+      <ImportCatalogModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">Ingredientes</h1>
@@ -378,13 +384,23 @@ export default function Ingredients() {
           )}
           {activeTab === 'ingredients' ? (
             canManageIngredients && (
-              <button
-                onClick={() => { resetForm(); setIsModalOpen(true); }}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Nuevo Ingrediente
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-xs"
+                  title="Importar catálogo completo o pegar tabla Excel"
+                >
+                  <FileSpreadsheet size={19} className="text-emerald-600" />
+                  <span>Importar Catálogo (447)</span>
+                </button>
+                <button
+                  onClick={() => { resetForm(); setIsModalOpen(true); }}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+                >
+                  <Plus size={20} />
+                  Nuevo Ingrediente
+                </button>
+              </div>
             )
           ) : (
             canManageIngredients && (
@@ -503,10 +519,10 @@ export default function Ingredients() {
                 <td className="px-6 py-2">
                   <div className="flex flex-wrap gap-1">
                     {ing.allergens && ing.allergens.length > 0 ? (
-                      ing.allergens.map(a => {
-                        const allergen = ALLERGENS.find(al => al.id === a);
+                      Array.from(new Set(ing.allergens)).map((a, idx) => {
+                        const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
                         return allergen ? (
-                          <span key={a} title={allergen.name} className="text-lg">{allergen.icon}</span>
+                          <span key={`${a}-${idx}`} title={allergen.name} className="text-lg">{allergen.icon}</span>
                         ) : null;
                       })
                     ) : (
