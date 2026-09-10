@@ -158,10 +158,14 @@ export default function Menus() {
   const [isPrinting, setIsPrinting] = useState(false);
 
   // Funciones de ayuda para permisos transversales
-  const isOwner = (menu: Menu) => {
-    if (!appUser) return false;
+  const isOwner = (menu: Menu | null | undefined) => {
+    if (!menu || !appUser) return false;
     if (isAdmin && !viewAsStudent) return true;
-    return menu.group === appUser.group;
+    const sameGroup = Boolean(menu.group && appUser.group && menu.group === appUser.group);
+    const isCreator = menu.createdBy === appUser.name || 
+                      menu.createdBy === appUser.uid || 
+                      (Boolean(appUser.email) && menu.createdBy === appUser.email);
+    return sameGroup || isCreator;
   };
 
   const canEditMenuField = (menu: Menu | null, fieldType: 'gastos' | 'general') => {
@@ -170,8 +174,7 @@ export default function Menus() {
     if (!menu) return true;
     if (isAdmin && !viewAsStudent) return true;
     
-    const isMenuOwner = menu.group === appUser.group;
-    if (isMenuOwner) return true;
+    if (isOwner(menu)) return true;
 
     // Kaled (Jefe Gastos) tiene permisos sobre campos de precio/gastos en todos los menús
     if (isKaled && fieldType === 'gastos') return true;
@@ -180,7 +183,7 @@ export default function Menus() {
     if (!commissionMode) return false;
 
     // Cada comisión actuará solo en los miembros de su curso
-    const menuCreator = users.find(u => u.name === menu.createdBy || u.uid === menu.createdBy);
+    const menuCreator = users.find(u => u.name === menu.createdBy || u.uid === menu.createdBy || (u.email && u.email === menu.createdBy));
     const menuCourse = menuCreator?.course;
     if (appUser.course && menuCourse && appUser.course !== menuCourse) {
       return false;
@@ -193,7 +196,7 @@ export default function Menus() {
   };
 
   const currentEditingMenu = editingId ? menus.find(m => m.id === editingId) || null : null;
-  const canEditGastos = !editingId || canEditMenuField(currentEditingMenu, 'gastos');
+  const canEditGastos = !editingId || isOwner(currentEditingMenu) || canEditMenuField(currentEditingMenu, 'gastos');
 
   const canEditAnyPartOfMenu = (menu: Menu) => {
     return isOwner(menu) || canEditMenuField(menu, 'gastos');
@@ -206,14 +209,15 @@ export default function Menus() {
     const id = editingId || doc(collection(db, 'menus')).id;
 
     // Sanitizar conceptos extra asegurando valores numéricos limpios para la base de datos
-    const sanitizedExtraConcepts = formData.extraConcepts
-      .filter(c => c.name.trim() !== '' || (Number(String(c.cost).replace(',', '.')) || 0) > 0)
+    const sanitizedExtraConcepts = (formData.extraConcepts || [])
+      .filter(c => c && (c.name.trim() !== '' || (parseFloat(String(c.cost).replace(',', '.')) || 0) > 0))
       .map(c => ({
-        name: c.name.trim(),
-        cost: parseFloat(String(c.cost).replace(',', '.')) || 0
+        name: c.name.trim() || 'Concepto adicional',
+        cost: Math.max(0, parseFloat(String(c.cost).replace(',', '.')) || 0)
       }));
 
-    const sanitizedPrice = parseFloat(String(formData.price).replace(',', '.')) || 0;
+    const rawPrice = typeof formData.price === 'string' ? formData.price.replace(',', '.') : formData.price;
+    const sanitizedPrice = isNaN(parseFloat(String(rawPrice))) ? 0 : Math.max(0, parseFloat(String(rawPrice)));
     const sanitizedDiners = formData.diners && Number(formData.diners) > 0 ? Math.round(Number(formData.diners)) : null;
 
     const totalCost = calculateMenuTotalCost(formData.recipes, recipes, sanitizedExtraConcepts);
@@ -232,9 +236,9 @@ export default function Menus() {
       occasion: formData.occasion || '',
       recipes: formData.recipes || [],
       extraConcepts: sanitizedExtraConcepts,
-      totalCost: isNaN(totalCost) ? 0 : totalCost,
+      totalCost: isNaN(totalCost) ? 0 : Math.max(0, totalCost),
       price: isNaN(sanitizedPrice) ? 0 : sanitizedPrice,
-      createdBy: existing?.createdBy || appUser.name || 'Usuario',
+      createdBy: existing?.createdBy || appUser.name || appUser.email || 'Usuario',
       group: existing?.group !== undefined ? existing.group : (appUser.group || ''),
       createdAt: existing?.createdAt || new Date().toISOString(),
       isPublic: Boolean(formData.isPublic)
@@ -1335,18 +1339,18 @@ export default function Menus() {
                               />
                               <div className="flex items-center gap-2">
                                 <input
-                                  type="text"
-                                  inputMode="decimal"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
                                   placeholder="0.00"
-                                  value={concept.cost !== undefined && concept.cost !== null ? concept.cost : ''}
+                                  value={concept.cost !== undefined && concept.cost !== null && concept.cost !== '' ? concept.cost : ''}
                                   disabled={!canEditGastos}
+                                  onFocus={(e) => e.target.select()}
                                   onChange={(e) => {
-                                    const raw = e.target.value;
-                                    if (raw === '' || /^[0-9]*[.,]?[0-9]*$/.test(raw)) {
-                                      const newExtras = [...formData.extraConcepts];
-                                      newExtras[index].cost = raw;
-                                      setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
-                                    }
+                                    const val = e.target.value;
+                                    const newExtras = [...formData.extraConcepts];
+                                    newExtras[index].cost = val;
+                                    setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
                                   }}
                                   onBlur={() => {
                                     const newExtras = [...formData.extraConcepts];
@@ -1357,7 +1361,7 @@ export default function Menus() {
                                     }
                                     setFormData(prev => ({ ...prev, extraConcepts: newExtras }));
                                   }}
-                                  className="w-full px-3 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 font-mono"
+                                  className="w-full px-3 py-1.5 text-sm bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 font-mono text-right"
                                 />
                                 <span className="text-sm font-medium text-stone-500">€</span>
                               </div>

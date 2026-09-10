@@ -909,25 +909,6 @@ export default function Orders() {
                               <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors">
                                 <td className="px-6 py-3 pl-8">
                                   <div className="text-sm font-semibold text-stone-900">{item.name}</div>
-                                  
-                                  {/* TEACHER BREAKDOWN (Only in consolidate view) */}
-                                  {activeTab === 'consolidate' && Object.keys(item.byTeacher).length > 0 && (
-                                    <div className="text-[10px] text-stone-500 mt-1 pl-1 flex flex-col gap-y-0.5 border-l border-stone-200">
-                                      {Object.entries(item.byTeacher).map(([teacher, qty]) => {
-                                        const parts = teacher.split(' (Justificación:');
-                                        const nameOnly = parts[0];
-                                        const formattedName = formatTeacherName(nameOnly);
-                                        const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
-                                        return (
-                                          <span key={teacher} className="whitespace-normal">
-                                            <strong className="text-stone-700 font-semibold" style={{ fontSize: '75%' }}>{formattedName}</strong>
-                                            {justification && <span className="text-stone-500 italic">{justification}</span>}
-                                            : {qty.toFixed(3)} {item.unit}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
                                 </td>
                                 <td className="px-6 py-3 text-right">
                                   <div className="text-sm font-bold text-stone-900">
@@ -1082,34 +1063,11 @@ export default function Orders() {
                             </thead>
                             <tbody className="divide-y divide-stone-50">
                               {providerItems.map((item) => (
-                                <React.Fragment key={item.ingredientId}>
-                                  <tr>
-                                    <td className="py-1.5 text-[11px] font-bold text-stone-800">{item.name}</td>
-                                    <td className="py-1.5 text-[11px] text-right font-bold text-stone-900">{item.totalQuantity.toFixed(3)} {item.unit}</td>
-                                    <td className="py-1.5 text-[11px] text-right text-stone-600">{item.totalCost.toFixed(2)} €</td>
-                                  </tr>
-                                  {/* BREAKDOWN PER TEACHER WITH JUSTIFICATION */}
-                                  {Object.keys(item.byTeacher).length > 0 && (
-                                    <tr>
-                                      <td colSpan={3} className="pb-2 pt-0.5 pl-4 bg-stone-50/10">
-                                        <div className="text-[9px] text-stone-500 flex flex-col gap-y-0.5">
-                                          {Object.entries(item.byTeacher).map(([teacher, qty]) => {
-                                            const parts = teacher.split(' (Justificación:');
-                                            const nameOnly = parts[0];
-                                            const formattedName = formatTeacherName(nameOnly);
-                                            const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
-                                            return (
-                                              <div key={teacher} className="text-stone-600 text-[9px]">
-                                                • <strong className="font-semibold text-stone-700" style={{ fontSize: '75%' }}>{formattedName}</strong>: <span className="font-medium text-stone-700">{qty.toFixed(3)} {item.unit}</span>
-                                                {justification && <span className="text-stone-500 italic ml-1">{justification}</span>}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
-                                </React.Fragment>
+                                <tr key={item.ingredientId}>
+                                  <td className="py-1.5 text-[11px] font-bold text-stone-800">{item.name}</td>
+                                  <td className="py-1.5 text-[11px] text-right font-bold text-stone-900">{item.totalQuantity.toFixed(3)} {item.unit}</td>
+                                  <td className="py-1.5 text-[11px] text-right text-stone-600">{item.totalCost.toFixed(2)} €</td>
+                                </tr>
                               ))}
                             </tbody>
                             <tfoot>

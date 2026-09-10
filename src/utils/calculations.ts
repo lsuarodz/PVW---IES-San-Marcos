@@ -58,18 +58,20 @@ export const calculateMenuTotalCost = (
   allRecipes: Recipe[],
   extraConcepts: (ExtraConcept | { name: string; cost: number | string })[] = []
 ): number => {
-  const recipesCost = recipeIds.reduce((total, id) => {
+  const recipesCost = (recipeIds || []).reduce((total, id) => {
     const recipe = allRecipes.find(r => r.id === id);
-    return total + (recipe ? recipe.totalCost : 0);
+    const cost = recipe && typeof recipe.totalCost === 'number' && !isNaN(recipe.totalCost) ? recipe.totalCost : 0;
+    return total + cost;
   }, 0);
 
-  const extrasCost = extraConcepts.reduce((total, concept) => {
+  const extrasCost = (extraConcepts || []).reduce((total, concept) => {
+    if (!concept || concept.cost === undefined || concept.cost === null || concept.cost === '') return total;
     const rawCost = typeof concept.cost === 'string' ? concept.cost.replace(',', '.') : concept.cost;
     const num = parseFloat(String(rawCost));
     return total + (isNaN(num) ? 0 : num);
   }, 0);
 
-  return recipesCost + extrasCost;
+  return Number((recipesCost + extrasCost).toFixed(2));
 };
 
 // Extrae todos los alérgenos únicos de un menú

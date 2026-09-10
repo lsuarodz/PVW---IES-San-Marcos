@@ -27,12 +27,12 @@ export default function Quotes() {
 
   const [addOptionModal, setAddOptionModal] = useState<{
     isOpen: boolean;
-    selectedMenuId: string;
+    selectedMenuIds: string[];
     optionGroup: string;
   }>({
     isOpen: false,
-    selectedMenuId: '',
-    optionGroup: 'Almuerzo Cóctel'
+    selectedMenuIds: [],
+    optionGroup: 'Cóctel de almuerzo'
   });
 
   const [confirmModal, setConfirmModal] = useState({
@@ -237,6 +237,90 @@ export default function Quotes() {
     });
   };
 
+  const handleGroupRename = (oldGroupName: string, newGroupName: string) => {
+    const cleanOld = oldGroupName.trim().toLowerCase();
+    const cleanNew = newGroupName.trim() || 'Opciones';
+    const newItems = (formData.items || []).map(item => {
+      if (item.isOption && (item.optionGroup || 'Opciones').trim().toLowerCase() === cleanOld) {
+        return { ...item, optionGroup: cleanNew };
+      }
+      return item;
+    });
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const addOptionGroupWithMenus = (groupName: string, menuIds: string[]) => {
+    if (menuIds.length === 0) return;
+    const cleanGroup = groupName.trim() || 'Opciones';
+    const quantity = formData.guests || 1;
+
+    const existingGroupItems = (formData.items || []).filter(
+      item => item.isOption && ((item.optionGroup || 'Opciones').trim().toLowerCase() === cleanGroup.toLowerCase())
+    );
+    let hasBaseInGroup = existingGroupItems.some(i => i.isIncludedInTotal);
+
+    const newItemsToAdd: QuoteItem[] = menuIds.map((menuId) => {
+      const menu = menus.find(m => m.id === menuId);
+      const desc = menu ? `Menú: ${menu.nameES}` : 'Opción';
+      const price = menu ? menu.price : 0;
+      const isBase = !hasBaseInGroup;
+      if (isBase) {
+        hasBaseInGroup = true;
+      }
+      return {
+        description: desc,
+        quantity,
+        unitPrice: price,
+        total: quantity * price,
+        menuId,
+        isOption: true,
+        optionGroup: cleanGroup,
+        isIncludedInTotal: isBase
+      };
+    });
+
+    const updatedItems = [...(formData.items || []), ...newItemsToAdd];
+    const totals = calculateTotals(updatedItems, formData.tax ?? 7);
+
+    setFormData({
+      ...formData,
+      items: updatedItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
+
+    showToast(`${newItemsToAdd.length} opciones añadidas al grupo "${cleanGroup}"`, 'success');
+  };
+
+  const addCustomOptionToGroup = (groupName: string) => {
+    const quantity = formData.guests || 1;
+    const cleanGroup = groupName.trim() || 'Opciones';
+    const existingGroupItems = (formData.items || []).filter(
+      item => item.isOption && ((item.optionGroup || 'Opciones').trim().toLowerCase() === cleanGroup.toLowerCase())
+    );
+    const hasBase = existingGroupItems.some(i => i.isIncludedInTotal);
+
+    const newItem: QuoteItem = {
+      description: '',
+      quantity,
+      unitPrice: 0,
+      total: 0,
+      isOption: true,
+      optionGroup: cleanGroup,
+      isIncludedInTotal: !hasBase
+    };
+
+    const newItems = [...(formData.items || []), newItem];
+    const totals = calculateTotals(newItems, formData.tax ?? 7);
+
+    setFormData({
+      ...formData,
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total
+    });
+  };
+
   const removeItem = (index: number) => {
     const newItems = [...(formData.items || [])];
     const removed = newItems[index];
@@ -388,6 +472,7 @@ export default function Quotes() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Collect all menus referenced by items in quote
     const quoteMenus = quote.items
       .map(item => {
         let menu: Menu | undefined;
@@ -406,24 +491,24 @@ export default function Quotes() {
         if (!recipe) return '';
         const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
         const allergensHtml = recipeAllergens.length > 0 ? `
-          <div class="flex justify-center gap-2 mt-2 opacity-60">
+          <div class="flex justify-center gap-1.5 mt-1 opacity-70">
             ${recipeAllergens.map(a => {
               const allergen = ALLERGENS.find(al => al.id === a);
-              return allergen ? `<span title="${allergen.name}" class="text-xs">${allergen.icon}</span>` : '';
+              return allergen ? `<span title="${allergen.name}" class="text-[10px]">${allergen.icon}</span>` : '';
             }).join('')}
           </div>
         ` : '';
 
         const separatorHtml = index < menu.recipes.length - 1 ? `
-          <div class="mt-2 flex justify-center">
-            <div class="w-8 h-px bg-stone-300"></div>
+          <div class="mt-1 flex justify-center">
+            <div class="w-6 h-px bg-stone-300"></div>
           </div>
         ` : '';
 
         return `
           <div class="text-center w-full">
-            <h3 class="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
-            ${recipe.descriptionES ? `<p class="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm mx-auto">${recipe.descriptionES}</p>` : ''}
+            <h3 class="text-[11px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
+            ${recipe.descriptionES ? `<p class="text-stone-600 text-[8px] italic mb-0.5 leading-tight px-10 max-w-sm mx-auto">${recipe.descriptionES}</p>` : ''}
             ${allergensHtml}
             ${separatorHtml}
           </div>
@@ -438,10 +523,10 @@ export default function Quotes() {
                      'Menú Pedagógico';
 
       const roleBadge = !item.isOption 
-        ? `<div class="mb-3"><span class="px-3 py-1 bg-stone-100 text-stone-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-stone-300">Menú Incluido en Presupuesto</span></div>`
+        ? `<div class="mb-1.5"><span class="px-2.5 py-0.5 bg-stone-100 text-stone-800 text-[9px] tracking-[0.2em] uppercase font-sans font-semibold rounded border border-stone-300">Menú Incluido</span></div>`
         : item.isIncludedInTotal
-          ? `<div class="mb-3"><span class="px-3 py-1 bg-teal-50 text-teal-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-teal-200">★ Opción Base Presupuestada (${item.optionGroup || 'Opciones'})</span></div>`
-          : `<div class="mb-3"><span class="px-3 py-1 bg-amber-50 text-amber-800 text-[10px] tracking-[0.25em] uppercase font-sans font-semibold rounded border border-amber-200">Opción Alternativa a Elegir (${item.optionGroup || 'Opciones'})</span></div>`;
+          ? `<div class="mb-1.5"><span class="px-2.5 py-0.5 bg-teal-50 text-teal-800 text-[9px] tracking-[0.2em] uppercase font-sans font-semibold rounded border border-teal-200">★ Opción Base (${item.optionGroup || 'Opciones'})</span></div>`
+          : `<div class="mb-1.5"><span class="px-2.5 py-0.5 bg-amber-50 text-amber-800 text-[9px] tracking-[0.2em] uppercase font-sans font-semibold rounded border border-amber-200">Propuesta Alternativa (${item.optionGroup || 'Opciones'})</span></div>`;
 
       const baseOption = item.isOption 
         ? quote.items.find(i => i.isOption && i.optionGroup === item.optionGroup && i.isIncludedInTotal)
@@ -450,54 +535,51 @@ export default function Quotes() {
         ? (item.unitPrice - baseOption.unitPrice)
         : 0;
       const diffHtml = (item.isOption && !item.isIncludedInTotal)
-        ? `<div class="text-[11px] text-amber-800 font-semibold mb-1 font-sans">
+        ? `<div class="text-[10px] text-amber-800 font-semibold mb-0.5 font-sans">
              ${diff > 0 ? `+${diff.toFixed(2)} € / comensal respecto a opción base` : diff < 0 ? `-${Math.abs(diff).toFixed(2)} € / comensal respecto a opción base` : `Mismo precio que opción base`}
-           </div>
-           <div class="text-[10px] text-stone-500 font-sans mb-1">
-             Importe orientativo para ${item.quantity} pax: ${(item.quantity * item.unitPrice).toFixed(2)} €
            </div>`
         : item.isOption && item.isIncludedInTotal
-          ? `<div class="text-[10px] text-teal-700 font-semibold mb-1 font-sans">★ Opción base incluida en el cálculo del total</div>`
+          ? `<div class="text-[9.5px] text-teal-700 font-semibold mb-0.5 font-sans">★ Opción base computada en el presupuesto</div>`
           : '';
 
       return `
-        <div class="menu-page bg-white text-stone-900 font-serif mx-auto flex flex-col items-center relative overflow-hidden" style="box-sizing: border-box;">
-          <div class="absolute inset-4 border-2 border-stone-800 pointer-events-none"></div>
-          <div class="absolute inset-6 border border-stone-300 pointer-events-none"></div>
+        <div class="menu-page bg-white text-stone-900 font-serif mx-auto flex flex-col items-center justify-between relative overflow-hidden" style="box-sizing: border-box; height: 297mm; max-height: 297mm;">
+          <div class="absolute inset-3 border-2 border-stone-800 pointer-events-none"></div>
+          <div class="absolute inset-5 border border-stone-300 pointer-events-none"></div>
           
-          <div class="z-10 w-full flex flex-col items-center h-full">
-            <div class="text-center mb-6 w-full pt-6">
-              <div class="flex justify-center mb-4">
-                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" class="h-16 object-contain" crossorigin="anonymous" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`}
+          <div class="z-10 w-full flex flex-col items-center justify-between h-full py-4 px-6">
+            <div class="text-center w-full">
+              <div class="flex justify-center mb-1.5">
+                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" class="h-9 object-contain" crossorigin="anonymous" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`}
               </div>
-              <div class="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
+              <div class="text-stone-500 text-[8.5px] tracking-[0.35em] uppercase mb-1 font-sans font-medium">Propuesta Gastronómica</div>
               ${roleBadge}
-              <h1 class="text-4xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">${menu.nameES}</h1>
-              ${menu.eventDate ? `<h2 class="text-lg text-stone-600 font-serif mb-1">${menu.eventDate}${menu.eventTime ? ` a las ${menu.eventTime}` : ''}</h2>` : ''}
-              ${menu.eventPlace ? `<h2 class="text-lg text-stone-600 font-serif mb-3">${menu.eventPlace}</h2>` : ''}
+              <h1 class="text-2xl font-serif font-bold mb-1 text-stone-900 tracking-tight leading-tight px-6 uppercase">${menu.nameES}</h1>
+              ${menu.eventDate ? `<h2 class="text-xs text-stone-600 font-serif mb-0.5">${menu.eventDate}${menu.eventTime ? ` a las ${menu.eventTime}` : ''}</h2>` : ''}
+              ${menu.eventPlace ? `<h2 class="text-xs text-stone-600 font-serif mb-1">${menu.eventPlace}</h2>` : ''}
               
-              <div class="flex items-center justify-center gap-6 mt-6">
-                <div class="h-px w-16 bg-stone-300"></div>
-                <div class="text-[11px] tracking-[0.3em] uppercase text-stone-800 font-sans font-semibold">
+              <div class="flex items-center justify-center gap-4 mt-1.5 mb-1.5">
+                <div class="h-px w-10 bg-stone-300"></div>
+                <div class="text-[9px] tracking-[0.25em] uppercase text-stone-800 font-sans font-semibold">
                   ${menuTypeStr}
                 </div>
-                <div class="h-px w-16 bg-stone-300"></div>
+                <div class="h-px w-10 bg-stone-300"></div>
               </div>
             </div>
 
-            <div class="space-y-6 mb-8 w-full flex flex-col items-center max-w-2xl flex-1 justify-center">
+            <div class="space-y-2 w-full flex flex-col items-center max-w-xl my-auto py-1">
               ${recipesHtml}
             </div>
 
-            <div class="mt-auto w-full flex flex-col items-center pb-6">
-              <div class="text-center mb-6">
-                <div class="text-3xl font-serif font-bold text-stone-900 mb-1">${menu.price.toFixed(2)} €</div>
+            <div class="w-full flex flex-col items-center pt-2">
+              <div class="text-center mb-1.5">
+                <div class="text-2xl font-serif font-bold text-stone-900 mb-0.5">${menu.price.toFixed(2)} €</div>
                 ${diffHtml}
-                <div class="text-[9px] text-stone-500 uppercase tracking-[0.3em] font-sans font-medium">Precio por persona · IGIC incluido</div>
+                <div class="text-[8.5px] text-stone-500 uppercase tracking-[0.25em] font-sans font-medium">Precio por persona · IGIC incluido</div>
               </div>
 
-              <div class="pt-6 border-t border-stone-300 w-full max-w-md text-center">
-                <p class="text-[8px] text-stone-500 uppercase tracking-[0.25em] font-sans leading-loose px-4">
+              <div class="pt-1.5 border-t border-stone-300 w-full max-w-sm text-center">
+                <p class="text-[7.5px] text-stone-500 uppercase tracking-[0.2em] font-sans leading-relaxed px-2">
                   Todos nuestros productos son elaborados en una cocina compartida donde se manipulan alérgenos, por lo que pueden contener trazas.
                 </p>
               </div>
@@ -507,9 +589,22 @@ export default function Quotes() {
       `;
     }).join('');
 
-    const includedItems = quote.items.filter(i => isItemCountedInTotal(i));
-    const alternativeItems = quote.items.filter(i => i.isOption && !i.isIncludedInTotal);
-    const hasOptions = quote.items.some(i => i.isOption);
+    // Fixed items
+    const fixedItems = quote.items.filter(i => !i.isOption);
+
+    // Option groups map
+    const optionGroupsMap = new Map<string, QuoteItem[]>();
+    quote.items.forEach(item => {
+      if (item.isOption) {
+        const groupName = (item.optionGroup || 'Opciones').trim();
+        if (!optionGroupsMap.has(groupName)) {
+          optionGroupsMap.set(groupName, []);
+        }
+        optionGroupsMap.get(groupName)!.push(item);
+      }
+    });
+
+    const hasOptionGroups = optionGroupsMap.size > 0;
 
     const html = `
       <!DOCTYPE html>
@@ -531,184 +626,266 @@ export default function Quotes() {
         </script>
         <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
         <style>
-          body { font-family: system-ui, -apple-system, sans-serif; color: #1c1917; line-height: 1.5; margin: 0; padding: 0; }
-          .quote-page { padding: 40px; max-width: 800px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #e7e5e4; padding-bottom: 20px; }
-          .title { font-size: 24px; font-weight: bold; color: #0f766e; margin: 0; }
-          .meta { text-align: right; color: #57534e; }
-          .client-info { margin-bottom: 40px; background: #f5f5f4; padding: 20px; border-radius: 8px; }
-          .client-info h3 { margin-top: 0; color: #0f766e; }
-          .event-info { display: flex; gap: 20px; margin-bottom: 30px; }
-          .event-info div { flex: 1; }
-          table { border-collapse: collapse; margin-bottom: 24px; width: 100%; }
-          th { text-align: left; padding: 10px 12px; border-bottom: 2px solid #e7e5e4; color: #57534e; font-weight: 600; font-size: 13px; }
-          td { padding: 10px 12px; border-bottom: 1px solid #e7e5e4; }
-          .text-right { text-align: right; }
-          .totals { width: 320px; margin-left: auto; }
-          .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-          .total-row.final { font-weight: bold; font-size: 1.2em; border-top: 2px solid #1c1917; margin-top: 8px; padding-top: 16px; }
-          .notes { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 0.9em; }
-          .menu-page { width: 100%; min-height: 100vh; padding: 40px; box-sizing: border-box; page-break-before: always; }
+          * { box-sizing: border-box; }
+          body { font-family: system-ui, -apple-system, sans-serif; color: #1c1917; line-height: 1.4; margin: 0; padding: 0; background: #f5f5f4; }
+          .quote-page {
+            width: 210mm;
+            height: 297mm;
+            max-height: 297mm;
+            box-sizing: border-box;
+            padding: 10mm 15mm;
+            margin: 0 auto;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+          }
+          .menu-page {
+            width: 210mm;
+            height: 297mm;
+            max-height: 297mm;
+            box-sizing: border-box;
+            padding: 10mm 14mm;
+            margin: 0 auto;
+            page-break-before: always;
+            break-before: page;
+            page-break-after: always;
+            break-after: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+          }
           @media print {
-            body { padding: 0; background: white; }
-            button { display: none; }
-            .quote-page { padding: 20mm; max-width: none; min-height: 100vh; box-sizing: border-box; page-break-after: always; }
-            .menu-page { padding: 12mm; width: 100%; height: 100vh; box-sizing: border-box; page-break-before: always; page-break-after: always; }
-            @page { margin: 0; size: A4; }
+            body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            button { display: none !important; }
+            .quote-page {
+              width: 210mm;
+              height: 297mm;
+              max-height: 297mm;
+              padding: 10mm 15mm;
+              margin: 0;
+              page-break-after: always;
+              break-after: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              overflow: hidden;
+            }
+            .menu-page {
+              width: 210mm;
+              height: 297mm;
+              max-height: 297mm;
+              padding: 10mm 14mm;
+              margin: 0;
+              page-break-before: always;
+              break-before: page;
+              page-break-after: always;
+              break-after: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              overflow: hidden;
+            }
+            @page { margin: 0; size: A4 portrait; }
           }
         </style>
       </head>
       <body>
         <div class="quote-page">
-          <div class="header">
-            <div>
-              ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 60px; object-fit: contain; margin-bottom: 16px;" crossorigin="anonymous" />` : ''}
-              <h1 class="title">PRESUPUESTO</h1>
-              <p>Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
-            </div>
-            <div class="meta">
-              <p><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</p>
-              <p><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</p>
-            </div>
-          </div>
-
-          <div class="client-info">
-            <h3>Datos del Cliente</h3>
-            <p><strong>${client?.name || 'Cliente no encontrado'}</strong></p>
-            ${client?.company ? `<p>${client.company}</p>` : ''}
-            ${client?.email ? `<p>${client.email}</p>` : ''}
-            ${client?.phone ? `<p>${client.phone}</p>` : ''}
-          </div>
-
-          ${(quote.eventDate || quote.eventType || quote.guests) ? `
-          <div class="event-info">
-            ${quote.eventDate ? `<div><strong>Fecha del Evento:</strong><br>${new Date(quote.eventDate).toLocaleDateString('es-ES')}</div>` : ''}
-            ${quote.eventType ? `<div><strong>Tipo de Evento:</strong><br>${quote.eventType}</div>` : ''}
-            ${quote.guests ? `<div><strong>Comensales:</strong><br>${quote.guests} pax</div>` : ''}
-          </div>
-          ` : ''}
-
-          <div style="margin-bottom: 24px;">
-            ${hasOptions ? `
-              <div style="font-weight: 600; color: #1c1917; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-                Servicios y Menús Incluidos en el Total
+          <!-- Encabezado Compacto -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1.5px solid #e7e5e4; padding-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 38px; max-width: 140px; object-fit: contain;" crossorigin="anonymous" />` : ''}
+              <div>
+                <h1 style="font-size: 18px; font-weight: 800; color: #0f766e; margin: 0; line-height: 1.1; letter-spacing: 0.02em;">PRESUPUESTO</h1>
+                <p style="margin: 0; font-size: 10px; color: #78716c;">Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>
               </div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #57534e; line-height: 1.3;">
+              <div><strong>Fecha:</strong> ${new Date(quote.date).toLocaleDateString('es-ES')}</div>
+              <div><strong>Estado:</strong> ${quote.status === 'draft' ? 'Borrador' : quote.status === 'sent' ? 'Enviado' : quote.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
+            </div>
+          </div>
+
+          <!-- Datos del Cliente y Evento en Línea (Reducidos en altura y padding) -->
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px; padding: 5px 10px; margin-bottom: 8px; font-size: 11px;">
+            <div style="flex: 1;">
+              <span style="font-size: 9px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 4px;">Cliente:</span>
+              <strong style="color: #1c1917;">${client?.name || 'Cliente'}</strong>
+              ${client?.company ? `<span style="color: #57534e;"> (${client.company})</span>` : ''}
+              ${(client?.email || client?.phone) ? `
+                <span style="color: #78716c; margin-left: 6px; font-size: 10px;">· ${[client?.email, client?.phone].filter(Boolean).join(' · ')}</span>
+              ` : ''}
+            </div>
+            ${(quote.eventDate || quote.eventType || quote.guests) ? `
+            <div style="border-left: 1px solid #e7e5e4; padding-left: 10px; white-space: nowrap; font-size: 10.5px;">
+              <span style="font-size: 9px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-right: 4px;">Evento:</span>
+              ${[
+                quote.eventType ? `<strong>${quote.eventType}</strong>` : '',
+                quote.eventDate ? `${new Date(quote.eventDate).toLocaleDateString('es-ES')}` : '',
+                quote.guests ? `<strong>${quote.guests} comensales</strong>` : ''
+              ].filter(Boolean).join(' · ')}
+            </div>
             ` : ''}
-            <table>
+          </div>
+
+          <!-- Tabla de Conceptos y Menú Base -->
+          <div style="margin-bottom: 8px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
               <thead>
-                <tr>
-                  <th>Descripción</th>
-                  <th class="text-right">Cant.</th>
-                  <th class="text-right">Precio Ud.</th>
-                  <th class="text-right">Total</th>
+                <tr style="border-bottom: 1.5px solid #e7e5e4;">
+                  <th style="padding: 4px 6px; text-align: left; color: #57534e; font-weight: 600; font-size: 10.5px;">Descripción del Concepto / Servicio</th>
+                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Cant.</th>
+                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Precio Ud.</th>
+                  <th style="padding: 4px 6px; text-align: right; color: #57534e; font-weight: 600; font-size: 10.5px;">Total</th>
                 </tr>
               </thead>
               <tbody>
-                ${includedItems.map(item => `
-                  <tr>
-                    <td>
+                ${fixedItems.map(item => `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 4px 6px; font-size: 11px; color: #1c1917;">
                       <strong>${item.description}</strong>
-                      ${item.isOption ? `<div style="font-size: 11px; color: #0f766e; font-weight: 500;">★ Opción de menú presupuestada (Grupo: ${item.optionGroup || 'Opciones'})</div>` : ''}
                     </td>
-                    <td class="text-right">${item.quantity}</td>
-                    <td class="text-right">${item.unitPrice.toFixed(2)} €</td>
-                    <td class="text-right font-medium">${item.total.toFixed(2)} €</td>
+                    <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${item.quantity}</td>
+                    <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${item.unitPrice.toFixed(2)} €</td>
+                    <td style="padding: 4px 6px; text-align: right; font-weight: 600; font-size: 11px; color: #1c1917;">${item.total.toFixed(2)} €</td>
                   </tr>
                 `).join('')}
+
+                ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
+                  const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
+                  const cleanBaseDesc = baseItem.description.startsWith('Menú: ') 
+                    ? baseItem.description.replace('Menú: ', '') 
+                    : baseItem.description;
+                  return `
+                    <tr style="border-bottom: 1px solid #f1f5f9; background: #fafaf9;">
+                      <td style="padding: 4px 6px; font-size: 11px; color: #1c1917;">
+                        <strong style="color: #0f766e; text-transform: uppercase;">${groupName}</strong>
+                        <div style="font-size: 9.5px; color: #57534e; margin-top: 1px;">
+                          Propuesta base: <strong>${cleanBaseDesc}</strong> <span style="color: #78716c;">(ver ${groupItems.length} opciones abajo)</span>
+                        </div>
+                      </td>
+                      <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${baseItem.quantity}</td>
+                      <td style="padding: 4px 6px; text-align: right; font-size: 11px; color: #1c1917;">${baseItem.unitPrice.toFixed(2)} €</td>
+                      <td style="padding: 4px 6px; text-align: right; font-weight: 600; font-size: 11px; color: #1c1917;">${baseItem.total.toFixed(2)} €</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
 
-          ${alternativeItems.length > 0 ? `
-            <div style="margin-top: 20px; margin-bottom: 28px; padding: 16px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <div style="font-weight: bold; color: #0f766e; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">
-                  Opciones de Menú Alternativas a Elegir (No acumulativas)
-                </div>
-                <div style="font-size: 11px; color: #78716c;">
-                  1 opción a elegir por grupo
-                </div>
+          <!-- Cuadro de Opciones Alternativas Agrupadas (Sin disclaimers ni texto 'no acumulativas') -->
+          ${hasOptionGroups ? `
+            <div style="margin-top: 4px; margin-bottom: 8px; padding: 6px 10px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px;">
+              <div style="font-weight: 700; color: #0f766e; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+                Opciones de Menú Alternativas
               </div>
-              <p style="font-size: 12px; color: #57534e; margin: 0 0 12px 0; line-height: 1.4;">
-                Se presentan las siguientes opciones gastronómicas alternativas para este evento. El importe total del presupuesto contempla la opción base indicada arriba. En caso de elegir alguna de estas alternativas, se aplicará el ajuste por comensal correspondiente:
-              </p>
-              <table style="margin-bottom: 0; background: white;">
-                <thead>
-                  <tr style="background: #f5f5f4;">
-                    <th>Opción Alternativa</th>
-                    <th>Grupo</th>
-                    <th class="text-right">Precio Ud.</th>
-                    <th class="text-right">Diferencia / comensal</th>
-                    <th class="text-right">Total Est. (${quote.guests || alternativeItems[0]?.quantity || 1} pax)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${alternativeItems.map(item => {
-                    const baseItem = quote.items.find(i => i.isOption && i.optionGroup === item.optionGroup && i.isIncludedInTotal);
-                    const diff = baseItem ? (item.unitPrice - baseItem.unitPrice) : 0;
-                    const diffText = diff > 0 ? `+${diff.toFixed(2)} €` : diff < 0 ? `-${Math.abs(diff).toFixed(2)} €` : `0,00 € (Mismo precio)`;
-                    const diffColor = diff > 0 ? '#b45309' : diff < 0 ? '#0f766e' : '#57534e';
-                    return `
-                      <tr>
-                        <td>
-                          <strong>${item.description}</strong>
-                          <div style="font-size: 11px; color: #78716c;">Opción alternativa a elegir</div>
-                        </td>
-                        <td style="font-size: 12px; color: #57534e;">${item.optionGroup || 'Opciones'}</td>
-                        <td class="text-right font-mono">${item.unitPrice.toFixed(2)} €</td>
-                        <td class="text-right font-mono font-medium" style="color: ${diffColor};">${diffText}</td>
-                        <td class="text-right font-mono" style="color: #78716c;">${item.total.toFixed(2)} €</td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
+              ${Array.from(optionGroupsMap.entries()).map(([groupName, groupItems]) => {
+                const baseItem = groupItems.find(i => i.isIncludedInTotal) || groupItems[0];
+                return `
+                  <div style="margin-bottom: 6px;">
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                      <span style="font-weight: 700; font-size: 10.5px; color: #166534; text-transform: uppercase;">
+                        ${groupName}
+                      </span>
+                      <span style="font-size: 9.5px; font-weight: 600; color: #166534;">
+                        Precio base presupuestado: ${baseItem.unitPrice.toFixed(2)} € / comensal
+                      </span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; background: white; font-size: 10px;">
+                      <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569;">
+                          <th style="padding: 3px 6px; text-align: left; font-weight: 600;">Propuesta de menú</th>
+                          <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Precio / comensal</th>
+                          <th style="padding: 3px 6px; text-align: right; font-weight: 600;">Ajuste respecto a opción base</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${groupItems.map(item => {
+                          const isBase = item === baseItem || Boolean(item.isIncludedInTotal);
+                          const diff = item.unitPrice - baseItem.unitPrice;
+                          const diffText = isBase 
+                            ? '<span style="color: #0f766e; font-weight: 600;">★ Opción base presupuestada</span>'
+                            : diff > 0 
+                              ? `<span style="color: #b45309; font-weight: 600;">+${diff.toFixed(2)} € / comensal</span>`
+                              : diff < 0 
+                                ? `<span style="color: #0f766e; font-weight: 600;">-${Math.abs(diff).toFixed(2)} € / comensal</span>`
+                                : '<span style="color: #57534e;">Mismo precio que opción base</span>';
+
+                          const cleanName = item.description.startsWith('Menú: ') 
+                            ? item.description.replace('Menú: ', '') 
+                            : item.description;
+
+                          return `
+                            <tr style="border-bottom: 1px solid #f1f5f9; ${isBase ? 'background: #f0fdf4/40;' : ''}">
+                              <td style="padding: 3px 6px; color: #1c1917;">
+                                <strong>${cleanName}</strong>
+                                ${isBase ? ' <span style="font-size: 8px; background: #ccfbf1; color: #0f766e; padding: 1px 4px; border-radius: 3px; font-weight: 600;">BASE</span>' : ''}
+                              </td>
+                              <td style="padding: 3px 6px; text-align: right; font-weight: 600; color: #1c1917;">
+                                ${item.unitPrice.toFixed(2)} €
+                              </td>
+                              <td style="padding: 3px 6px; text-align: right;">
+                                ${diffText}
+                              </td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                `;
+              }).join('')}
             </div>
           ` : ''}
 
-          <div class="totals">
-            <div class="total-row">
-              <span>Subtotal Presupuesto:</span>
-              <span>${quote.subtotal.toFixed(2)} €</span>
+          <!-- Totales -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 4px;">
+            <div style="font-size: 9.5px; color: #78716c; max-width: 380px; line-height: 1.3;">
+              ${hasOptionGroups ? '* El importe total incluye los conceptos fijos y la opción base de cada menú. Las opciones alternativas no incrementan el presupuesto a menos que sean elegidas.' : ''}
             </div>
-            ${quote.tax > 0 ? `
-            <div class="total-row">
-              <span>IGIC (${quote.tax}%):</span>
-              <span>${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
-            </div>
-            ` : ''}
-            <div class="total-row final">
-              <span>TOTAL PRESUPUESTO:</span>
-              <span>${quote.total.toFixed(2)} €</span>
+            <div style="width: 240px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
+                <span>Subtotal:</span>
+                <span style="font-weight: 600; color: #1c1917;">${quote.subtotal.toFixed(2)} €</span>
+              </div>
+              ${quote.tax > 0 ? `
+              <div style="display: flex; justify-content: space-between; padding: 2px 0; color: #57534e;">
+                <span>IGIC (${quote.tax}%):</span>
+                <span style="font-weight: 600; color: #1c1917;">${(quote.subtotal * quote.tax / 100).toFixed(2)} €</span>
+              </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; padding: 4px 0 2px 0; border-top: 1.5px solid #1c1917; margin-top: 3px; font-weight: bold; font-size: 13px; color: #0f766e;">
+                <span>TOTAL:</span>
+                <span>${quote.total.toFixed(2)} €</span>
+              </div>
             </div>
           </div>
-          ${hasOptions ? `
-            <div style="font-size: 11px; color: #78716c; text-align: right; margin-top: 8px; line-height: 1.4;">
-              * El importe total incluye los conceptos fijos y 1 opción de menú presupuestada como base. Las opciones alternativas no duplican ni incrementan este presupuesto a menos que sean formalmente elegidas.
-            </div>
-          ` : ''}
 
           ${quote.notes ? `
-          <div class="notes">
-            <strong>Notas y Condiciones:</strong><br>
-            ${quote.notes.replace(/\n/g, '<br>')}
+          <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #e7e5e4; color: #57534e; font-size: 9.5px; line-height: 1.3;">
+            <strong style="color: #1c1917;">Notas y Condiciones:</strong> ${quote.notes.replace(/\n/g, '<br>')}
           </div>
           ` : ''}
 
-          <div style="margin-top: 40px; text-align: center;">
-            <button onclick="window.print()" style="padding: 10px 20px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+          <div style="margin-top: 14px; text-align: center;">
+            <button onclick="window.print()" style="padding: 8px 18px; background: #0f766e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
               Imprimir Presupuesto
             </button>
           </div>
         </div>
         
+        <!-- Páginas de los Menús (1 página por menú) -->
         ${menusHtml}
         
         <script>
-          // Esperar a que Tailwind procese las clases antes de imprimir
           setTimeout(() => {
             window.print();
-          }, 1000);
+          }, 800);
         </script>
       </body>
       </html>
@@ -978,7 +1155,7 @@ export default function Quotes() {
                             }
                             setAddOptionModal({
                               isOpen: true,
-                              selectedMenuId: menus[0]?.id || '',
+                              selectedMenuIds: menus[0] ? [menus[0].id] : [],
                               optionGroup: 'Almuerzo Cóctel'
                             });
                           }}
@@ -1265,23 +1442,6 @@ export default function Quotes() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Seleccionar Menú
-                  </label>
-                  <select
-                    value={addOptionModal.selectedMenuId}
-                    onChange={e => setAddOptionModal({ ...addOptionModal, selectedMenuId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-                  >
-                    {menus.map(menu => (
-                      <option key={menu.id} value={menu.id}>
-                        {menu.nameES} — {menu.price.toFixed(2)} € ({menu.recipes.length} platos)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Grupo de Opciones (ej. Almuerzo Cóctel)
                   </label>
                   <input
@@ -1309,6 +1469,73 @@ export default function Quotes() {
                   </div>
                 </div>
 
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-stone-700">
+                      Seleccionar Menús para este Grupo ({addOptionModal.selectedMenuIds.length} seleccionados)
+                    </label>
+                    {menus.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (addOptionModal.selectedMenuIds.length === menus.length) {
+                            setAddOptionModal({ ...addOptionModal, selectedMenuIds: [] });
+                          } else {
+                            setAddOptionModal({ ...addOptionModal, selectedMenuIds: menus.map(m => m.id) });
+                          }
+                        }}
+                        className="text-xs text-teal-600 hover:text-teal-700 font-medium"
+                      >
+                        {addOptionModal.selectedMenuIds.length === menus.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-500 mb-2">
+                    Marca los menús que quieras presentar como opciones alternativas para que el cliente elija uno:
+                  </p>
+                  <div className="max-h-56 overflow-y-auto border border-stone-200 rounded-xl divide-y divide-stone-100 bg-stone-50">
+                    {menus.map(menu => {
+                      const isSelected = addOptionModal.selectedMenuIds.includes(menu.id);
+                      return (
+                        <label
+                          key={menu.id}
+                          className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                            isSelected ? 'bg-teal-50/70 hover:bg-teal-50' : 'hover:bg-white'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setAddOptionModal({
+                                  ...addOptionModal,
+                                  selectedMenuIds: [...addOptionModal.selectedMenuIds, menu.id]
+                                });
+                              } else {
+                                setAddOptionModal({
+                                  ...addOptionModal,
+                                  selectedMenuIds: addOptionModal.selectedMenuIds.filter(id => id !== menu.id)
+                                });
+                              }
+                            }}
+                            className="rounded border-stone-300 text-teal-600 focus:ring-teal-500 h-4 w-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-stone-800 text-sm truncate">{menu.nameES}</div>
+                            <div className="text-xs text-stone-500">
+                              {menu.recipes.length} platos {menu.location === 'fuera' ? '• Fuera del centro' : ''}
+                            </div>
+                          </div>
+                          <div className="text-sm font-bold text-teal-700 whitespace-nowrap">
+                            {menu.price.toFixed(2)} €
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed space-y-1">
                   <p className="font-semibold text-stone-800 flex items-center gap-1">
                     <Info size={14} className="text-teal-600" />
@@ -1318,7 +1545,7 @@ export default function Quotes() {
                     El <strong>primer menú</strong> de este grupo figurará como la <strong>opción base</strong> y se incluirá en el total del presupuesto.
                   </p>
                   <p>
-                    Los <strong>siguientes menús</strong> del mismo grupo se añadirán como <strong>opciones alternativas</strong>: se presentarán al cliente para elegir en el presupuesto impreso/PDF pero <strong>no sumarán su importe dos veces</strong>.
+                    Los <strong>siguientes menús</strong> del mismo grupo se presentarán como <strong>opciones alternativas</strong> para que el cliente elija, <strong>sin sumar su importe adicional al total</strong>.
                   </p>
                 </div>
               </div>
@@ -1333,14 +1560,15 @@ export default function Quotes() {
                 </button>
                 <button
                   type="button"
+                  disabled={addOptionModal.selectedMenuIds.length === 0}
                   onClick={() => {
-                    if (!addOptionModal.selectedMenuId) return;
-                    addMenuToQuote(addOptionModal.selectedMenuId, true, addOptionModal.optionGroup);
-                    setAddOptionModal({ ...addOptionModal, isOpen: false });
+                    if (addOptionModal.selectedMenuIds.length === 0) return;
+                    addOptionGroupWithMenus(addOptionModal.optionGroup, addOptionModal.selectedMenuIds);
+                    setAddOptionModal({ ...addOptionModal, isOpen: false, selectedMenuIds: [] });
                   }}
-                  className="px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+                  className="px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-medium transition-colors"
                 >
-                  Añadir Opción
+                  Añadir {addOptionModal.selectedMenuIds.length > 0 ? `(${addOptionModal.selectedMenuIds.length}) Menú(s)` : 'Opciones'}
                 </button>
               </div>
             </div>
