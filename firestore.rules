@@ -139,7 +139,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit', 'workListTasks']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit', 'workListTasks', 'isPublic']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -151,7 +151,7 @@ service cloud.firestore {
              (!('sustainabilityTips' in data) || data.sustainabilityTips is list) &&
              (!('imageUrl' in data) || data.imageUrl == "" || isValidString(data.imageUrl, 1, 2000)) &&
              (!('workListTasks' in data) || data.workListTasks is list) &&
-             (!('type' in data) || data.type in ['elaborado', 'plato']) &&
+             (!('type' in data) || data.type in ['elaborado', 'plato', 'bebida']) &&
              (!('yieldUnit' in data) || data.yieldUnit in ['kg', 'L', 'ud']) &&
              (!('yieldQuantity' in data) || data.yieldQuantity == null || (data.yieldQuantity is number && data.yieldQuantity >= 0)) &&
              data.ingredients is list && data.ingredients.size() <= 100 &&
@@ -160,6 +160,7 @@ service cloud.firestore {
              (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
              (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 10)) &&
              (!('feedback' in data) || data.feedback == "" || isValidString(data.feedback, 1, 2000)) &&
+             (!('isPublic' in data) || data.isPublic is bool) &&
              data.createdAt is string &&
              (!('portions' in data) || data.portions == null || (data.portions is number && data.portions > 0));
     }

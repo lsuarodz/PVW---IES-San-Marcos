@@ -47,7 +47,7 @@ const formatSecondsToMinSec = (totalSecs: number) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' }) {
+export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plato' | 'bebida' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   // Obtenemos el usuario actual para verificar sus permisos
   const { appUser, actualAppUser, viewAsStudent, commissionMode } = useAuth();
@@ -61,7 +61,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const { recipes, ingredients, menus, settings, users } = useData();
   
   // Filtrar recetas por tipo (las que no tienen tipo se consideran 'plato')
-  const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === 'elaborado');
+  const filteredByType = recipes.filter(r => type === 'plato' ? (!r.type || r.type === 'plato') : r.type === type);
   
   // Estado para el buscador, paginación y filtro de grupos
   const [search, setSearch] = useState('');
@@ -119,7 +119,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   
   // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
-    type: type as 'plato' | 'elaborado',
+    type: type as 'plato' | 'elaborado' | 'bebida',
     nameES: '',
     portions: null as string | number | null,
     yieldQuantity: null as string | number | null,
@@ -209,7 +209,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     
     const recipeData: Record<string, any> = {
       ...formData,
-      portions: formData.type === 'plato' ? 1 : (Number(formData.portions) || null),
+      portions: formData.type !== 'elaborado' ? 1 : (Number(formData.portions) || null),
       yieldQuantity: Number(formData.yieldQuantity) || null,
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
@@ -385,7 +385,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
   const openEdit = (recipe: Recipe) => {
     setFormData({
-      type: recipe.type === 'elaborado' ? 'elaborado' : 'plato',
+      type: recipe.type || 'plato',
       nameES: recipe.nameES,
       portions: recipe.portions,
       yieldQuantity: recipe.yieldQuantity || null,
@@ -404,7 +404,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ type: type as 'plato' | 'elaborado', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
+    setFormData({ type: type as 'plato' | 'elaborado' | 'bebida', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
     setEditingId(null);
   };
 
@@ -645,11 +645,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">
-            {type === 'elaborado' ? 'Elaborados' : 'Platos'}
+            {type === 'elaborado' ? 'Elaborados' : type === 'bebida' ? 'Bebidas' : 'Platos'}
           </h1>
           <p className="text-stone-500 text-lg">
             {type === 'elaborado' 
-              ? 'Crea elaboraciones base que luego podrás usar en tus platos.' 
+              ? 'Crea elaboraciones base que luego podrás usar en tus platos y bebidas.' 
+              : type === 'bebida'
+              ? 'Crea bebidas finales combinando ingredientes y elaborados.'
               : 'Crea platos finales combinando ingredientes y elaborados.'}
           </p>
         </div>
@@ -668,7 +670,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
           >
             <Plus size={20} />
-            {type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato'}
+            {type === 'elaborado' ? 'Nuevo Elaborado' : type === 'bebida' ? 'Nueva Bebida' : 'Nuevo Plato'}
           </button>
         </div>
       </div>
@@ -680,7 +682,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
               <input
                 type="text"
-                placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : 'platos'}...`}
+                placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : type === 'bebida' ? 'bebidas' : 'platos'}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
@@ -1193,7 +1195,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
                 <div>
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">{formData.type === 'plato' ? 'Pasos de emplatado' : 'Pasos de receta'}</label>
+                    <label className="block text-sm font-medium text-stone-900">{formData.type !== 'elaborado' ? 'Pasos' : 'Pasos de receta'}</label>
                   </div>
                   
                   <div className="space-y-3">
@@ -1203,7 +1205,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         <div key={index} className="flex flex-col md:flex-row gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
                           <div className="flex items-center gap-2 w-full md:w-auto self-stretch shrink-0">
                             <div className="font-bold text-stone-400 w-6 text-center shrink-0">{index + 1}.</div>
-                            {formData.type === 'plato' && (
+                            {formData.type !== 'elaborado' && (
                               <div className="flex items-center gap-1.5 bg-white border border-stone-200 px-2 py-1.5 rounded-lg shrink-0">
                                 <span className="text-[10px] text-stone-500 font-medium font-sans">Tiempo:</span>
                                 <input
@@ -1233,17 +1235,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <textarea
                             required
                             rows={2}
-                            value={formData.type === 'plato' ? parsed.text : step}
+                            value={formData.type !== 'elaborado' ? parsed.text : step}
                             disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                             onChange={e => {
-                              if (formData.type === 'plato') {
+                              if (formData.type !== 'elaborado') {
                                 updateStepText(index, e.target.value);
                               } else {
                                 updateStep(index, e.target.value);
                               }
                             }}
                             className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-stone-800"
-                            placeholder={formData.type === 'plato' ? 'Ej: Marcar carne, regenerar puré, montar plato...' : 'Describe este paso de la elaboración...'}
+                            placeholder={formData.type !== 'elaborado' ? 'Ej: Marcar carne, regenerar puré, montar plato...' : 'Describe este paso de la elaboración...'}
                           />
                           <button
                             type="button"
@@ -1327,7 +1329,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 </div>
 
-                {formData.type === 'plato' && (
+                {formData.type !== 'elaborado' && (
                   <div>
                     <label className="block text-sm font-medium text-stone-900 mb-1">Mise en place</label>
                     <textarea
@@ -1341,7 +1343,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 )}
 
-                {formData.type === 'plato' && (
+                {formData.type !== 'elaborado' && (
                   <div className="mt-8 border-t border-stone-200 pt-6">
                     <div className="flex justify-between items-center mb-3">
                       <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
@@ -1597,7 +1599,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </table>
                 </div>
 
-                {printingRecipe.type === 'plato' ? (
+                {printingRecipe.type !== 'elaborado' ? (
                   <div className="grid grid-cols-2 gap-8">
                     <div>
                       {printingRecipe.miseEnPlace && (
@@ -1698,7 +1700,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 )}
 
                 {/* PROCESO DE EMPLATADO - DIAGRAMA VISUAL DE SECUENCIA Y TIEMPOS (SINCRONIZACIÓN INVERSA) */}
-                {printingRecipe.type === 'plato' && printingRecipe.steps && printingRecipe.steps.length > 0 && (() => {
+                {printingRecipe.type !== 'elaborado' && printingRecipe.steps && printingRecipe.steps.length > 0 && (() => {
                   const parsedSteps = printingRecipe.steps.map((step, idx) => {
                     const parsed = parseStepStr(step);
                     const durSec = (parsed.minutes * 60) + parsed.seconds;

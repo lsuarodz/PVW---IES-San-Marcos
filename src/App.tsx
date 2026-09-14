@@ -139,6 +139,7 @@ function AppRoutes() {
         <Route path="ingredients" element={<ProtectedRoute requireComprasOrAdmin><Ingredients /></ProtectedRoute>} />
         <Route path="elaborados" element={<Recipes type="elaborado" />} />
         <Route path="recipes" element={<Recipes type="plato" />} />
+        <Route path="drinks" element={<Recipes type="bebida" />} />
         <Route path="menus" element={<Menus />} />
         <Route path="orders" element={<ProtectedRoute requireNonStudent><Orders /></ProtectedRoute>} />
         <Route path="work-lists" element={<ProtectedRoute requireComprasOrAdmin><WorkLists /></ProtectedRoute>} />

@@ -1,0 +1,5 @@
+          <p className="text-stone-500 text-lg">
+            {type === 'elaborado' 
+              ? 'Crea elaboraciones base que luego podrás usar en tus platos.' 
+              : 'Crea platos finales combinando ingredientes y elaborados.'}
+          </p>

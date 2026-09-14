@@ -25,7 +25,7 @@ export interface RecipeIngredient {
 
 export interface Recipe {
   id: string;
-  type?: 'elaborado' | 'plato';
+  type?: 'elaborado' | 'plato' | 'bebida';
   nameES: string;
   nameEN: string;
   descriptionES: string;
