@@ -54,6 +54,7 @@ export default function Orders() {
   const [orderItems, setOrderItems] = useState<(OrderItem & { inputValue?: string })[]>([]);
   const [orderTitle, setOrderTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   // Consolidate Tab States
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -105,22 +106,25 @@ export default function Orders() {
     }
     setIsSaving(true);
     try {
-      const orderId = doc(collection(db, 'orders')).id;
+      const orderId = editingOrderId || doc(collection(db, 'orders')).id;
       const titleStr = orderTitle.trim() || `Pedido de ${appUser?.name || 'Profesor'} - ${new Date().toLocaleDateString('es-ES')}`;
+      const existingOrder = editingOrderId ? orders.find(o => o.id === editingOrderId) : null;
+      
       const newOrder: Order = {
         id: orderId,
         title: titleStr,
-        userId: appUser?.uid || '',
-        userName: appUser?.name || 'Profesor',
+        userId: existingOrder ? existingOrder.userId : (appUser?.uid || ''),
+        userName: existingOrder ? existingOrder.userName : (appUser?.name || 'Profesor'),
         items: orderItems,
-        createdAt: new Date().toISOString(),
-        status: 'pending'
+        createdAt: existingOrder ? existingOrder.createdAt : new Date().toISOString(),
+        status: existingOrder ? existingOrder.status : 'pending'
       };
       
       await setDoc(doc(db, 'orders', orderId), newOrder);
-      showToast('¡Pedido guardado y enviado correctamente!', 'success');
+      showToast(editingOrderId ? '¡Pedido actualizado correctamente!' : '¡Pedido guardado y enviado correctamente!', 'success');
       setOrderItems([]);
       setOrderTitle('');
+      setEditingOrderId(null);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
       showToast('Error al guardar el pedido.', 'error');
@@ -507,7 +511,7 @@ export default function Orders() {
               <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
                 <h2 className="text-base font-bold text-stone-900 mb-3 flex items-center gap-2 border-b border-stone-100 pb-2">
                   <ShoppingCart size={18} className="text-teal-600" />
-                  Nueva Comanda de Producción
+                  {editingOrderId ? 'Editando Comanda de Producción' : 'Nueva Comanda de Producción'}
                 </h2>
 
                 <div className="mb-3">
@@ -593,13 +597,27 @@ export default function Orders() {
                 </div>
 
                 {orderItems.length > 0 && (
-                  <button
-                    onClick={handleSaveOrder}
-                    disabled={isSaving}
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm disabled:opacity-50 flex justify-center items-center gap-2"
-                  >
-                    {isSaving ? 'Guardando...' : 'Guardar y Enviar Pedido'}
-                  </button>
+                  <div className="flex gap-2">
+                    {editingOrderId && (
+                      <button
+                        onClick={() => {
+                          setEditingOrderId(null);
+                          setOrderItems([]);
+                          setOrderTitle('');
+                        }}
+                        className="w-1/3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm"
+                      >
+                        Cancelar Edición
+                      </button>
+                    )}
+                    <button
+                      onClick={handleSaveOrder}
+                      disabled={isSaving}
+                      className={`bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm disabled:opacity-50 flex justify-center items-center gap-2 ${editingOrderId ? 'w-2/3' : 'w-full'}`}
+                    >
+                      {isSaving ? 'Guardando...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar y Enviar Pedido')}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -713,7 +731,12 @@ export default function Orders() {
                         </div>
                         <div className="flex gap-1">
                           <button
-                            onClick={() => setOrderItems(order.items)}
+                            onClick={() => {
+                              setEditingOrderId(order.id);
+                              setOrderItems(order.items);
+                              setOrderTitle(order.title);
+                              setActiveTab('create');
+                            }}
                             className="text-xs text-teal-600 hover:bg-teal-50 font-bold px-2 py-1 rounded transition-colors"
                             title="Cargar en borrador para editar"
                           >

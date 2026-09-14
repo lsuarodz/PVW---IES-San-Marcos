@@ -929,8 +929,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </div>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1">
-              <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
+            <form id="recipe-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
                 {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && commissionMode && (
                   <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
                     Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
@@ -1438,25 +1438,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     )}
                   </div>
                 </div>
-              </form>
-            </div>
+              </div>
             
-            <div className="p-6 border-t border-stone-100 flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                form="recipe-form"
-                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
-              >
-                Guardar Receta
-              </button>
-            </div>
+              <div className="p-6 border-t border-stone-100 flex justify-end gap-3 bg-stone-50 rounded-b-2xl shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  Guardar Receta
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
