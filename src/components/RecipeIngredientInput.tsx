@@ -57,7 +57,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   if (isUnit) {
     return (
       <div className="relative">
-        <div className="absolute -top-4 left-1 text-[10px] text-stone-500 font-medium">Unidades</div>
+        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Unidades</div>
         <input
           type="number"
           step="0.001"
@@ -67,7 +67,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           disabled={isDisabled}
           onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-10 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          className="w-full pl-2 pr-10 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
           placeholder="Unidades"
         />
         <button
@@ -90,7 +90,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   return (
     <div className="flex gap-2 relative">
       <div className="relative flex-1">
-        <div className="absolute -top-4 left-1 text-[10px] text-stone-500 font-medium">Neto</div>
+        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Neto</div>
         <input
           type="text"
           inputMode="decimal"
@@ -126,7 +126,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-7 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          className="w-full pl-2 pr-7 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
           placeholder="Neto"
           title="Peso neto (listo para usar)"
         />
@@ -145,7 +145,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
         </button>
       </div>
       <div className="relative flex-1">
-        <div className="absolute -top-4 left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
+        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
         <input
           type="text"
           inputMode="decimal"
@@ -176,7 +176,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-1 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          className="w-full pl-2 pr-1 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
           placeholder="Bruto"
           title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
         />

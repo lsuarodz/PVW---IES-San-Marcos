@@ -1,0 +1,251 @@
+   940	              </h2>
+   941	              <div className="text-lg font-bold text-teal-700">
+   942	                Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
+   943	              </div>
+   944	            </div>
+   945	            
+   946	            <form id="recipe-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+   947	              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+   948	                {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && commissionMode && (
+   949	                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
+   950	                    Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
+   951	                  </div>
+   952	                )}
+   953	                
+   954	                <div className="mb-4 flex items-center gap-2">
+   955	                  <input
+   956	                    type="checkbox"
+   957	                    id="isPublic"
+   958	                    checked={formData.isPublic}
+   959	                    onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+   960	                    disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+   961	                    className="w-4 h-4 text-teal-600 bg-stone-50 border-stone-300 rounded focus:ring-teal-500"
+   962	                  />
+   963	                  <label htmlFor="isPublic" className="text-sm font-medium text-stone-700">
+   964	                    Hacer público (visible para todos los usuarios)
+   965	                  </label>
+   966	                </div>
+   967	
+   968	                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   969	                  <div>
+   970	                    <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+   971	                    <input
+   972	                      type="text" required
+   973	                      value={formData.nameES}
+   974	                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+   975	                      onChange={e => setFormData({...formData, nameES: e.target.value})}
+   976	                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+   977	                      placeholder={`Ej: ${formData.type === 'elaborado' ? 'Sofrito tradicional' : 'Paella Valenciana'}`}
+   978	                    />
+   979	                  </div>
+   980	                  <div>
+   981	                    <label className="block text-sm font-medium text-stone-700 mb-1">Tipo *</label>
+   982	                    <select
+   983	                      value={formData.type}
+   984	                      onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado' | 'bebida'})}
+   985	                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+   986	                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+   987	                    >
+   988	                      <option value="plato">Plato</option>
+   989	                      <option value="elaborado">Elaborado</option>
+   990	                      <option value="bebida">Bebida</option>
+   991	                    </select>
+   992	                  </div>
+   993	                  {formData.type === 'elaborado' ? (
+   994	                    <>
+   995	                      <div className="flex gap-2">
+   996	                        <div className="flex-1">
+   997	                          <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
+   998	                          <input
+   999	                            type="number" min="0" step="0.001" required
+  1000	                            value={formData.yieldQuantity ?? ''}
+  1001	                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1002	                            onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
+  1003	                            onFocus={e => e.target.select()}
+  1004	                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+  1005	                            placeholder="Ej: 1.5"
+  1006	                          />
+  1007	                        </div>
+  1008	                        <div className="w-24">
+  1009	                          <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+  1010	                          <select
+  1011	                            value={formData.yieldUnit}
+  1012	                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1013	                            onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
+  1014	                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+  1015	                          >
+  1016	                            <option value="kg">kg</option>
+  1017	                            <option value="L">L</option>
+  1018	                            <option value="ud">ud</option>
+  1019	                          </select>
+  1020	                        </div>
+  1021	                      </div>
+  1022	                      <div className="flex gap-4">
+  1023	                        <div className="flex-1">
+  1024	                          <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+  1025	                          <input
+  1026	                            type="number" min="1" step="1"
+  1027	                            value={formData.portions ?? ''}
+  1028	                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1029	                            onChange={e => setFormData({...formData, portions: e.target.value})}
+  1030	                            onFocus={e => e.target.select()}
+  1031	                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+  1032	                            placeholder="Ej: 10"
+  1033	                          />
+  1034	                        </div>
+  1035	                        <div className="flex-1">
+  1036	                          <label className="block text-sm font-medium text-stone-700 mb-1">Peso por ración</label>
+  1037	                          <div className="w-full px-4 py-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
+  1038	                            {formData.yieldQuantity && formData.portions 
+  1039	                              ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
+  1040	                              : '-'}
+  1041	                          </div>
+  1042	                        </div>
+  1043	                      </div>
+  1044	                    </>
+  1045	                  ) : (
+  1046	                    <div>
+  1047	                      <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+  1048	                      <input
+  1049	                        type="number"
+  1050	                        value={1}
+  1051	                        disabled
+  1052	                        className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-stone-200 rounded-xl cursor-not-allowed"
+  1053	                      />
+  1054	                    </div>
+  1055	                  )}
+  1056	                </div>
+  1057	
+  1058	
+  1059	                <div>
+  1060	                  <div className="flex justify-between items-center mb-3">
+  1061	                    <label className="block text-sm font-medium text-stone-900">Ingredientes (Escandallo)</label>
+  1062	                  </div>
+  1063	                  
+  1064	                  <div className="space-y-3">
+  1065	                    {formData.ingredients.map((ri, index) => {
+  1066	                      const selectedIng = ingredients.find(i => i.id === ri.ingredientId);
+  1067	                      const subRecipe = recipes.find(r => r.id === ri.ingredientId);
+  1068	                      let cost = 0;
+  1069	                      if (selectedIng) {
+  1070	                        cost = selectedIng.costPerUnit * (Number(ri.quantity) || 0);
+  1071	                      } else if (subRecipe) {
+  1072	                        if (ri.usePortions && subRecipe.portions) {
+  1073	                          const costPerServing = subRecipe.totalCost / subRecipe.portions;
+  1074	                          cost = costPerServing * (Number(ri.quantity) || 0);
+  1075	                        } else {
+  1076	                          const unitCost = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+  1077	                          cost = unitCost * (Number(ri.quantity) || 0);
+  1078	                        }
+  1079	                      }
+  1080	                      
+  1081	                      return (
+  1082	                        <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+  1083	                          <div className="flex-1 min-w-0 flex gap-2 pt-4">
+  1084	                            <IngredientSelect
+  1085	                              value={ri.ingredientId}
+  1086	                              onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
+  1087	                              ingredients={ingredients}
+  1088	                              recipes={recipes}
+  1089	                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1090	                              itemType={ri.itemType}
+  1091	                              currentRecipeId={editingId}
+  1092	                            />
+  1093	                            {selectedIng && (
+  1094	                              <button
+  1095	                                type="button"
+  1096	                                onClick={() => {
+  1097	                                  // We need to trigger the edit ingredient modal.
+  1098	                                  // Let's add an editingIngredientId state.
+  1099	                                  setEditingIngredientId(selectedIng.id);
+  1100	                                  setIsIngredientModalOpen(true);
+  1101	                                }}
+  1102	                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0 h-[38px]"
+  1103	                                title="Editar ingrediente"
+  1104	                              >
+  1105	                                <Edit2 size={16} />
+  1106	                              </button>
+  1107	                            )}
+  1108	                            {subRecipe && (
+  1109	                              <a
+  1110	                                href={`/elaborados?edit=${ri.ingredientId}`}
+  1111	                                target="_blank"
+  1112	                                rel="noopener noreferrer"
+  1113	                                className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0 h-[38px]"
+  1114	                                title="Editar elaborado en nueva pestaña"
+  1115	                              >
+  1116	                                <Edit2 size={16} />
+  1117	                              </a>
+  1118	                            )}
+  1119	                          </div>
+  1120	                          
+  1121	                          <div className="w-40 shrink-0 pt-4 relative">
+  1122	                            <div className="absolute top-0 left-1 text-[10px] text-stone-500 font-medium">preelaborar</div>
+  1123	                            <input
+  1124	                              type="text"
+  1125	                              value={ri.preparation || ''}
+  1126	                              onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
+  1127	                              placeholder="Mirepoix, escaldar..."
+  1128	                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1129	                              className="w-full px-2 py-2 h-[38px] text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
+  1130	                              title="Preelaboración"
+  1131	                            />
+  1132	                          </div>
+  1133	
+  1134	                          <div className="w-56 shrink-0 pt-4 relative">
+  1135	                            <RecipeIngredientInput
+  1136	                              ri={ri}
+  1137	                              index={index}
+  1138	                              selectedIng={selectedIng}
+  1139	                              subRecipe={subRecipe}
+  1140	                              editingId={editingId}
+  1141	                              recipes={recipes}
+  1142	                              updateRecipeIngredient={updateRecipeIngredient}
+  1143	                              canEditField={canEditField}
+  1144	                            />
+  1145	                          </div>
+  1146	                          <div className="w-24 text-right font-medium text-stone-700 pt-[26px]">
+  1147	                            {cost.toFixed(2)} €
+  1148	                          </div>
+  1149	                          <div className="pt-4">
+  1150	                            <button
+  1151	                              type="button"
+  1152	                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1153	                              onClick={() => removeRecipeIngredient(index)}
+  1154	                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[38px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+  1155	                            >
+  1156	                              <Trash2 size={18} />
+  1157	                            </button>
+  1158	                          </div>
+  1159	                        </div>
+  1160	                      );
+  1161	                    })}
+  1162	                    {formData.ingredients.length === 0 && (
+  1163	                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+  1164	                        No hay ingredientes añadidos.
+  1165	                      </div>
+  1166	                    )}
+  1167	                    <div className="flex gap-4 mt-4">
+  1168	                      <div className="flex-1 flex flex-col gap-2">
+  1169	                        <button
+  1170	                          type="button"
+  1171	                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1172	                          onClick={addIngredientToRecipe}
+  1173	                          className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+  1174	                        >
+  1175	                          <Plus size={18} /> Añadir ingrediente
+  1176	                        </button>
+  1177	                        {appUser?.role !== 'docente' && (
+  1178	                          <button
+  1179	                            type="button"
+  1180	                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+  1181	                            onClick={() => setIsIngredientModalOpen(true)}
+  1182	                            className="w-full py-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+  1183	                          >
+  1184	                            <Plus size={14} /> Nuevo ingrediente
+  1185	                          </button>
+  1186	                        )}
+  1187	                      </div>
+  1188	
+  1189	                      <div className="flex-1 flex flex-col gap-2">
+  1190	                        <button

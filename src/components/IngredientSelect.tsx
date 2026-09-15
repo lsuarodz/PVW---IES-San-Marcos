@@ -55,10 +55,10 @@ export default function IngredientSelect({
   return (
     <div className="relative flex-1 min-w-0" ref={wrapperRef}>
       <div 
-        className={`flex items-center px-3 py-2 bg-white border border-stone-200 rounded-lg cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed bg-stone-50' : 'focus-within:ring-2 focus-within:ring-teal-500'}`}
+        className={`flex items-center px-2 py-1.5 h-[34px] bg-white border border-stone-200 rounded-lg cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed bg-stone-50' : 'focus-within:ring-2 focus-within:ring-teal-500'}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <span className="flex-1 truncate text-sm">
+        <span className="flex-1 truncate text-[13px]">
           {displayValue || (itemType === 'elaborado' ? 'Selecciona un elaborado...' : 'Selecciona un ingrediente...')}
         </span>
         <ChevronDown size={16} className="text-stone-400" />
@@ -71,7 +71,7 @@ export default function IngredientSelect({
             <input
               type="text"
               autoFocus
-              className="flex-1 text-sm outline-none bg-transparent"
+              className="flex-1 text-[13px] outline-none bg-transparent"
               placeholder="Buscar..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -85,7 +85,7 @@ export default function IngredientSelect({
                 {filteredIngredients.map(ing => (
                   <div
                     key={ing.id}
-                    className="px-3 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 cursor-pointer rounded-lg truncate"
+                    className="px-2 py-1.5 h-[34px] text-[13px] hover:bg-teal-50 hover:text-teal-700 cursor-pointer rounded-lg truncate"
                     onClick={() => {
                       onChange(ing.id);
                       setIsOpen(false);
@@ -106,7 +106,7 @@ export default function IngredientSelect({
                   return (
                     <div
                       key={r.id}
-                      className="px-3 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 cursor-pointer rounded-lg truncate"
+                      className="px-2 py-1.5 h-[34px] text-[13px] hover:bg-teal-50 hover:text-teal-700 cursor-pointer rounded-lg truncate"
                       onClick={() => {
                         onChange(r.id);
                         setIsOpen(false);
@@ -121,7 +121,7 @@ export default function IngredientSelect({
             )}
 
             {filteredIngredients.length === 0 && filteredRecipes.length === 0 && (
-              <div className="p-3 text-sm text-stone-500 text-center">
+              <div className="p-3 text-[13px] text-stone-500 text-center">
                 No se encontraron resultados
               </div>
             )}

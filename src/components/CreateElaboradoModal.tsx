@@ -76,9 +76,9 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
-        <div className="p-6 border-b border-stone-200/50">
-          <h2 className="text-xl font-bold text-stone-900">
+      <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-md flex flex-col ring-1 ring-orange-200">
+        <div className="p-6 border-b border-orange-200 bg-orange-100 rounded-t-2xl">
+          <h2 className="text-xl font-bold text-orange-950">
             Nuevo Elaborado Rápido
           </h2>
           <p className="text-sm text-stone-500 mt-1">Crea un elaborado básico ahora para añadirlo a la receta, y detállalo más tarde.</p>
@@ -86,7 +86,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
         <div className="p-6">
           <form id="create-elaborado-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+              <label className="block text-sm font-medium text-orange-900 mb-1">Nombre *</label>
               <input
                 type="text"
                 required
@@ -94,7 +94,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
                 value={nameES}
                 onChange={(e) => setNameES(e.target.value)}
                 autoFocus
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="Ej. Salsa Brava, Caldo de pollo..."
               />
               <datalist id="existing-elaborados">
@@ -108,21 +108,21 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Rendimiento (Cant.)</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Rendimiento (Cant.)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={yieldQuantity}
                   onChange={(e) => setYieldQuantity(Number(e.target.value))}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Unidad</label>
                 <select
                   value={yieldUnit}
                   onChange={(e) => setYieldUnit(e.target.value as 'kg' | 'L' | 'ud')}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="kg">Kilogramos (kg)</option>
                   <option value="L">Litros (L)</option>
@@ -131,23 +131,23 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Raciones/Unidades finales</label>
+              <label className="block text-sm font-medium text-orange-900 mb-1">Raciones/Unidades finales</label>
               <input
                 type="number"
                 value={portions}
                 onChange={(e) => setPortions(Number(e.target.value))}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="Ej. 10"
               />
               <p className="text-[10px] text-stone-400 mt-1">¿Cuántas raciones se sirven de este total?</p>
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-stone-200/50 flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
+        <div className="p-6 border-t border-orange-200 flex justify-end gap-3 bg-white rounded-b-2xl">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-stone-600 hover:bg-stone-200/50 rounded-xl font-medium transition-colors"
+            className="px-5 py-2.5 text-orange-900 hover:bg-orange-100 rounded-xl font-medium transition-colors"
           >
             Cancelar
           </button>

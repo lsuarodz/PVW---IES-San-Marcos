@@ -99,7 +99,7 @@ export default function Orders() {
   };
 
   // Save current workspace to Firestore
-  const handleSaveOrder = async () => {
+  const handleSaveOrder = async (isDraft: boolean = true) => {
     if (orderItems.length === 0) {
       showToast('Añade al menos una receta, menú o ingrediente suelto a tu pedido.', 'error');
       return;
@@ -110,6 +110,10 @@ export default function Orders() {
       const titleStr = orderTitle.trim() || `Pedido de ${appUser?.name || 'Profesor'} - ${new Date().toLocaleDateString('es-ES')}`;
       const existingOrder = editingOrderId ? orders.find(o => o.id === editingOrderId) : null;
       
+      let newStatus: 'draft' | 'pending' | 'completed' = 'draft';
+      if (!isDraft) newStatus = 'pending';
+      else if (existingOrder) newStatus = existingOrder.status;
+
       const newOrder: Order = {
         id: orderId,
         title: titleStr,
@@ -117,11 +121,11 @@ export default function Orders() {
         userName: existingOrder ? existingOrder.userName : (appUser?.name || 'Profesor'),
         items: orderItems,
         createdAt: existingOrder ? existingOrder.createdAt : new Date().toISOString(),
-        status: existingOrder ? existingOrder.status : 'pending'
+        status: newStatus
       };
       
       await setDoc(doc(db, 'orders', orderId), newOrder);
-      showToast(editingOrderId ? '¡Pedido actualizado correctamente!' : '¡Pedido guardado y enviado correctamente!', 'success');
+      showToast(isDraft ? (editingOrderId ? 'Borrador actualizado.' : 'Borrador guardado.') : '¡Pedido enviado a consolidación!', 'success');
       setOrderItems([]);
       setOrderTitle('');
       setEditingOrderId(null);
@@ -611,11 +615,18 @@ export default function Orders() {
                       </button>
                     )}
                     <button
-                      onClick={handleSaveOrder}
+                      onClick={() => handleSaveOrder(true)}
                       disabled={isSaving}
-                      className={`bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm disabled:opacity-50 flex justify-center items-center gap-2 ${editingOrderId ? 'w-2/3' : 'w-full'}`}
+                      className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm disabled:opacity-50 flex justify-center items-center gap-2"
                     >
-                      {isSaving ? 'Guardando...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar y Enviar Pedido')}
+                      {isSaving ? '...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar (Borrador)')}
+                    </button>
+                    <button
+                      onClick={() => handleSaveOrder(false)}
+                      disabled={isSaving}
+                      className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm disabled:opacity-50 flex justify-center items-center gap-2"
+                    >
+                      {isSaving ? 'Enviando...' : 'Enviar Pedido'}
                     </button>
                   </div>
                 )}
@@ -724,8 +735,8 @@ export default function Orders() {
                           <p className="text-[11px] text-stone-500 flex items-center gap-1.5 mt-1">
                             <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                             <span>•</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                              {order.status === 'completed' ? 'Completado' : 'Pendiente'}
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
+                              {order.status === 'completed' ? 'Completado' : order.status === 'pending' ? 'Pendiente' : 'Borrador'}
                             </span>
                           </p>
                         </div>
@@ -810,8 +821,8 @@ export default function Orders() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start gap-2">
                           <h4 className="font-bold text-stone-900 text-sm truncate">{order.title}</h4>
-                          <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {order.status === 'completed' ? 'Completado' : 'Pendiente'}
+                          <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
+                            {order.status === 'completed' ? 'Completado' : order.status === 'pending' ? 'Pendiente' : 'Borrador'}
                           </span>
                         </div>
                         

@@ -134,7 +134,7 @@ export interface Order {
   userName: string;
   items: OrderItem[];
   createdAt: string;
-  status: 'pending' | 'completed';
+  status: 'draft' | 'pending' | 'completed';
 }
 
 export interface CommissionTask {

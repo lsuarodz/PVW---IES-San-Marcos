@@ -1,0 +1,251 @@
+          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px]  flex flex-col relative overflow-hidden">
+            <style>{`
+              .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
+              .print-container .text-stone-900 { color: #1c1917 !important; }
+              .print-container .text-stone-800 { color: #292524 !important; }
+              .print-container .text-stone-700 { color: #44403c !important; }
+              .print-container .text-stone-600 { color: #57534e !important; }
+              .print-container .text-stone-500 { color: #78716c !important; }
+              .print-container .text-stone-400 { color: #a8a29e !important; }
+              .print-container .text-teal-900 { color: #134e4a !important; }
+              .print-container .text-teal-800 { color: #115e59 !important; }
+              .print-container .text-teal-700 { color: #0f766e !important; }
+              .print-container .bg-white { background-color: #ffffff !important; }
+              .print-container .bg-stone-100 { background-color: #f5f5f4 !important; }
+              .print-container .bg-teal-50 { background-color: #f0fdfa !important; }
+              .print-container .bg-teal-50\\/50 { background-color: rgba(240, 253, 250, 0.5) !important; }
+              .print-container .border-stone-200 { border-color: #e7e5e4 !important; }
+              .print-container .border-stone-100 { border-color: #f5f5f4 !important; }
+              .print-container .border-stone-50 { border-color: #fafaf9 !important; }
+              .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
+              .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
+              .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
+            `}</style>
+            <div className="z-10 w-full">
+              <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-start">
+                <div>
+                  <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
+                  <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
+                  {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
+                </div>
+                {settings?.logoUrl && (
+                  <img src={settings.logoUrl} alt="Logo" className="logo-print" crossOrigin="anonymous" />
+                )}
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
+                    <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
+                  </div>
+                  {printingRecipe.portions && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
+                      <span className="text-stone-700 font-bold">{printingRecipe.portions}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
+                    <span className="text-stone-700">{printingRecipe.createdBy}</span>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
+                  <table className="w-[94%]  text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
+                    <thead>
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-200 font-sans">
+                        <th className="py-3 px-3 font-medium w-[28%]">Ingrediente</th>
+                        <th className="py-3 px-3 font-medium w-[36%]">Preelaboración</th>
+                        <th className="py-3 px-3 font-medium text-right w-[13%]">Cantidad</th>
+                        <th className="py-3 px-3 font-medium text-right w-[11%]">Coste/Ud</th>
+                        <th className="py-3 px-3 font-medium text-right w-[12%]">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 font-sans">
+                      {printingRecipe.ingredients.map((ri, idx) => {
+                        const ing = ingredients.find(i => i.id === ri.ingredientId);
+                        const subRecipe = recipes.find(r => r.id === ri.ingredientId);
+                        const name = ing ? ing.nameES : (subRecipe ? subRecipe.nameES : 'Desconocido');
+                        const unit = ri.usePortions ? 'ud' : (ing ? ing.unit : (subRecipe ? subRecipe.yieldUnit || 'ud' : 'ud'));
+                        
+                        let realCostPerUnit = 0;
+                        if (ing) {
+                          realCostPerUnit = ing.costPerUnit;
+                        } else if (subRecipe) {
+                          if (ri.usePortions && subRecipe.portions) {
+                            realCostPerUnit = subRecipe.totalCost / subRecipe.portions;
+                          } else {
+                            realCostPerUnit = subRecipe.totalCost / (subRecipe.yieldQuantity || 1);
+                          }
+                        }
+                        
+                        const itemTotalCost = realCostPerUnit * ri.quantity;
+
+                        return (
+                          <tr key={idx} className="hover:bg-stone-50/50">
+                            <td className="py-3 px-3 font-medium text-stone-800 break-words">{name}</td>
+                            <td className="py-3 px-3 text-stone-600 break-words">{ri.preparation || '-'}</td>
+                            <td className="py-3 px-3 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
+                            <td className="py-3 px-3 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-3 px-3 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-stone-200 font-bold text-stone-900 font-sans">
+                        <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
+                        <td className="py-3 px-3 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {printingRecipe.type !== 'elaborado' ? (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      {printingRecipe.miseEnPlace && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-stone-100 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                            {printingRecipe.equipment.map((eq, idx) => (
+                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                          <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
+                            <span>🌱</span> Sostenibilidad
+                          </h3>
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                            {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">
+                        Elaboración
+                      </h3>
+                      {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
+                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-stone-700 font-sans">
+                          {printingRecipe.steps.map((step, idx) => {
+                            const parsed = parseStepStr(step);
+                            const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
+                            return (
+                              <li key={idx} className="leading-relaxed pl-1 font-sans">
+                                <span className="font-semibold text-stone-800">{parsed.text}</span>
+                                {hasDuration && (
+                                  <span className="ml-1.5 inline-block text-[8px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded font-mono font-bold leading-none select-none">
+                                    ⏱️ {parsed.minutes}m {parsed.seconds}s
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      ) : (
+                        <p className="text-[10px] text-stone-400 italic font-sans">No hay pasos definidos.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {printingRecipe.miseEnPlace && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                        </div>
+                      )}
+
+                      {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                            {printingRecipe.equipment.map((eq, idx) => (
+                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                          <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
+                            <span>🌱</span> Sostenibilidad
+                          </h3>
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                            {printingRecipe.sustainabilityTips.map((tip, idx) => (
+                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PROCESO DE EMPLATADO - DIAGRAMA VISUAL DE SECUENCIA Y TIEMPOS (SINCRONIZACIÓN INVERSA) */}
+                {printingRecipe.type !== 'elaborado' && printingRecipe.steps && printingRecipe.steps.length > 0 && (() => {
+                  const parsedSteps = printingRecipe.steps.map((step, idx) => {
+                    const parsed = parseStepStr(step);
+                    const durSec = (parsed.minutes * 60) + parsed.seconds;
+                    return {
+                      index: idx + 1,
+                      text: parsed.text,
+                      durationSec: durSec,
+                      durationText: durSec > 0 ? `${parsed.minutes}m ${parsed.seconds}s` : 'Instante',
+                    };
+                  });
+
+                  const maxDurationSec = Math.max(...parsedSteps.map(s => s.durationSec), 0);
+                  
+                  // Generar ticks para la escala de tiempo (T-menos)
+                  const ticks = [];
+                  if (maxDurationSec > 0) {
+                    for (let i = 0; i <= 4; i++) {
+                      const fraction = i / 4;
+                      const secRemaining = Math.round(maxDurationSec * (1 - fraction));
+                      ticks.push({
+                        percent: fraction * 100,
+                        text: secRemaining === 0 ? 'T-0' : `T-${formatSecondsToMinSec(secRemaining)}`
+                      });
+                    }
+                  }
+
+                  return (
+                    <div className="mt-6 border-t border-stone-250 pt-5 print-avoid-break font-sans">
+                      <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-stone-100 pb-1 flex justify-between items-center">
+                        <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
+                        {maxDurationSec > 0 && (
+                          <span className="text-[8.5px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-mono font-bold select-none">
+                            Tiempo total: {formatSecondsToMinSec(maxDurationSec)}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[8px] text-stone-500 mb-4 select-none italic leading-relaxed">
+                        * Planificación con margen de culminación unificada: todos los procesos finalizan juntos en el mismo instante (T-0) para el montaje del plato en caliente.
+                      </p>
+
+                      <div className="bg-stone-50/70 rounded-2xl border border-stone-200/60 p-4">
+                        {maxDurationSec > 0 ? (
+                          <div className="space-y-4">
+                            {/* Eje de tiempos (Timeline ticks) */}

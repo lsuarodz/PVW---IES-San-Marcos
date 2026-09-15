@@ -222,8 +222,8 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-stone-200/50">
-          <h2 className="text-xl font-bold text-stone-900">
+        <div className="p-6 border-b border-orange-200/50">
+          <h2 className="text-xl font-bold text-orange-950">
             {editingId ? 'Editar Ingrediente' : 'Nuevo Ingrediente'}
           </h2>
         </div>
@@ -231,11 +231,11 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
           <form id="create-ingredient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Nombre *</label>
                 <input
                   type="text"
                   {...register('nameES', { required: 'El nombre es obligatorio' })}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.nameES ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.nameES ? 'border-red-500' : 'border-orange-200'}`}
                 />
                 {errors.nameES && <p className="text-red-500 text-xs mt-1">{errors.nameES.message}</p>}
                 
@@ -270,13 +270,13 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
 
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Proveedor</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Proveedor</label>
                 <input
                   type="text"
                   list="providers-list-modal"
                   {...register('provider')}
                   placeholder="Busca o escribe un nuevo proveedor..."
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
                 <datalist id="providers-list-modal">
                   {providers.map(p => (
@@ -286,22 +286,22 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
               </div>
             </div>
 
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-4">
-              <h3 className="text-sm font-bold text-stone-900 border-b border-stone-200 pb-2">Opcional: Formato de compra</h3>
+            <div className="bg-white border border-orange-200 shadow-sm rounded-xl p-4 space-y-4">
+              <h3 className="text-sm font-bold text-stone-900 border-b border-orange-200 pb-2">Opcional: Formato de compra</h3>
               <p className="text-xs text-stone-500">Si compras por paquete/caja, introduce aquí los datos para que el sistema calcule el precio base automáticamente.</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">Formato</label>
+                  <label className="block text-xs font-medium text-orange-900 mb-1">Formato</label>
                   <input
                     type="text"
                     {...register('purchaseFormat')}
                     placeholder="Ej. Paquete de cilantro"
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">Precio del formato (€)</label>
+                  <label className="block text-xs font-medium text-orange-900 mb-1">Precio del formato (€)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -321,11 +321,11 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                       }
                     })}
                     onFocus={e => e.target.select()}
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">
+                  <label className="block text-xs font-medium text-orange-900 mb-1">
                     {unit === 'ud' ? 'Unidades por formato' : `Peso del formato (${unit})`}
                   </label>
                   <input
@@ -343,7 +343,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                       }
                     })}
                     onFocus={e => e.target.select()}
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                   />
                 </div>
               </div>
@@ -351,10 +351,10 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Unidad *</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Unidad *</label>
                 <select
                   {...register('unit', { required: 'Selecciona una unidad' })}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="kg">Kilogramo (kg)</option>
                   <option value="L">Litro (L)</option>
@@ -362,7 +362,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Precio Compra (€ por {unit}) *</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Precio Compra (€ por {unit}) *</label>
                 <input
                   type="number"
                   step="0.001"
@@ -373,12 +373,12 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     valueAsNumber: true
                   })}
                   onFocus={e => e.target.select()}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.purchasePrice ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.purchasePrice ? 'border-red-500' : 'border-orange-200'}`}
                 />
                 {errors.purchasePrice && <p className="text-red-500 text-xs mt-1">{errors.purchasePrice.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">% Merma</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">% Merma</label>
                 <input
                   type="number"
                   step="1"
@@ -390,7 +390,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                     valueAsNumber: true
                   })}
                   onFocus={e => e.target.select()}
-                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.wastePercentage ? 'border-red-500' : 'border-stone-200'}`}
+                  className={`w-full px-4 py-2 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.wastePercentage ? 'border-red-500' : 'border-orange-200'}`}
                 />
                 {errors.wastePercentage && <p className="text-red-500 text-xs mt-1">{errors.wastePercentage.message}</p>}
               </div>
@@ -410,7 +410,7 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
               <label className="block text-sm font-medium text-stone-900 mb-3">Alérgenos</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {ALLERGENS.map(allergen => (
-                  <label key={allergen.id} className="flex items-center gap-2 p-2 rounded-lg border border-stone-200 hover:bg-stone-50 cursor-pointer transition-colors">
+                  <label key={allergen.id} className="flex items-center gap-2 p-2 rounded-lg border border-orange-200 hover:bg-stone-50 cursor-pointer transition-colors">
                     <input
                       type="checkbox"
                       checked={(allergens || []).includes(allergen.id)}
@@ -418,14 +418,14 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, edit
                       className="w-4 h-4 text-teal-600 rounded border-stone-300 focus:ring-teal-500"
                     />
                     <span className="text-lg" title={allergen.name}>{allergen.icon}</span>
-                    <span className="text-sm text-stone-700">{allergen.name}</span>
+                    <span className="text-sm text-orange-900">{allergen.name}</span>
                   </label>
                 ))}
               </div>
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-stone-200/50 flex justify-end gap-3 rounded-b-2xl bg-stone-50">
+        <div className="p-6 border-t border-orange-200/50 flex justify-end gap-3 rounded-b-2xl bg-stone-50">
           <button
             type="button"
             onClick={onClose}

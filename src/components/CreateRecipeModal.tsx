@@ -107,10 +107,10 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-stone-100 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-stone-900">Nueva Receta</h2>
-          <div className="text-lg font-bold text-teal-700">
+      <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col ring-1 ring-orange-200">
+        <div className="p-6 border-b border-orange-200 flex justify-between items-center bg-orange-100 rounded-t-2xl">
+          <h2 className="text-xl font-bold text-orange-950">Nueva Receta</h2>
+          <div className="text-lg font-bold text-teal-800 bg-white px-3 py-1 rounded-lg shadow-sm border border-orange-200">
             Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
           </div>
         </div>
@@ -119,32 +119,32 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
           <form id="create-recipe-form" onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Nombre *</label>
                 <input
                   type="text" required
                   value={formData.nameES}
                   onChange={e => setFormData({...formData, nameES: e.target.value})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
                 <input
                   type="number" min="1" step="1"
                   value={formData.portions || ''}
                   onChange={e => setFormData({...formData, portions: parseInt(e.target.value) || null})}
                   onFocus={e => e.target.select()}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Opcional"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Imagen de la Receta (opcional)</label>
+              <label className="block text-sm font-medium text-orange-900 mb-1">Imagen de la Receta (opcional)</label>
               <div className="flex items-center gap-4">
                 {formData.imageUrl && (
-                  <img src={formData.imageUrl} alt="Vista previa" className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
+                  <img src={formData.imageUrl} alt="Vista previa" className="w-16 h-16 object-cover rounded-lg border border-orange-200" />
                 )}
                 <div className="flex-1">
                   <input
@@ -161,20 +161,20 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Elaboración (Pasos)</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Elaboración (Pasos)</label>
                 <textarea
                   value={formData.steps.join('\n')}
                   onChange={e => setFormData({...formData, steps: e.target.value.split('\n').filter(s => s.trim())})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
                   placeholder="Un paso por línea..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Material / Equipamiento</label>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Material / Equipamiento</label>
                 <textarea
                   value={formData.equipment.join('\n')}
                   onChange={e => setFormData({...formData, equipment: e.target.value.split('\n').filter(s => s.trim())})}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px]"
                   placeholder="Un material por línea..."
                 />
               </div>
@@ -205,13 +205,13 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                   const subRecipe = recipes.find(r => r.id === ri.ingredientId);
                   
                   return (
-                    <div key={index} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                    <div key={index} className="flex gap-2 items-center bg-white p-2 px-3 rounded-lg border border-orange-200 shadow-sm relative">
                       <div className="flex-1 flex gap-2">
                         <select
                           required
                           value={ri.ingredientId}
                           onChange={e => updateRecipeIngredient(index, 'ingredientId', e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="flex-1 px-2 py-1.5 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-[13px]"
                         >
                           <option value="">Selecciona un ingrediente o receta...</option>
                           <optgroup label="Ingredientes">
@@ -239,7 +239,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                               setEditingIngredientId(selectedIng.id);
                               setIsIngredientModalOpen(true);
                             }}
-                            className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg"
+                            className="p-1.5 text-stone-500 hover:text-teal-600 bg-white border border-orange-200 rounded-lg"
                             title="Editar ingrediente"
                           >
                             <Edit2 size={16} />
@@ -256,7 +256,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                             value={ri.quantity}
                             onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
                             onFocus={e => e.target.select()}
-                            className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            className="w-full px-2 py-1.5 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-[13px]"
                             placeholder="Cant."
                           />
                           <button
@@ -277,7 +277,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                       <button
                         type="button"
                         onClick={() => removeRecipeIngredient(index)}
-                        className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -293,11 +293,11 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-stone-100 flex gap-3 justify-end bg-stone-50 rounded-b-2xl">
+        <div className="p-6 border-t border-orange-200 flex justify-end gap-3 bg-white rounded-b-2xl">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+            className="px-5 py-2.5 text-orange-900 hover:bg-orange-100 rounded-xl font-medium transition-colors"
           >
             Cancelar
           </button>

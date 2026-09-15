@@ -318,7 +318,7 @@ service cloud.firestore {
              isValidString(data.userName, 1, 150) &&
              data.items is list &&
              data.createdAt is string &&
-             data.status in ['pending', 'completed'];
+             data.status in ['draft', 'pending', 'completed'];
     }
 
     // ===============================================================

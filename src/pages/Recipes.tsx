@@ -529,6 +529,22 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
+  
+  const getPrintableRecipes = (mainRecipe: Recipe) => {
+    const list = [mainRecipe];
+    if (mainRecipe.type !== 'elaborado') {
+      const elaboradosIds = mainRecipe.ingredients
+        .filter(ri => ri.itemType === 'elaborado' || recipes.find(r => r.id === ri.ingredientId)?.type === 'elaborado')
+        .map(ri => ri.ingredientId);
+      const uniqueElaboradosIds = Array.from(new Set(elaboradosIds));
+      uniqueElaboradosIds.forEach(id => {
+        const elab = recipes.find(r => r.id === id);
+        if (elab) list.push(elab);
+      });
+    }
+    return list;
+  };
+
   const exportPDF = async (recipe: Recipe) => {
     if (isPrinting) return;
     setIsPrinting(true);
@@ -675,7 +691,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6 flex flex-col gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-orange-200 shadow-sm mb-6 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between w-full">
           <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-2xl">
             <div className="relative flex-1">
@@ -685,7 +701,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 placeholder={`Buscar ${type === 'elaborado' ? 'elaborados' : type === 'bebida' ? 'bebidas' : 'platos'}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
               />
             </div>
 
@@ -694,7 +710,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 <select
                   value={selectedDishId}
                   onChange={(e) => setSelectedDishId(e.target.value)}
-                  className="w-full pl-3 pr-8 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm text-stone-700 appearance-none font-medium text-ellipsis overflow-hidden whitespace-nowrap"
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm text-orange-900 appearance-none font-medium text-ellipsis overflow-hidden whitespace-nowrap"
                 >
                   <option value="todos">🍽️ Filtrar por Plato (Todos)</option>
                   {recipes
@@ -716,7 +732,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 w-full justify-center lg:justify-start border-t border-stone-100 pt-3 mt-1 items-center">
+        <div className="flex flex-wrap gap-2 w-full justify-center lg:justify-start border-t border-orange-200 pt-3 mt-1 items-center">
           <button
             onClick={() => setSelectedLetter('todas')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm ${
@@ -734,7 +750,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all shadow-sm ${
                 selectedLetter === letter
                   ? 'bg-teal-600 text-white shadow-md'
-                  : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
+                  : 'bg-white text-stone-500 border border-orange-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
               }`}
             >
               {letter}
@@ -743,7 +759,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+      <div className="flex flex-col gap-3">
         {paginatedRecipes.map((recipe) => {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
           const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
@@ -751,9 +767,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           const memberNames = members.map(m => m.name).join(', ');
 
           return (
-          <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-stone-200 overflow-hidden flex flex-col group relative h-[150px]">
+          <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-orange-200 overflow-hidden flex flex-row items-center p-2 sm:px-3 gap-3 group relative">
             {isAdmin && !viewAsStudent && (
-              <div className="absolute top-2 left-2 z-10">
+              <div className="shrink-0 flex items-center justify-center pl-1">
                 <input
                   type="checkbox"
                   checked={selectedIds.has(recipe.id)}
@@ -762,105 +778,101 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 />
               </div>
             )}
-            <div className="p-3 flex flex-col h-full gap-2">
-              <div className="flex justify-between items-start gap-2 relative">
-                <div className={`flex-1 pr-6 ${isAdmin && !viewAsStudent ? 'pl-5' : ''}`}>
-                  <h3 className="text-[13px] font-bold text-stone-900 leading-tight line-clamp-2" title={recipe.nameES}>{recipe.nameES}</h3>
-                  {recipeAllergens.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {Array.from(new Set(recipeAllergens)).map((a, idx) => {
-                        const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
-                        return allergen ? (
-                          <span key={`${a}-${idx}`} title={allergen.name} className="text-[11px] leading-none">{allergen.icon}</span>
-                        ) : null;
-                      })}
+            
+            <div className="flex-1 flex flex-col min-w-0 py-1">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                 <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <h3 className="text-[14px] font-bold text-stone-900 leading-tight truncate" title={recipe.nameES}>{recipe.nameES}</h3>
+                    {recipeAllergens.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {Array.from(new Set(recipeAllergens)).map((a, idx) => {
+                          const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
+                          return allergen ? (
+                            <span key={`${a}-${idx}`} title={allergen.name} className="text-[10px] leading-none">{allergen.icon}</span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                 </div>
+                 
+                 <div className="flex items-center gap-3 shrink-0 text-xs mt-1 sm:mt-0">
+                    <div className="flex items-center gap-1">
+                       <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Coste:</span>
+                       <span className="font-bold text-teal-700">{recipe.totalCost.toFixed(2)} €</span>
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex bg-white/90 backdrop-blur-sm rounded-lg p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-0 top-0 border border-stone-100 shadow-sm z-10 gap-0.5 lg:-mr-1 lg:-mt-1">
+                    <div className="flex items-center gap-1">
+                       <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Ingredientes:</span>
+                       <div className="flex items-center gap-0.5 font-bold text-stone-600">
+                         <span>{recipe.ingredients.length}</span>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                       <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">{recipe.group ? 'Grupo:' : 'Creador:'}</span>
+                       <span 
+                         title={memberNames ? `Miembros: ${memberNames}` : undefined}
+                         className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-default ${getGroupColor(recipe.createdBy)}`}
+                       >
+                         {recipe.group ? `${course ? `${course} - ` : ''}Grupo ${recipe.group}` : recipe.createdBy}
+                       </span>
+                    </div>
+                 </div>
+               </div>
+
+               {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
+                 <div className="mt-1.5 pt-1.5 border-t border-orange-200 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[9px] text-stone-400 font-medium mr-1 uppercase tracking-wider">Elaborados:</span>
+                    {recipe.ingredients.map(ri => {
+                      const elaborado = recipes.find(r => r.id === ri.ingredientId);
+                      if (!elaborado) return null;
+                      return (
+                        <button
+                          key={ri.ingredientId}
+                          onClick={() => openEdit(elaborado)}
+                          className="text-[9px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded hover:bg-teal-100 transition-colors truncate max-w-[120px]"
+                          title={elaborado.nameES}
+                        >
+                          {elaborado.nameES}
+                        </button>
+                      );
+                    })}
+                 </div>
+               )}
+            </div>
+
+            <div className="shrink-0 flex items-center gap-1 border-l border-orange-200 pl-3 w-auto justify-end">
                   {isAdmin && !viewAsStudent && recipe.group && (
                     <button 
                       onClick={() => openEvaluation(recipe)} 
-                      className={`p-1 rounded-md transition-colors text-[9px] uppercase font-bold tracking-wider ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                      className={`p-1.5 rounded-md transition-colors text-[10px] uppercase font-bold tracking-wider ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
                       title="Evaluar"
                     >
-                      {recipe.score !== undefined && recipe.score !== null ? `Nota: ${recipe.score}` : 'Eval'}
+                      {recipe.score !== undefined && recipe.score !== null ? `${recipe.score}` : 'Eval'}
                     </button>
                   )}
                   <button 
                     onClick={() => exportPDF(recipe)} 
                     disabled={isPrinting}
-                    className="p-1 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:opacity-50" 
+                    className="p-1.5 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:opacity-50" 
                     title="Imprimir"
                   >
-                    <Printer size={12} />
+                    <Printer size={14} />
                   </button>
                   {canEditAnyPartOfRecipe(recipe) && (
-                    <button onClick={() => openEdit(recipe)} className="p-1 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors" title="Editar">
-                      <Edit2 size={12} />
+                    <button onClick={() => openEdit(recipe)} className="p-1.5 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors" title="Editar">
+                      <Edit2 size={14} />
                     </button>
                   )}
                   {(isSuperAdmin || (actualAppUser && (actualAppUser.role === 'admin' || actualAppUser.role === 'docente') && recipe.group === appUser?.group)) && (
-                    <button onClick={() => handleDelete(recipe.id)} className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Eliminar">
-                      <Trash2 size={12} />
+                    <button onClick={() => handleDelete(recipe.id)} className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Eliminar">
+                      <Trash2 size={14} />
                     </button>
                   )}
-                </div>
-              </div>
-
-              <div className="flex-1 flex flex-col justify-end text-[11px] min-h-0 overflow-hidden">
-                <div className="flex items-center justify-between text-stone-500 bg-stone-50 py-1 px-1.5 rounded-md mb-1 shrink-0">
-                  <div className="flex items-center gap-1 font-medium">
-                    <BookOpen size={12} className="text-teal-600" />
-                    <span>{recipe.ingredients.length}</span>
-                  </div>
-                  <div className="font-bold text-teal-700">
-                    {recipe.totalCost.toFixed(2)} €
-                  </div>
-                </div>
-                
-                {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
-                  <div className="overflow-y-auto min-h-0 flex-1 pr-1 custom-scrollbar">
-                    <div className="flex flex-wrap gap-1">
-                      {recipe.ingredients.map(ri => {
-                        const elaborado = recipes.find(r => r.id === ri.ingredientId);
-                        if (!elaborado) return null;
-                        return (
-                          <button
-                            key={ri.ingredientId}
-                            onClick={() => openEdit(elaborado)}
-                            className="text-[9px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded hover:bg-teal-100 transition-colors truncate max-w-[80px]"
-                            title={elaborado.nameES}
-                          >
-                            {elaborado.nameES}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="border-t border-stone-100 pt-1.5 flex items-center justify-between shrink-0">
-                <div className="text-[9px] text-stone-400 font-semibold uppercase tracking-wider">
-                  {recipe.group ? 'Grupo' : 'Creador'}
-                </div>
-                <div className="flex flex-col items-end">
-                  <span 
-                    title={memberNames ? `Miembros: ${memberNames}` : undefined}
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-default ${getGroupColor(recipe.createdBy)}`}
-                  >
-                    {recipe.group ? `${course ? `${course} - ` : ''}Grupo ${recipe.group}` : recipe.createdBy}
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
           );
         })}
         {paginatedRecipes.length === 0 && (
-          <div className="col-span-full bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-500">
+          <div className="col-span-full bg-white rounded-2xl border border-orange-200 p-12 text-center text-stone-500">
             No se encontraron recetas.
           </div>
         )}
@@ -868,7 +880,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Controles de paginación */}
       {totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+        <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-2xl border border-orange-200 shadow-sm">
           <div className="text-sm text-stone-500">
             Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredRecipes.length)}</span> de <span className="font-medium">{filteredRecipes.length}</span> recetas
           </div>
@@ -876,7 +888,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft size={20} />
             </button>
@@ -899,7 +911,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === pageNum
                         ? 'bg-teal-600 text-white border border-teal-600'
-                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                        : 'bg-white text-stone-600 border border-orange-200 hover:bg-stone-50'
                     }`}
                   >
                     {pageNum}
@@ -910,7 +922,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight size={20} />
             </button>
@@ -921,18 +933,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       {/* Modal Form */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-stone-900">
+          <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden ring-1 ring-orange-200">
+            <div className="p-6 border-b border-orange-200 flex justify-between items-center bg-orange-100">
+              <h2 className="text-xl font-bold text-orange-950">
                 {editingId ? 'Editar Receta' : 'Nueva Receta'}
               </h2>
-              <div className="text-lg font-bold text-teal-700">
+              <div className="text-lg font-bold text-teal-700 bg-teal-50 border-teal-100 px-3 py-1 rounded-lg shadow-sm border border-orange-200">
                 Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
               </div>
             </div>
             
             <form id="recipe-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              <div className="p-5 overflow-y-auto flex-1 space-y-5">
                 {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && commissionMode && (
                   <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
                     Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
@@ -946,59 +958,60 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     checked={formData.isPublic}
                     onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
                     disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                    className="w-4 h-4 text-teal-600 bg-stone-50 border-stone-300 rounded focus:ring-teal-500"
+                    className="w-4 h-4 text-teal-600 bg-white border-stone-300 rounded focus:ring-teal-500"
                   />
-                  <label htmlFor="isPublic" className="text-sm font-medium text-stone-700">
+                  <label htmlFor="isPublic" className="text-sm font-medium text-orange-900">
                     Hacer público (visible para todos los usuarios)
                   </label>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+                    <label className="block text-sm font-medium text-orange-900 mb-1">Nombre *</label>
                     <input
                       type="text" required
                       value={formData.nameES}
                       disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                       onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder={`Ej: ${formData.type === 'elaborado' ? 'Sofrito tradicional' : 'Paella Valenciana'}`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Tipo *</label>
+                    <label className="block text-sm font-medium text-orange-900 mb-1">Tipo *</label>
                     <select
                       value={formData.type}
-                      onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado'})}
+                      onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado' | 'bebida'})}
                       disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                      className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="plato">Plato</option>
                       <option value="elaborado">Elaborado</option>
+                      <option value="bebida">Bebida</option>
                     </select>
                   </div>
                   {formData.type === 'elaborado' ? (
                     <>
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <label className="block text-sm font-medium text-stone-700 mb-1">Cantidad resultante</label>
+                          <label className="block text-sm font-medium text-orange-900 mb-1">Cantidad resultante</label>
                           <input
                             type="number" min="0" step="0.001" required
                             value={formData.yieldQuantity ?? ''}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
                             onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 1.5"
                           />
                         </div>
                         <div className="w-24">
-                          <label className="block text-sm font-medium text-stone-700 mb-1">Unidad</label>
+                          <label className="block text-sm font-medium text-orange-900 mb-1">Unidad</label>
                           <select
                             value={formData.yieldUnit}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="kg">kg</option>
                             <option value="L">L</option>
@@ -1008,20 +1021,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       </div>
                       <div className="flex gap-4">
                         <div className="flex-1">
-                          <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+                          <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
                           <input
                             type="number" min="1" step="1"
                             value={formData.portions ?? ''}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                             onChange={e => setFormData({...formData, portions: e.target.value})}
                             onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Ej: 10"
                           />
                         </div>
                         <div className="flex-1">
-                          <label className="block text-sm font-medium text-stone-700 mb-1">Peso por ración</label>
-                          <div className="w-full px-4 py-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
+                          <label className="block text-sm font-medium text-orange-900 mb-1">Peso por ración</label>
+                          <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
                             {formData.yieldQuantity && formData.portions 
                               ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
                               : '-'}
@@ -1031,12 +1044,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-1">Raciones</label>
+                      <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
                       <input
                         type="number"
                         value={1}
                         disabled
-                        className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-stone-200 rounded-xl cursor-not-allowed"
+                        className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-orange-200 rounded-xl cursor-not-allowed"
                       />
                     </div>
                   )}
@@ -1066,8 +1079,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       }
                       
                       return (
-                        <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
-                          <div className="flex-1 min-w-0 flex gap-2 pt-4">
+                        <div key={index} className="flex gap-2 items-start bg-white p-2 px-3 rounded-lg border border-orange-200 shadow-sm relative">
+                          <div className="flex-1 min-w-0 flex gap-1.5 pt-3">
                             <IngredientSelect
                               value={ri.ingredientId}
                               onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
@@ -1086,7 +1099,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                   setEditingIngredientId(selectedIng.id);
                                   setIsIngredientModalOpen(true);
                                 }}
-                                className="p-2 text-stone-500 hover:text-teal-600 bg-white border border-stone-200 rounded-lg flex-shrink-0 h-[38px]"
+                                className="p-1.5 text-stone-500 hover:text-teal-600 bg-white border border-orange-200 rounded-lg flex-shrink-0 h-[34px]"
                                 title="Editar ingrediente"
                               >
                                 <Edit2 size={16} />
@@ -1097,7 +1110,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 href={`/elaborados?edit=${ri.ingredientId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-2 text-stone-500 hover:text-indigo-600 bg-white border border-stone-200 rounded-lg flex items-center justify-center flex-shrink-0 h-[38px]"
+                                className="p-1.5 text-stone-500 hover:text-indigo-600 bg-white border border-orange-200 rounded-lg flex items-center justify-center flex-shrink-0 h-[34px]"
                                 title="Editar elaborado en nueva pestaña"
                               >
                                 <Edit2 size={16} />
@@ -1105,20 +1118,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             )}
                           </div>
                           
-                          <div className="w-40 shrink-0 pt-4 relative">
-                            <div className="absolute top-0 left-1 text-[10px] text-stone-500 font-medium">preelaborar</div>
+                          <div className="w-40 shrink-0 pt-3 relative">
+                            <div className="absolute top-0 left-1 text-[9px] text-stone-500 font-medium uppercase tracking-wider">preelaborar</div>
                             <input
                               type="text"
                               value={ri.preparation || ''}
                               onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
                               placeholder="Mirepoix, escaldar..."
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              className="w-full px-2 py-2 h-[38px] text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full px-2 py-1.5 h-[34px] text-[13px] bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Preelaboración"
                             />
                           </div>
 
-                          <div className="w-56 shrink-0 pt-4 relative">
+                          <div className="w-56 shrink-0 pt-3 relative">
                             <RecipeIngredientInput
                               ri={ri}
                               index={index}
@@ -1130,15 +1143,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               canEditField={canEditField}
                             />
                           </div>
-                          <div className="w-24 text-right font-medium text-stone-700 pt-[26px]">
+                          <div className="w-24 text-right font-bold text-teal-700 pt-[22px] text-sm">
                             {cost.toFixed(2)} €
                           </div>
-                          <div className="pt-4">
+                          <div className="pt-3">
                             <button
                               type="button"
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                               onClick={() => removeRecipeIngredient(index)}
-                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[38px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[34px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -1147,7 +1160,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       );
                     })}
                     {formData.ingredients.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
                         No hay ingredientes añadidos.
                       </div>
                     )}
@@ -1161,14 +1174,16 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         >
                           <Plus size={18} /> Añadir ingrediente
                         </button>
-                        <button
-                          type="button"
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                          onClick={() => setIsIngredientModalOpen(true)}
-                          className="w-full py-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Plus size={14} /> Nuevo ingrediente
-                        </button>
+                        {appUser?.role !== 'docente' && (
+                          <button
+                            type="button"
+                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                            onClick={() => setIsIngredientModalOpen(true)}
+                            className="w-full py-2 bg-white border border-orange-200 shadow-sm text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Plus size={14} /> Nuevo ingrediente
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex-1 flex flex-col gap-2">
@@ -1184,7 +1199,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           type="button"
                           disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                           onClick={() => setIsElaboradoModalOpen(true)}
-                          className="w-full py-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="w-full py-2 bg-white border border-orange-200 shadow-sm text-stone-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Plus size={14} /> Nuevo elaborado
                         </button>
@@ -1202,11 +1217,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     {formData.steps.map((step, index) => {
                       const parsed = parseStepStr(step);
                       return (
-                        <div key={index} className="flex flex-col md:flex-row gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                        <div key={index} className="flex flex-col md:flex-row gap-3 items-start bg-stone-50 p-3 rounded-xl border border-orange-200">
                           <div className="flex items-center gap-2 w-full md:w-auto self-stretch shrink-0">
                             <div className="font-bold text-stone-400 w-6 text-center shrink-0">{index + 1}.</div>
                             {formData.type !== 'elaborado' && (
-                              <div className="flex items-center gap-1.5 bg-white border border-stone-200 px-2 py-1.5 rounded-lg shrink-0">
+                              <div className="flex items-center gap-1.5 bg-white border border-orange-200 px-2 py-1.5 rounded-lg shrink-0">
                                 <span className="text-[10px] text-stone-500 font-medium font-sans">Tiempo:</span>
                                 <input
                                   type="number"
@@ -1216,7 +1231,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                   placeholder="Min"
                                   disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                                   onChange={e => updateStepMinutes(index, parseInt(e.target.value, 10) || 0)}
-                                  className="w-10 text-center text-xs border-b border-stone-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                  className="w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
                                 />
                                 <span className="text-stone-400 text-xs font-bold">:</span>
                                 <input
@@ -1227,7 +1242,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                   placeholder="Seg"
                                   disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                                   onChange={e => updateStepSeconds(index, parseInt(e.target.value, 10) || 0)}
-                                  className="w-10 text-center text-xs border-b border-stone-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                  className="w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
                                 />
                               </div>
                             )}
@@ -1244,7 +1259,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 updateStep(index, e.target.value);
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-stone-800"
+                            className="flex-1 px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-stone-800"
                             placeholder={formData.type !== 'elaborado' ? 'Ej: Marcar carne, regenerar puré, montar plato...' : 'Describe este paso de la elaboración...'}
                           />
                           <button
@@ -1259,7 +1274,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       );
                     })}
                     {formData.steps.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
                         No hay pasos añadidos.
                       </div>
                     )}
@@ -1281,7 +1296,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   
                   <div className="space-y-3">
                     {formData.equipment.map((eq, index) => (
-                      <div key={index} className="flex gap-3 items-start bg-stone-50 p-3 rounded-xl border border-stone-200">
+                      <div key={index} className="flex gap-2 items-start bg-white p-2 px-3 rounded-lg border border-orange-200 shadow-sm relative">
                         <div className="pt-2 font-bold text-stone-400 w-6 text-center">•</div>
                         <input
                           type="text"
@@ -1300,7 +1315,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               }, 0);
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder="Ej: 1 sartén, 1 batidora..."
                         />
                         <button
@@ -1314,7 +1329,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       </div>
                     ))}
                     {formData.equipment.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
                         No hay material añadido.
                       </div>
                     )}
@@ -1337,14 +1352,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       value={formData.miseEnPlace}
                       disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                       onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Describe la mise en place necesaria..."
                     />
                   </div>
                 )}
 
                 {formData.type !== 'elaborado' && (
-                  <div className="mt-8 border-t border-stone-200 pt-6">
+                  <div className="mt-8 border-t border-orange-200 pt-6">
                     <div className="flex justify-between items-center mb-3">
                       <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
                       <button
@@ -1368,14 +1383,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         }
 
                         return (
-                          <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                          <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-orange-200">
                             <div className="flex-1 max-w-[200px]">
                               <select
                                 required
                                 value={task.process}
                                 disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
                                 onChange={e => updateWorkListTask(index, 'process', e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-stone-700"
+                                className="w-full px-3 py-2 text-sm bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-orange-900"
                               >
                                 <option value="">-- Proceso --</option>
                                 {processOptions.map((p, i) => (
@@ -1392,7 +1407,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 value={task.element}
                                 disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
                                 onChange={e => updateWorkListTask(index, 'element', e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
+                                className="w-full px-3 py-2 text-sm bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
                                 placeholder="Ej: PESCADO CEVICHE"
                               />
                             </div>
@@ -1408,7 +1423,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         );
                       })}
                       {formData.workListTasks.length === 0 && (
-                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-stone-200 rounded-xl">
+                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
                           No hay tareas configuradas para esta receta.
                         </div>
                       )}
@@ -1416,7 +1431,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 )}
 
-                <div className="mt-8 border-t border-stone-200 pt-6">
+                <div className="mt-8 border-t border-orange-200 pt-6">
                   <div className="flex items-center gap-4">
                     <input
                       type="file"
@@ -1430,19 +1445,19 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       type="button"
                       disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
                       onClick={() => imageFileInputRef.current?.click()}
-                      className="flex-1 py-3 bg-stone-50 border-2 border-dashed border-stone-300 rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50"
+                      className="flex-1 py-3 bg-white border-2 border-dashed border-stone-300 rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                     >
                       <Camera size={18} />
                       {uploadingImage ? 'Subiendo imagen...' : (formData.imageUrl ? 'Cambiar Imagen' : 'Añadir Imagen')}
                     </button>
                     {formData.imageUrl && (
-                      <img src={formData.imageUrl} alt="Vista previa" className="w-12 h-12 object-cover rounded-lg border border-stone-200 shrink-0" />
+                      <img src={formData.imageUrl} alt="Vista previa" className="w-12 h-12 object-cover rounded-lg border border-orange-200 shrink-0" />
                     )}
                   </div>
                 </div>
               </div>
             
-              <div className="p-6 border-t border-stone-100 flex justify-end gap-3 bg-stone-50 rounded-b-2xl shrink-0">
+              <div className="p-6 border-t border-orange-200 flex justify-end gap-3 bg-stone-50 rounded-b-2xl shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -1494,12 +1509,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
-          <div ref={printRef} className="print-container px-12 py-12 bg-white text-stone-900 font-serif w-[794px]  flex flex-col relative overflow-hidden">
+          <div ref={printRef} className="print-container w-[794px] flex flex-col relative bg-white">
             <style>{`
               .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
               .print-container .text-stone-900 { color: #1c1917 !important; }
               .print-container .text-stone-800 { color: #292524 !important; }
-              .print-container .text-stone-700 { color: #44403c !important; }
+              .print-container .text-orange-900 { color: #44403c !important; }
               .print-container .text-stone-600 { color: #57534e !important; }
               .print-container .text-stone-500 { color: #78716c !important; }
               .print-container .text-stone-400 { color: #a8a29e !important; }
@@ -1510,15 +1525,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .bg-stone-100 { background-color: #f5f5f4 !important; }
               .print-container .bg-teal-50 { background-color: #f0fdfa !important; }
               .print-container .bg-teal-50\\/50 { background-color: rgba(240, 253, 250, 0.5) !important; }
-              .print-container .border-stone-200 { border-color: #e7e5e4 !important; }
-              .print-container .border-stone-100 { border-color: #f5f5f4 !important; }
+              .print-container .border-orange-200 { border-color: #e7e5e4 !important; }
+              .print-container .border-orange-200 { border-color: #f5f5f4 !important; }
               .print-container .border-stone-50 { border-color: #fafaf9 !important; }
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
               .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
+            
+              .page-break { page-break-before: always; }
             `}</style>
-            <div className="z-10 w-full">
-              <div className="border-b border-stone-200 pb-3 mb-4 flex justify-between items-start">
+            {getPrintableRecipes(printingRecipe).map((pRecipe, index) => {
+              const printingRecipe = pRecipe;
+              return (
+                <div key={printingRecipe.id + index} className={`px-12 py-12 flex flex-col relative overflow-hidden text-stone-900 font-serif w-[794px] min-h-[1122px] bg-white ${index > 0 ? 'page-break' : ''}`}>
+                  <div className="z-10 w-full">
+              <div className="border-b border-orange-200 pb-3 mb-4 flex justify-between items-start">
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
@@ -1537,21 +1558,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   {printingRecipe.portions && (
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
-                      <span className="text-stone-700 font-bold">{printingRecipe.portions}</span>
+                      <span className="text-orange-900 font-bold">{printingRecipe.portions}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
-                    <span className="text-stone-700">{printingRecipe.createdBy}</span>
+                    <span className="text-orange-900">{printingRecipe.createdBy}</span>
                   </div>
               </div>
 
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Escandallo Detallado</h3>
+                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Escandallo Detallado</h3>
                   <table className="w-[94%]  text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
                     <thead>
-                      <tr className="text-stone-400 uppercase tracking-wider border-b border-stone-200 font-sans">
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans">
                         <th className="py-3 px-3 font-medium w-[28%]">Ingrediente</th>
                         <th className="py-3 px-3 font-medium w-[36%]">Preelaboración</th>
                         <th className="py-3 px-3 font-medium text-right w-[13%]">Cantidad</th>
@@ -1580,7 +1601,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const itemTotalCost = realCostPerUnit * ri.quantity;
 
                         return (
-                          <tr key={idx} className="hover:bg-stone-50/50">
+                          <tr key={idx} className="hover:bg-stone-50">
                             <td className="py-3 px-3 font-medium text-stone-800 break-words">{name}</td>
                             <td className="py-3 px-3 text-stone-600 break-words">{ri.preparation || '-'}</td>
                             <td className="py-3 px-3 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
@@ -1591,7 +1612,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-stone-200 font-bold text-stone-900 font-sans">
+                      <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
                         <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
                         <td className="py-3 px-3 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
@@ -1604,8 +1625,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <div>
                       {printingRecipe.miseEnPlace && (
                         <div>
-                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
-                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
                     </div>
@@ -1613,8 +1634,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <div className="space-y-6">
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
                         <div>
-                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-stone-100 pb-1 font-sans">Material</h3>
-                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-orange-200 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans">
                             {printingRecipe.equipment.map((eq, idx) => (
                               <li key={idx} className="leading-relaxed pl-1">{eq}</li>
                             ))}
@@ -1639,11 +1660,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 ) : (
                   <div className="grid grid-cols-2 gap-8">
                     <div>
-                      <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">
+                      <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                         Elaboración
                       </h3>
                       {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-stone-700 font-sans">
+                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-orange-900 font-sans">
                           {printingRecipe.steps.map((step, idx) => {
                             const parsed = parseStepStr(step);
                             const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
@@ -1667,15 +1688,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <div className="space-y-6">
                       {printingRecipe.miseEnPlace && (
                         <div>
-                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Mise en Place</h3>
-                          <p className="text-[10px] text-stone-700 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
+                          <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
 
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
                         <div>
-                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-stone-100 pb-1 font-sans">Material</h3>
-                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-stone-700 font-sans">
+                          <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Material</h3>
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans">
                             {printingRecipe.equipment.map((eq, idx) => (
                               <li key={idx} className="leading-relaxed pl-1">{eq}</li>
                             ))}
@@ -1729,7 +1750,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
                   return (
                     <div className="mt-6 border-t border-stone-250 pt-5 print-avoid-break font-sans">
-                      <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-stone-100 pb-1 flex justify-between items-center">
+                      <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-orange-200 pb-1 flex justify-between items-center">
                         <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
                         {maxDurationSec > 0 && (
                           <span className="text-[8.5px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-mono font-bold select-none">
@@ -1741,11 +1762,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         * Planificación con margen de culminación unificada: todos los procesos finalizan juntos en el mismo instante (T-0) para el montaje del plato en caliente.
                       </p>
 
-                      <div className="bg-stone-50/70 rounded-2xl border border-stone-200/60 p-4">
+                      <div className="bg-stone-50 rounded-2xl border border-orange-200 p-4">
                         {maxDurationSec > 0 ? (
                           <div className="space-y-4">
                             {/* Eje de tiempos (Timeline ticks) */}
-                            <div className="relative h-5 border-b border-stone-200/60 mb-2 select-none">
+                            <div className="relative h-5 border-b border-orange-200/60 mb-2 select-none">
                               {ticks.map((tick, tIdx) => (
                                 <div 
                                   key={tIdx} 
@@ -1789,7 +1810,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                       {step.durationSec > 0 ? (
                                         <div className="space-y-1">
                                           {/* Barra del Gantt */}
-                                          <div className="relative w-full bg-stone-100 rounded-full h-2.5 overflow-hidden border border-stone-200/30">
+                                          <div className="relative w-full bg-stone-100 rounded-full h-2.5 overflow-hidden border border-orange-200/30">
                                             <div 
                                               className="absolute top-0 bottom-0 bg-teal-600 rounded-full flex items-center justify-end pr-2 text-[7px] text-white font-bold font-mono overflow-none"
                                               style={{ left: `${startPct}%`, width: `${widthPct}%` }}
@@ -1822,7 +1843,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </div>
 
                             {/* Culminación Emplatado (Hito Final) */}
-                            <div className="mt-4 pt-4 border-t border-dashed border-stone-200/60 flex items-center justify-between bg-amber-50/40 border border-amber-200/40 rounded-xl p-3">
+                            <div className="mt-4 pt-4 border-t border-dashed border-orange-200/60 flex items-center justify-between bg-orange-50 border border-amber-200/40 rounded-xl p-3">
                               <div className="flex items-center gap-2">
                                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-xs select-none">
                                   ✨
@@ -1855,20 +1876,23 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </div>
             </div>
           </div>
+          );
+        })}
+        </div>
         </div>
       )}
     </div>
       {/* Modal Evaluation */}
       {evaluateModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-stone-100 overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-orange-200 overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-bold text-stone-900 mb-4 tracking-tight">Evaluar Receta</h2>
               <p className="text-stone-500 text-sm mb-6">Asigna una puntuación y da una retroalimentación a los alumnos sobre su receta o elaborado.</p>
               
               <form onSubmit={handleSubmitEvaluation} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Nota (0-10)</label>
+                  <label className="block text-sm font-medium text-orange-900 mb-1">Nota (0-10)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -1877,25 +1901,25 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     required
                     value={evaluateModal.score}
                     onChange={(e) => setEvaluateModal({ ...evaluateModal, score: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors"
+                    className="w-full px-3 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Feedback / Observaciones</label>
+                  <label className="block text-sm font-medium text-orange-900 mb-1">Feedback / Observaciones</label>
                   <textarea
                     rows={4}
                     value={evaluateModal.feedback}
                     onChange={(e) => setEvaluateModal({ ...evaluateModal, feedback: e.target.value })}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors resize-none"
+                    className="w-full px-3 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-colors resize-none"
                     placeholder="Escribe tus comentarios para el grupo..."
                   />
                 </div>
                 
-                <div className="flex justify-end gap-3 pt-4 border-t border-stone-100">
+                <div className="flex justify-end gap-3 pt-4 border-t border-orange-200">
                   <button
                     type="button"
                     onClick={() => setEvaluateModal({ isOpen: false, recipeId: null, score: 0, feedback: '' })}
-                    className="px-4 py-2 text-stone-600 hover:bg-stone-50 rounded-xl transition-colors font-medium text-sm"
+                    className="px-4 py-2 text-stone-600 hover:bg-stone-200 rounded-xl transition-colors font-medium text-sm"
                   >
                     Cancelar
                   </button>
