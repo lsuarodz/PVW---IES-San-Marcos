@@ -196,7 +196,7 @@ export default function Layout() {
           {settings?.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain" crossOrigin="anonymous" />
           ) : (
-            <h1 className="text-lg font-bold tracking-tight">Proyecto Intermodular</h1>
+            <h1 className="text-lg font-bold tracking-tight">GastroEdu</h1>
           )}
         </button>
         <button 
@@ -226,7 +226,7 @@ export default function Layout() {
           {settings?.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pt-0 w-[139.438px] h-[55px]" crossOrigin="anonymous" />
           ) : (
-            <h1 className="text-xl font-bold tracking-tight hidden lg:block">Proyecto Intermodular 2025-2026</h1>
+            <h1 className="text-xl font-bold tracking-tight hidden lg:block">GastroEdu</h1>
           )}
           <h1 className="text-xl font-bold tracking-tight lg:hidden">Menú</h1>
         </div>

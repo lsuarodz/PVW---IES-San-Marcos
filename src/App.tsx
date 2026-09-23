@@ -10,6 +10,7 @@
 // React es la librería principal que usamos para construir la interfaz.
 import React from 'react';
 // React Router nos permite navegar entre diferentes "páginas" sin recargar el navegador.
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Importamos los "Contextos" (Providers). Un contexto es como un altavoz global 
@@ -169,6 +170,10 @@ function AppRoutes() {
 // - ToastProvider: Permite mostrar mensajitos emergentes (ej. "Guardado con éxito").
 // - BrowserRouter: Habilita el sistema de navegación por URLs.
 export default function App() {
+  useEffect(() => {
+    document.title = 'CIFP Hosteleria';
+  }, []);
+
   return (
     <AuthProvider>
       <DataProvider>

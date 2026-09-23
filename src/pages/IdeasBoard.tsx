@@ -430,6 +430,7 @@ export default function IdeasBoard() {
 
   // Helper trigger to set target and open print dialog
   const handlePrintNote = (note: IdeasBoardNote) => {
+    document.title = note.title || 'Tablón de Ideas';
     setPrintTarget(note);
     setTimeout(() => {
       window.print();
@@ -437,11 +438,22 @@ export default function IdeasBoard() {
   };
 
   const handlePrintAll = () => {
+    document.title = 'Tablón de Ideas';
     setPrintTarget('all');
     setTimeout(() => {
       window.print();
     }, 150);
   };
+
+  useEffect(() => {
+    if (printTarget) {
+      const prevTitle = document.title;
+      document.title = printTarget === 'all' ? 'Tablón de Ideas' : (printTarget.title || 'Tablón de Ideas');
+      return () => {
+        document.title = prevTitle || 'CIFP Hosteleria';
+      };
+    }
+  }, [printTarget]);
 
   // Filter notes based on selection
   const filteredNotes = notes.filter(note => {
@@ -1186,7 +1198,7 @@ export default function IdeasBoard() {
 
               {/* Print Footer block */}
               <div className="mt-12 pt-4 border-t border-stone-300 text-center text-[9px] text-stone-400 font-sans tracking-wide">
-                © {new Date().getFullYear()} Coffee Break Suite - Universidad de Turismo y Gastronomía. Todos los derechos reservados.
+                © {new Date().getFullYear()} Tablón de Ideas · Todos los derechos reservados.
               </div>
             </div>
           </div>
