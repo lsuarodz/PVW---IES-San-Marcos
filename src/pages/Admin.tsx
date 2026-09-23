@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Trash2, UserPlus, Settings as SettingsIcon, Image as ImageIcon } from 'lucide-react';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { 
+  Trash2, UserPlus, Settings as SettingsIcon, Image as ImageIcon, 
+  Bug, CheckCircle2, Clock, MessageSquare, AlertTriangle,
+  Share2, Copy, Check, ExternalLink, Link as LinkIcon
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
@@ -21,11 +25,22 @@ const getAvailableGroups = (course?: string): number[] => {
 interface User {
   uid: string;
   email: string;
-  role: 'admin' | 'student' | 'docente';
+  role: 'admin' | 'student' | 'docente' | 'compras';
   name: string;
   course?: string;
   group?: string;
   commission?: string;
+  createdAt: string;
+}
+
+interface ErrorReport {
+  id: string;
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
+  userRole?: string;
+  description: string;
+  status: 'pending' | 'resolved';
   createdAt: string;
 }
 
@@ -46,18 +61,122 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
 
   // Estados de ordenación
-  const [sortBy, setSortBy] = useState<'course' | 'name'>('course');
+  const [sortBy, setSortBy] = useState<'course' | 'name' | 'role'>('course');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Estado para el logo
   const [logoUrl, setLogoUrl] = useState('');
   const [savingLogo, setSavingLogo] = useState(false);
 
+  // Estados para incidencias / reportes de error
+  const [errorReports, setErrorReports] = useState<ErrorReport[]>([]);
+  const [reportFilter, setReportFilter] = useState<'pending' | 'all' | 'resolved'>('pending');
+
+  // Estados para compartir enlace de acceso
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const accessUrl = 'https://pvw-ies-san-marcos.onrender.com';
+
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(accessUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = accessUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedLink(true);
+      showToast('Enlace de acceso copiado al portapapeles', 'success');
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (err) {
+      console.error('Error copying link:', err);
+      showToast('No se pudo copiar automáticamente. Por favor, selecciona y copia el enlace manualmente.', 'error');
+    }
+  };
+
+  const handleCopyMessage = async () => {
+    const invitationMessage = `Estimado/a docente,\n\nAquí tienes el enlace de acceso a la aplicación de gestión de cocina, recetas y pedidos del centro:\n${accessUrl}\n\nPuedes acceder directamente identificándote con tu cuenta de Google.`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(invitationMessage);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = invitationMessage;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedMessage(true);
+      showToast('Mensaje de invitación copiado al portapapeles', 'success');
+      setTimeout(() => setCopiedMessage(false), 2500);
+    } catch (err) {
+      console.error('Error copying invitation message:', err);
+      showToast('No se pudo copiar el mensaje automáticamente.', 'error');
+    }
+  };
+
   useEffect(() => {
     if (settings?.logoUrl) {
       setLogoUrl(settings.logoUrl);
     }
   }, [settings]);
+
+  // Efecto para escuchar los reportes de error en tiempo real
+  useEffect(() => {
+    if (appUser?.role === 'admin' || appUser?.role === 'docente') {
+      const unsubscribe = onSnapshot(collection(db, 'error_reports'), (snapshot) => {
+        const reports: ErrorReport[] = [];
+        snapshot.forEach((doc) => {
+          reports.push({ id: doc.id, ...doc.data() } as ErrorReport);
+        });
+        reports.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setErrorReports(reports);
+      });
+      return unsubscribe;
+    }
+  }, [appUser]);
+
+  const handleToggleReportStatus = async (reportId: string, currentStatus: string) => {
+    try {
+      const nextStatus = currentStatus === 'pending' ? 'resolved' : 'pending';
+      await updateDoc(doc(db, 'error_reports', reportId), {
+        status: nextStatus,
+        resolvedAt: nextStatus === 'resolved' ? new Date().toISOString() : null,
+        resolvedBy: nextStatus === 'resolved' ? (appUser?.name || 'Admin') : null
+      });
+      showToast(`Incidencia marcada como ${nextStatus === 'resolved' ? 'resuelta' : 'pendiente'}`, 'success');
+    } catch (err) {
+      console.error('Error actualizando incidencia:', err);
+      showToast('Error al actualizar el estado de la incidencia', 'error');
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Reporte de Error',
+      message: '¿Estás seguro de que deseas eliminar este reporte de error?',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'error_reports', reportId));
+          showToast('Reporte eliminado', 'success');
+        } catch (err) {
+          console.error('Error eliminando reporte:', err);
+          showToast('Error al eliminar el reporte', 'error');
+        }
+      }
+    });
+  };
 
   const sortedUsers = [...users].sort((a, b) => {
     if (sortBy === 'course') {
@@ -66,6 +185,12 @@ export default function Admin() {
       if (courseA < courseB) return sortOrder === 'asc' ? -1 : 1;
       if (courseA > courseB) return sortOrder === 'asc' ? 1 : -1;
       // Secondary sort by name
+      return (a.name || '').localeCompare(b.name || '');
+    } else if (sortBy === 'role') {
+      const roleA = a.role || '';
+      const roleB = b.role || '';
+      if (roleA < roleB) return sortOrder === 'asc' ? -1 : 1;
+      if (roleA > roleB) return sortOrder === 'asc' ? 1 : -1;
       return (a.name || '').localeCompare(b.name || '');
     } else {
       const nameA = (a.name || '').toLowerCase();
@@ -76,7 +201,7 @@ export default function Admin() {
     }
   });
 
-  const handleSort = (field: 'course' | 'name') => {
+  const handleSort = (field: 'course' | 'name' | 'role') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -101,13 +226,19 @@ export default function Admin() {
 
   // Efecto para cargar la lista de usuarios desde Firestore en tiempo real
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersData: User[] = [];
-      snapshot.forEach((doc) => {
-        usersData.push({ uid: doc.id, ...doc.data() } as User);
-      });
-      setUsers(usersData);
-    });
+    const unsubscribe = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const usersData: User[] = [];
+        snapshot.forEach((doc) => {
+          usersData.push({ uid: doc.id, ...doc.data() } as User);
+        });
+        setUsers(usersData);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'users');
+      }
+    );
 
     return unsubscribe;
   }, []);
@@ -158,6 +289,51 @@ export default function Admin() {
       showToast('Error al añadir usuario', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Tutor (Admin)';
+      case 'docente': return 'Docente';
+      case 'compras': return 'Compras';
+      case 'student': return 'Alumno';
+      default: return role;
+    }
+  };
+
+  const handleUpdateRole = async (uid: string, newRole: 'admin' | 'student' | 'docente' | 'compras') => {
+    const userToUpdate = users.find(u => u.uid === uid);
+    if (!userToUpdate || userToUpdate.role === newRole) return;
+
+    // Advertencia de seguridad si el usuario autenticado está cambiando su propio rol de administrador
+    if (userToUpdate.email === appUser?.email && newRole !== 'admin') {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Cambiar tu propio rol',
+        message: 'Estás a punto de quitarte los permisos de Administrador/Tutor. Si continúas, perderás el acceso a este panel de administración. ¿Deseas continuar?',
+        isDestructive: true,
+        onConfirm: async () => {
+          try {
+            await updateDoc(doc(db, 'users', uid), { role: newRole });
+            showToast(`Tu rol ha sido actualizado a ${getRoleLabel(newRole)}`, 'success');
+          } catch (error) {
+            console.error('Error updating role:', error);
+            showToast('Error al actualizar el rol', 'error');
+            handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+          }
+        }
+      });
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      showToast(`Rol de ${userToUpdate.name || userToUpdate.email} actualizado a ${getRoleLabel(newRole)}`, 'success');
+    } catch (error) {
+      console.error('Error updating role:', error);
+      showToast('Error al actualizar el rol', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
     }
   };
 
@@ -337,6 +513,95 @@ export default function Admin() {
         <p className="text-stone-500 mt-2">Gestiona los usuarios y la configuración global de la plataforma.</p>
       </div>
 
+      {/* Tarjeta de Enlace de Acceso para Docentes */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-teal-600">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl">
+              <Share2 size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+                Enlace de Acceso al Programa
+                <span className="bg-teal-100 text-teal-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                  Para Docentes
+                </span>
+              </h2>
+              <p className="text-sm text-stone-500">
+                Comparte este enlace directo con los profesores y el equipo educativo para que puedan acceder e iniciar sesión en la plataforma.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 sm:p-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1 flex items-center bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-800 font-mono select-all overflow-x-auto shadow-inner">
+              <LinkIcon size={16} className="text-stone-400 mr-2 shrink-0" />
+              <span className="truncate">{accessUrl}</span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+                title="Copiar enlace directo al portapapeles"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check size={16} className="text-teal-200" />
+                    <span>¡Enlace copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} />
+                    <span>Copiar Enlace</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+                title="Copiar mensaje de invitación redactado"
+              >
+                {copiedMessage ? (
+                  <>
+                    <Check size={16} className="text-teal-600" />
+                    <span>¡Mensaje copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare size={16} className="text-stone-500" />
+                    <span className="hidden sm:inline">Copiar Mensaje</span>
+                    <span className="sm:hidden">Mensaje</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={accessUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center p-2.5 bg-white hover:bg-stone-100 text-stone-600 border border-stone-300 rounded-lg transition-colors shadow-sm"
+                title="Abrir programa en una nueva pestaña"
+              >
+                <ExternalLink size={16} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2.5 text-xs text-stone-600 bg-teal-50/60 p-3 rounded-lg border border-teal-100">
+          <CheckCircle2 size={16} className="text-teal-700 mt-0.5 shrink-0" />
+          <p>
+            <strong>¿Cómo acceden los docentes?</strong> Los profesores solo necesitan abrir el enlace e identificarse con su cuenta de Google. Si aún no tienen el rol de docente asignado, puedes crearlos con antelación o cambiar su rol a <span className="font-semibold text-teal-800">docente</span> en la sección de <em>Gestión de Usuarios</em> que encontrarás más abajo.
+          </p>
+        </div>
+      </div>
+
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
         <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
           <SettingsIcon size={20} className="text-amber-600" />
@@ -374,6 +639,129 @@ export default function Admin() {
       </div>
 
       <BackupRestore />
+
+      {/* Sección de Reportes de Error e Incidencias */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-amber-500">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+              <Bug size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+                Reportes de Error e Incidencias
+                {errorReports.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    {errorReports.filter(r => r.status === 'pending').length} pendientes
+                  </span>
+                )}
+              </h2>
+              <p className="text-sm text-stone-500">
+                Incidencias y errores reportados por los usuarios desde la aplicación.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setReportFilter('pending')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                reportFilter === 'pending'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              Pendientes ({errorReports.filter(r => r.status === 'pending').length})
+            </button>
+            <button
+              onClick={() => setReportFilter('resolved')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                reportFilter === 'resolved'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              Resueltos ({errorReports.filter(r => r.status === 'resolved').length})
+            </button>
+            <button
+              onClick={() => setReportFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                reportFilter === 'all'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              Todos ({errorReports.length})
+            </button>
+          </div>
+        </div>
+
+        {errorReports.filter(r => reportFilter === 'all' ? true : r.status === reportFilter).length === 0 ? (
+          <div className="p-8 text-center bg-stone-50 rounded-xl border border-stone-100 text-stone-500 text-sm">
+            No hay reportes de error {reportFilter === 'pending' ? 'pendientes' : reportFilter === 'resolved' ? 'resueltos' : 'registrados'}.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {errorReports
+              .filter(r => reportFilter === 'all' ? true : r.status === reportFilter)
+              .map((report) => (
+                <div
+                  key={report.id}
+                  className={`p-4 rounded-xl border transition-all ${
+                    report.status === 'resolved'
+                      ? 'bg-stone-50 border-stone-200 opacity-75'
+                      : 'bg-red-50/40 border-red-200'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        report.status === 'resolved'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {report.status === 'resolved' ? 'Resuelto' : 'Pendiente'}
+                      </span>
+                      <span className="text-xs text-stone-500 flex items-center gap-1">
+                        <Clock size={13} />
+                        {report.createdAt ? new Date(report.createdAt).toLocaleString('es-ES') : 'Fecha desconocida'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleReportStatus(report.id, report.status)}
+                        className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                          report.status === 'resolved'
+                            ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                      >
+                        <CheckCircle2 size={14} />
+                        {report.status === 'resolved' ? 'Marcar Pendiente' : 'Marcar Resuelto'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReport(report.id)}
+                        className="text-stone-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                        title="Eliminar reporte"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-stone-600 mb-2 font-medium">
+                    Reportado por: <span className="text-stone-900 font-semibold">{report.userName || 'Desconocido'}</span> ({report.userEmail || 'Sin email'}) &bull; Rol: <span className="capitalize">{report.userRole || 'Sin rol'}</span>
+                  </div>
+
+                  <p className="text-sm text-stone-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-stone-200/80 font-mono text-xs leading-relaxed">
+                    {report.description}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
 
       {/* Sección de Mantenimiento de Datos */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-red-500">
@@ -458,6 +846,11 @@ export default function Admin() {
                 <option value="1ºCOCINA">1º COCINA</option>
                 <option value="1ºPANADERÍA">1º PANADERÍA</option>
                 <option value="2ºSUPERIOR COCINA">2º SUPERIOR COCINA</option>
+                <option value="1ºFPBásica">1º FPBásica</option>
+                <option value="2ºFPBásica">2º FPBásica</option>
+                <option value="1ºSemiCocina">1º SemiCocina</option>
+                <option value="3ºSemiCocina">3º SemiCocina</option>
+                <option value="2ºServicios">2º Servicios</option>
               </select>
             </div>
           )}
@@ -505,7 +898,17 @@ export default function Admin() {
                 </div>
               </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Correo</th>
-              <th className="px-6 py-4 text-sm font-semibold text-stone-900">Rol</th>
+              <th 
+                className="px-6 py-4 text-sm font-semibold text-stone-900 cursor-pointer hover:bg-stone-100 transition-colors"
+                onClick={() => handleSort('role')}
+              >
+                <div className="flex items-center gap-2">
+                  Rol
+                  {sortBy === 'role' && (
+                    <span className="text-stone-400 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th 
                 className="px-6 py-4 text-sm font-semibold text-stone-900 cursor-pointer hover:bg-stone-100 transition-colors"
                 onClick={() => handleSort('course')}
@@ -528,13 +931,22 @@ export default function Admin() {
                 <td className="px-6 py-4 text-sm text-stone-900 font-medium">{user.name}</td>
                 <td className="px-6 py-4 text-sm text-stone-600">{user.email}</td>
                 <td className="px-6 py-4 text-sm">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
-                    user.role === 'docente' ? 'bg-blue-100 text-blue-700' : 
-                    'bg-amber-100 text-amber-700'
-                  }`}>
-                    {user.role === 'admin' ? 'Tutor' : user.role === 'docente' ? 'Docente' : 'Alumno'}
-                  </span>
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleUpdateRole(user.uid, e.target.value as 'admin' | 'student' | 'docente' | 'compras')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all ${
+                      user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100' : 
+                      user.role === 'docente' ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100' : 
+                      user.role === 'compras' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100' : 
+                      'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                    }`}
+                    title="Haz clic para cambiar el rol de este usuario"
+                  >
+                    <option value="student">Alumno</option>
+                    <option value="docente">Docente</option>
+                    <option value="compras">Compras</option>
+                    <option value="admin">Tutor (Admin)</option>
+                  </select>
                 </td>
                 <td className="px-6 py-4 text-sm text-stone-600">
                   {user.role === 'student' || user.role === 'docente' ? (
@@ -546,6 +958,12 @@ export default function Admin() {
                         user.course === '2ºCOCINA' ? 'border-orange-300 text-orange-700 bg-orange-50' :
                         user.course === '1ºPANADERÍA' ? 'border-yellow-300 text-yellow-700 bg-yellow-50' :
                         user.course === '1ºCOCINA' ? 'border-red-300 text-red-700 bg-red-50' :
+                        user.course === '2ºSUPERIOR COCINA' ? 'border-teal-300 text-teal-700 bg-teal-50' :
+                        user.course === '1ºFPBásica' ? 'border-emerald-300 text-emerald-700 bg-emerald-50' :
+                        user.course === '2ºFPBásica' ? 'border-green-300 text-green-700 bg-green-50' :
+                        user.course === '1ºSemiCocina' ? 'border-cyan-300 text-cyan-700 bg-cyan-50' :
+                        user.course === '3ºSemiCocina' ? 'border-indigo-300 text-indigo-700 bg-indigo-50' :
+                        user.course === '2ºServicios' ? 'border-rose-300 text-rose-700 bg-rose-50' :
                         'border-stone-200 text-stone-700'
                       }`}
                     >
@@ -555,6 +973,11 @@ export default function Admin() {
                       <option value="1ºCOCINA">1º COCINA</option>
                       <option value="1ºPANADERÍA">1º PANADERÍA</option>
                       <option value="2ºSUPERIOR COCINA">2º SUPERIOR COCINA</option>
+                      <option value="1ºFPBásica">1º FPBásica</option>
+                      <option value="2ºFPBásica">2º FPBásica</option>
+                      <option value="1ºSemiCocina">1º SemiCocina</option>
+                      <option value="3ºSemiCocina">3º SemiCocina</option>
+                      <option value="2ºServicios">2º Servicios</option>
                     </select>
                   ) : '-'}
                 </td>

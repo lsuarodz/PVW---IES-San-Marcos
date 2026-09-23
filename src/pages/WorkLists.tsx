@@ -47,6 +47,11 @@ const getCourseColor = (course: string) => {
     case '1ºPANADERÍA': return 'text-pink-600';
     case '2ºPANADERÍA': return 'text-purple-600';
     case '2ºSUPERIOR COCINA': return 'text-teal-600';
+    case '1ºFPBásica': return 'text-emerald-600';
+    case '2ºFPBásica': return 'text-green-600';
+    case '1ºSemiCocina': return 'text-cyan-600';
+    case '3ºSemiCocina': return 'text-indigo-600';
+    case '2ºServicios': return 'text-rose-600';
     default: return 'text-teal-600';
   }
 };
@@ -276,6 +281,11 @@ function SortableTableRow({ task, index, onUpdate, onDelete, teachers, processes
               <option value="1ºPANADERÍA" className="text-pink-600 font-semibold">1º PANADERÍA</option>
               <option value="2ºPANADERÍA" className="text-purple-600 font-semibold">2º PANADERÍA</option>
               <option value="2ºSUPERIOR COCINA" className="text-teal-600 font-semibold">2º SUPERIOR COCINA</option>
+              <option value="1ºFPBásica" className="text-emerald-600 font-semibold">1º FPBásica</option>
+              <option value="2ºFPBásica" className="text-green-600 font-semibold">2º FPBásica</option>
+              <option value="1ºSemiCocina" className="text-cyan-600 font-semibold">1º SemiCocina</option>
+              <option value="3ºSemiCocina" className="text-indigo-600 font-semibold">3º SemiCocina</option>
+              <option value="2ºServicios" className="text-rose-600 font-semibold">2º Servicios</option>
             </select>
           </>
         )}

@@ -117,7 +117,7 @@ export interface AppUser {
   name: string;
   group?: string;
   commission?: string;
-  course?: '1ºCOCINA' | '1ºPANADERÍA' | '2ºPANADERÍA' | '2ºCOCINA' | '2ºSUPERIOR COCINA';
+  course?: '1ºCOCINA' | '1ºPANADERÍA' | '2ºPANADERÍA' | '2ºCOCINA' | '2ºSUPERIOR COCINA' | '1ºFPBásica' | '2ºFPBásica' | '1ºSemiCocina' | '3ºSemiCocina' | '2ºServicios';
 }
 
 export interface OrderItem {

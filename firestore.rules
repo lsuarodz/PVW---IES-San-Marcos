@@ -53,38 +53,46 @@ service cloud.firestore {
     }
 
     function getUserEmail() {
-      return request.auth.token.email.lower();
+      return (request.auth != null && 'email' in request.auth.token && request.auth.token.email != null) ? request.auth.token.email.lower() : '';
     }
 
     function isSuperAdmin() {
       return isAuthenticated() && (
         getUserEmail() == "lsuarodzmail.com@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
-         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'admin')
+        (getUserEmail() != "" && exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'admin') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
 
     function isAdmin() {
       return isAuthenticated() && (
         getUserEmail() == "lsuarodzmail.com@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
-         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'docente'])
+        (getUserEmail() != "" && exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'docente']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'docente'])
       );
     }
 
     function isComprasOrAdmin() {
       return isAuthenticated() && (
         isAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
-         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'compras')
+        (getUserEmail() != "" && exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role == 'compras') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'compras')
       );
     }
 
     function isStudentOrAdmin() {
       return isAuthenticated() && (
         isAdmin() || isComprasOrAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
-         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'student', 'docente', 'compras'])
+        (getUserEmail() != "" && exists(/databases/$(database)/documents/users/$(getUserEmail())) &&
+         get(/databases/$(database)/documents/users/$(getUserEmail())).data.role in ['admin', 'student', 'docente', 'compras']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'student', 'docente', 'compras'])
       );
     }
 
@@ -108,14 +116,14 @@ service cloud.firestore {
     // ===============================================================
     function isValidUser() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'commission', 'createdAt']) &&
-             isValidString(data.email, 3, 100) &&
-             data.role in ['admin', 'student', 'docente'] &&
-             isValidString(data.name, 1, 100) &&
-             (!('course' in data) || data.course == "" || isValidString(data.course, 1, 50)) &&
-             (!('group' in data) || data.group == "" || isValidString(data.group, 1, 50)) &&
-             (!('commission' in data) || data.commission == "" || isValidString(data.commission, 1, 50)) &&
-             data.createdAt is string;
+      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'commission', 'createdAt', 'uid', 'id', 'updatedAt', 'photoURL', 'displayName', 'active', 'disabled', 'lastLogin']) &&
+             isValidString(data.email, 3, 150) &&
+             data.role in ['admin', 'student', 'docente', 'compras'] &&
+             isValidString(data.name, 1, 150) &&
+             (!('course' in data) || data.course == null || data.course == "" || isValidString(data.course, 1, 100)) &&
+             (!('group' in data) || data.group == null || data.group == "" || isValidString(data.group, 1, 50)) &&
+             (!('commission' in data) || data.commission == null || data.commission == "" || isValidString(data.commission, 1, 50)) &&
+             (!('createdAt' in data) || data.createdAt is string);
     }
 
     function isValidIngredient() {
@@ -321,11 +329,24 @@ service cloud.firestore {
              data.status in ['draft', 'pending', 'completed'];
     }
 
+    function isValidErrorReport() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'userId', 'userEmail', 'userName', 'userRole', 'description', 'status', 'createdAt', 'resolvedAt', 'resolvedBy']) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('userId' in data) || isValidString(data.userId, 1, 100)) &&
+             (!('userEmail' in data) || isValidString(data.userEmail, 1, 150)) &&
+             (!('userName' in data) || isValidString(data.userName, 1, 150)) &&
+             (!('userRole' in data) || isValidString(data.userRole, 1, 50)) &&
+             isValidString(data.description, 1, 4000) &&
+             data.status in ['pending', 'resolved'] &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
     match /users/{userId} {
-      allow read: if isStudentOrAdmin() || getUserEmail() == userId.lower();
+      allow read: if isStudentOrAdmin() || getUserEmail() == userId.lower() || request.auth.uid == userId;
       allow create, update: if isAdmin() && isValidUser();
       allow delete: if isAdmin();
     }
@@ -462,6 +483,12 @@ service cloud.firestore {
       allow read: if isStudentOrAdmin();
       allow create, update: if isAdmin();
       allow delete: if isSuperAdmin();
+    }
+
+    match /error_reports/{reportId} {
+      allow read: if isAdmin() || isSuperAdmin();
+      allow create: if isAuthenticated() && isValidErrorReport();
+      allow update, delete: if isAdmin() || isSuperAdmin();
     }
   }
 }

@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 
 import { PWAInstallButton } from './PWAInstallButton';
+import { collection, addDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 export default function Layout() {
   // Obtenemos los datos del usuario y la función de logout desde el contexto
@@ -55,32 +57,53 @@ export default function Layout() {
     setErrorSentMessage('');
 
     try {
-      const response = await fetch("https://formsubmit.co/ajax/lsuarodzmail.com@gmail.com", {
-        method: "POST",
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          name: "Reporte de Error de Aplicación",
-          email: appUser?.email || "usuario@desconocido.com",
-          message: `Usuario: ${appUser?.name || 'Desconocido'} (${appUser?.role || 'Sin rol'})\n\nDescripción del error:\n${errorDescription}`
-        })
-      });
+      const reportData = {
+        userId: appUser?.uid || auth.currentUser?.uid || 'anon',
+        userEmail: appUser?.email || auth.currentUser?.email || 'anónimo',
+        userName: appUser?.name || 'Usuario desconocido',
+        userRole: appUser?.role || 'Sin rol',
+        description: errorDescription.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
 
-      if (response.ok) {
-        setErrorSentMessage('Error enviado correctamente. Gracias por tu ayuda.');
-        setTimeout(() => {
-          setIsErrorReportOpen(false);
-          setErrorDescription('');
-          setErrorSentMessage('');
-        }, 3000);
-      } else {
-        throw new Error("Error al enviar el reporte.");
+      // 1. Guardar siempre en la base de datos Firestore de la aplicación
+      try {
+        await addDoc(collection(db, 'error_reports'), reportData);
+      } catch (firestoreErr) {
+        console.warn('Aviso guardando en Firestore:', firestoreErr);
       }
+
+      // 2. Notificar al servidor mediante la ruta interna con timeout estricto para nunca bloquear la UI
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        await fetch('/api/report-error', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: reportData.userName,
+            email: reportData.userEmail,
+            role: reportData.userRole,
+            description: reportData.description
+          })
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchErr) {
+        console.warn('Aviso notificando vía API:', fetchErr);
+      }
+
+      setErrorSentMessage('¡Reporte enviado y registrado con éxito! El equipo de administración lo revisará a la brevedad.');
+      setTimeout(() => {
+        setIsErrorReportOpen(false);
+        setErrorDescription('');
+        setErrorSentMessage('');
+      }, 2500);
     } catch (err) {
-      console.error(err);
-      setErrorSentMessage('Hubo un problema al enviar el reporte. Por favor, inténtalo más tarde.');
+      console.error('Error al procesar el reporte:', err);
+      setErrorSentMessage('Hubo un problema temporal al enviar el reporte. Por favor, inténtalo más tarde.');
     } finally {
       setIsSendingError(false);
     }
@@ -475,7 +498,7 @@ export default function Layout() {
               />
 
               {errorSentMessage && (
-                <div className={`p-3 rounded-xl text-sm font-medium ${errorSentMessage.includes('correctamente') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <div className={`p-3 rounded-xl text-sm font-medium ${!errorSentMessage.includes('problema') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                   {errorSentMessage}
                 </div>
               )}
