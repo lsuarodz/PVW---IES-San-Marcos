@@ -518,10 +518,10 @@ export default function Orders() {
 
   const handleStartNewOrderClick = () => {
     if (userSavedOrder) {
-      setShowConfirmNewModal(true);
-    } else {
-      startFreshOrder();
+      showToast('Ya tienes un pedido activo guardado. Cada usuario solo puede mantener un pedido.', 'info');
+      return;
     }
+    startFreshOrder();
   };
 
   // ==================== INITIAL ENTRY SELECTION MENU ====================
@@ -543,63 +543,85 @@ export default function Orders() {
           {/* Botón 1: Continuar con el pedido anterior */}
           <button
             type="button"
+            disabled={!userSavedOrder}
             onClick={() => {
-              if (!userSavedOrder) {
-                showToast('No tienes ningún pedido guardado anteriormente.', 'info');
-              } else {
+              if (userSavedOrder) {
                 handleContinuePrevious();
               }
             }}
             className={`group flex flex-col items-center text-center transition-all focus:outline-none ${
               userSavedOrder
                 ? 'cursor-pointer hover:-translate-y-1'
-                : 'opacity-40 cursor-not-allowed'
+                : 'opacity-40 cursor-not-allowed grayscale select-none'
             }`}
-            title={userSavedOrder ? `Continuar con "${userSavedOrder.title}"` : 'No tienes ningún pedido guardado'}
+            title={userSavedOrder ? `Continuar con "${userSavedOrder.title}"` : 'No tienes ningún pedido guardado actualmente'}
           >
             <MenuTile
               label="CONTINUAR"
               icon="anterior"
-              className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+              className={`w-32 h-32 md:w-36 md:h-36 transition-transform ${
+                userSavedOrder ? 'group-hover:scale-105' : ''
+              }`}
             />
-            <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+            <span className={`font-bold text-sm sm:text-base mt-3.5 transition-colors ${
+              userSavedOrder ? 'text-stone-800 group-hover:text-teal-700' : 'text-stone-400'
+            }`}>
               Continuar pedido
             </span>
             <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
-              Editar pedido anterior
+              {userSavedOrder ? 'Editar pedido anterior' : 'Sin pedido guardado'}
             </span>
             {userSavedOrder ? (
               <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
                 1 activo
               </span>
             ) : (
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-400">
-                Sin pedido
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-400 border border-stone-200">
+                Desactivado
               </span>
             )}
           </button>
 
-          {/* Botón 2: Iniciar nuevo pedido */}
+          {/* Botón 2: Iniciar nuevo pedido (DESACTIVADO si ya tiene pedido activo) */}
           <button
             type="button"
-            onClick={handleStartNewOrderClick}
-            className="group flex flex-col items-center text-center transition-all focus:outline-none cursor-pointer hover:-translate-y-1"
-            title="Iniciar nuevo pedido desde cero"
+            disabled={Boolean(userSavedOrder)}
+            onClick={userSavedOrder ? undefined : handleStartNewOrderClick}
+            className={`group flex flex-col items-center text-center transition-all focus:outline-none ${
+              userSavedOrder
+                ? 'opacity-40 cursor-not-allowed grayscale select-none'
+                : 'cursor-pointer hover:-translate-y-1'
+            }`}
+            title={
+              userSavedOrder
+                ? `Ya tienes un pedido activo guardado ("${userSavedOrder.title}"). Solo se permite 1 pedido por usuario. Edita el anterior o elimínalo si deseas empezar de nuevo.`
+                : 'Iniciar nuevo pedido desde cero'
+            }
           >
             <MenuTile
               label="NUEVO"
               icon="nuevo"
-              className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+              className={`w-32 h-32 md:w-36 md:h-36 transition-transform ${
+                userSavedOrder ? '' : 'group-hover:scale-105'
+              }`}
             />
-            <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+            <span className={`font-bold text-sm sm:text-base mt-3.5 transition-colors ${
+              userSavedOrder ? 'text-stone-400' : 'text-stone-800 group-hover:text-teal-700'
+            }`}>
               Nuevo pedido
             </span>
             <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
-              Iniciar desde cero
+              {userSavedOrder ? 'Ya tienes un pedido activo' : 'Iniciar desde cero'}
             </span>
-            <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-600 border border-stone-200">
-              Crear
-            </span>
+            {userSavedOrder ? (
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-200/90 text-stone-500 border border-stone-300">
+                Desactivado (1 máx.)
+              </span>
+            ) : (
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                Disponible
+              </span>
+            )}
           </button>
 
           {/* Botón 3: Consolidación de pedidos (SOLO visible para Administrador y Compras) */}
