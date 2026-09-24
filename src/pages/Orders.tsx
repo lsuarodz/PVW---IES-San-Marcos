@@ -56,6 +56,8 @@ export default function Orders() {
   
   // Create Tab States
   const [search, setSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
   const [orderItems, setOrderItems] = useState<(OrderItem & { inputValue?: string })[]>([]);
   const [orderTitle, setOrderTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -77,11 +79,25 @@ export default function Orders() {
     }
   }, [orders]);
 
-  // Add item to local workspace
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Add item to local workspace and close the dropdown
   const addOrderItem = (id: string, type: 'recipe' | 'menu' | 'ingredient') => {
     if (!orderItems.find(item => item.id === id && item.type === type)) {
       setOrderItems([...orderItems, { id, type, quantity: 1 }]);
     }
+    // Cierra el desplegable y reinicia la búsqueda tras añadir
+    setSearch('');
+    setIsSearchOpen(false);
   };
 
   // Update quantity in local workspace
@@ -742,26 +758,41 @@ export default function Orders() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Columna Izquierda: Añadir al Pedido (Buscador) */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+            <div ref={searchBoxRef} className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-3 sm:p-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                 <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                  <PlusCircle size={17} className="text-teal-600" />
+                  <PlusCircle size={16} className="text-teal-600" />
                   Añadir al Pedido
                 </h3>
                 <div className="relative flex-1 sm:max-w-xs">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={14} />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={13} />
                   <input
                     type="text"
                     placeholder="Buscar recetas, menús..."
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setIsSearchOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (search.trim() !== '') setIsSearchOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsSearchOpen(false);
+                      }
+                    }}
+                    className="w-full pl-8 pr-7 py-1 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
                   />
                   {search && (
                     <button
-                      onClick={() => setSearch('')}
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        setIsSearchOpen(false);
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded-full"
-                      title="Limpiar búsqueda"
+                      title="Limpiar y cerrar búsqueda"
                     >
                       <X size={12} />
                     </button>
@@ -769,21 +800,24 @@ export default function Orders() {
                 </div>
               </div>
 
-              {search.trim() !== '' ? (
-                <div className="mt-3 pt-3 border-t border-stone-100 max-h-[480px] overflow-y-auto space-y-3 pr-1">
+              {search.trim() !== '' && isSearchOpen ? (
+                <div className="mt-2 pt-2 border-t border-stone-100 max-h-[220px] overflow-y-auto space-y-2.5 pr-1">
                   {filteredMenus.length > 0 && (
                     <div>
-                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Menús</div>
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 px-1">
+                        Menús ({filteredMenus.length})
+                      </div>
                       <div className="space-y-1">
                         {filteredMenus.map(menu => (
-                          <div key={menu.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                            <span className="font-semibold text-stone-800">{menu.nameES}</span>
+                          <div key={menu.id} className="flex justify-between items-center py-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800 truncate mr-2">{menu.nameES}</span>
                             <button
+                              type="button"
                               onClick={() => addOrderItem(menu.id, 'menu')}
-                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
-                              title="Añadir menú"
+                              className="text-teal-700 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 font-bold text-xs shrink-0"
+                              title="Añadir menú al pedido"
                             >
-                              <Plus size={14} />
+                              <Plus size={13} />
                               Añadir
                             </button>
                           </div>
@@ -794,17 +828,20 @@ export default function Orders() {
                   
                   {filteredRecipes.length > 0 && (
                     <div>
-                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Recetas</div>
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 px-1">
+                        Recetas ({filteredRecipes.length})
+                      </div>
                       <div className="space-y-1">
                         {filteredRecipes.map(recipe => (
-                          <div key={recipe.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                            <span className="font-semibold text-stone-800">{recipe.nameES}</span>
+                          <div key={recipe.id} className="flex justify-between items-center py-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800 truncate mr-2">{recipe.nameES}</span>
                             <button
+                              type="button"
                               onClick={() => addOrderItem(recipe.id, 'recipe')}
-                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
-                              title="Añadir receta"
+                              className="text-teal-700 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 font-bold text-xs shrink-0"
+                              title="Añadir receta al pedido"
                             >
-                              <Plus size={14} />
+                              <Plus size={13} />
                               Añadir
                             </button>
                           </div>
@@ -815,19 +852,22 @@ export default function Orders() {
 
                   {filteredIngredients.length > 0 && (
                     <div>
-                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Ingredientes Directos</div>
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 px-1">
+                        Ingredientes Directos ({filteredIngredients.length})
+                      </div>
                       <div className="space-y-1">
                         {filteredIngredients.slice(0, 30).map(ing => (
-                          <div key={ing.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                            <span className="font-semibold text-stone-800">
+                          <div key={ing.id} className="flex justify-between items-center py-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800 truncate mr-2">
                               {ing.nameES} <span className="text-[11px] text-stone-400 font-mono">({ing.unit})</span>
                             </span>
                             <button
+                              type="button"
                               onClick={() => addOrderItem(ing.id, 'ingredient')}
-                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
-                              title="Añadir ingrediente"
+                              className="text-teal-700 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 font-bold text-xs shrink-0"
+                              title="Añadir ingrediente al pedido"
                             >
-                              <Plus size={14} />
+                              <Plus size={13} />
                               Añadir
                             </button>
                           </div>
@@ -842,17 +882,16 @@ export default function Orders() {
                   )}
                   
                   {filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
-                    <div className="text-center py-6 text-stone-400 text-xs">
+                    <div className="text-center py-4 text-stone-400 text-xs">
                       No se encontraron resultados para "{search}".
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-10 px-4 border-2 border-dashed border-stone-100 rounded-xl bg-stone-50/50">
-                  <Search size={28} className="mx-auto text-stone-300 mb-2" />
-                  <p className="text-xs font-semibold text-stone-700">Buscar para añadir</p>
-                  <p className="text-[11px] text-stone-400 mt-0.5 max-w-xs mx-auto">
-                    Escribe arriba para encontrar recetas, menús o ingredientes e incorporarlos a tu pedido.
+                <div className="text-center py-3.5 px-3 border border-dashed border-stone-200 rounded-lg bg-stone-50/60 flex items-center justify-center gap-2">
+                  <Search size={14} className="text-stone-400 shrink-0" />
+                  <p className="text-xs text-stone-500 font-medium">
+                    Escribe en el buscador para añadir recetas, menús o ingredientes
                   </p>
                 </div>
               )}
