@@ -14,6 +14,7 @@ interface AuthContextType {
   impersonatedUserId: string | null;
   setImpersonatedUserId: (uid: string | null) => void;
   loading: boolean; // Estado de carga mientras verificamos la sesión
+  quotaExceeded: boolean;
   viewAsStudent: boolean;
   setViewAsStudent: (value: boolean) => void;
   commissionMode: boolean;
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [impersonatedAppUser, setImpersonatedAppUser] = useState<AppUser | null>(null);
   const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [loginInProgress, setLoginInProgress] = useState(false);
   const [viewAsStudent, setViewAsStudent] = useState(false);
   const [commissionMode, setCommissionMode] = useState(true);
@@ -73,9 +75,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Si el usuario se loguea con Google pero no está registrado en nuestra base de datos por un admin, no le damos acceso
             setRealAppUser(null);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching user data:', error);
-          setRealAppUser(null);
+          const isQuota = String(error?.message || error).includes('Quota exceeded') || error?.code === 'resource-exhausted';
+          if (isQuota) {
+            setQuotaExceeded(true);
+            // Si es el administrador principal y la cuota diaria se ha superado, habilitamos sesión de contingencia para que pueda ver la app y el aviso de cuota
+            if (userEmail === 'lsuarodzmail.com@gmail.com') {
+              setRealAppUser({
+                uid: firebaseUser.uid,
+                email: userEmail,
+                role: 'admin',
+                name: firebaseUser.displayName || 'Administrador (Contingencia Cuota)'
+              } as AppUser);
+            } else {
+              setRealAppUser(null);
+            }
+          } else {
+            setRealAppUser(null);
+          }
         }
       } else {
         // Si no hay usuario en Firebase, limpiamos el estado
@@ -151,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       impersonatedUserId,
       setImpersonatedUserId,
       loading, 
+      quotaExceeded,
       viewAsStudent, 
       setViewAsStudent, 
       commissionMode, 

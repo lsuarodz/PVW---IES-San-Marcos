@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle } from 'lucide-react';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
 import { Recipe, Ingredient, Order, OrderItem } from '../types';
@@ -47,6 +47,10 @@ export default function Orders() {
   const { users, recipes, ingredients, menus, settings, orders } = useData();
   const { showToast } = useToast();
   
+  // Entry view state: null displays the initial 2-button landing choice menu
+  const [entryChoice, setEntryChoice] = useState<'continue' | 'new' | 'consolidate' | null>(null);
+  const [showConfirmNewModal, setShowConfirmNewModal] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'create' | 'consolidate'>('create');
   
   // Create Tab States
@@ -91,7 +95,7 @@ export default function Orders() {
     setOrderItems(orderItems.filter(item => !(item.id === id && item.type === type)));
   };
 
-  // Save current workspace to Firestore
+  // Save current workspace to Firestore (enforcing strictly 1 order per user)
   const handleSaveOrder = async (isDraft: boolean = true) => {
     if (orderItems.length === 0) {
       showToast('Añade al menos una receta, menú o ingrediente suelto a tu pedido.', 'error');
@@ -99,29 +103,41 @@ export default function Orders() {
     }
     setIsSaving(true);
     try {
-      const orderId = editingOrderId || doc(collection(db, 'orders')).id;
+      // Find all existing orders of this user to enforce strictly 1 order per user
+      const userOrders = orders.filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name));
+      const targetOrderId = editingOrderId || (userOrders.length > 0 ? userOrders[0].id : doc(collection(db, 'orders')).id);
+      
+      // Clean up any extra redundant orders if more than 1 existed
+      for (const oldOrder of userOrders) {
+        if (oldOrder.id !== targetOrderId) {
+          try {
+            await deleteDoc(doc(db, 'orders', oldOrder.id));
+          } catch (e) {
+            console.warn('Notice removing duplicate user order:', e);
+          }
+        }
+      }
+
+      const existingOrder = orders.find(o => o.id === targetOrderId);
       const titleStr = orderTitle.trim() || `Pedido de ${appUser?.name || 'Profesor'} - ${new Date().toLocaleDateString('es-ES')}`;
-      const existingOrder = editingOrderId ? orders.find(o => o.id === editingOrderId) : null;
       
       let newStatus: 'draft' | 'pending' | 'completed' = 'draft';
       if (!isDraft) newStatus = 'pending';
       else if (existingOrder) newStatus = existingOrder.status;
 
       const newOrder: Order = {
-        id: orderId,
+        id: targetOrderId,
         title: titleStr,
-        userId: existingOrder ? existingOrder.userId : (appUser?.uid || ''),
-        userName: existingOrder ? existingOrder.userName : (appUser?.name || 'Profesor'),
+        userId: appUser?.uid || (existingOrder ? existingOrder.userId : ''),
+        userName: appUser?.name || (existingOrder ? existingOrder.userName : 'Profesor'),
         items: orderItems,
-        createdAt: existingOrder ? existingOrder.createdAt : new Date().toISOString(),
+        createdAt: existingOrder?.createdAt || new Date().toISOString(),
         status: newStatus
       };
       
-      await setDoc(doc(db, 'orders', orderId), newOrder);
-      showToast(isDraft ? (editingOrderId ? 'Pedido actualizado.' : 'Pedido guardado.') : '¡Pedido enviado a consolidación!', 'success');
-      setOrderItems([]);
-      setOrderTitle('');
-      setEditingOrderId(null);
+      await setDoc(doc(db, 'orders', targetOrderId), newOrder);
+      setEditingOrderId(targetOrderId);
+      showToast(isDraft ? 'Pedido guardado (1 pedido activo por usuario).' : '¡Pedido enviado a consolidación!', 'success');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
       showToast('Error al guardar el pedido.', 'error');
@@ -468,19 +484,228 @@ export default function Orders() {
     }, 400);
   };
 
-  // My saved orders list (to edit or delete)
+  // User's saved orders (sorted newest first)
   const mySavedOrders = useMemo(() => {
-    return orders.filter(o => o.userId === appUser?.uid);
+    return orders
+      .filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [orders, appUser]);
+
+  const userSavedOrder = mySavedOrders[0] || null;
+
+  const handleContinuePrevious = () => {
+    if (!userSavedOrder) {
+      showToast('No tienes ningún pedido anterior guardado.', 'error');
+      return;
+    }
+    setEditingOrderId(userSavedOrder.id);
+    setOrderTitle(userSavedOrder.title);
+    setOrderItems(userSavedOrder.items);
+    setActiveTab('create');
+    setEntryChoice('continue');
+    showToast(`Pedido "${userSavedOrder.title}" cargado para editar.`, 'info');
+  };
+
+  const startFreshOrder = () => {
+    setEditingOrderId(userSavedOrder ? userSavedOrder.id : null);
+    setOrderItems([]);
+    setOrderTitle('');
+    setActiveTab('create');
+    setEntryChoice('new');
+    setShowConfirmNewModal(false);
+  };
+
+  const handleStartNewOrderClick = () => {
+    if (userSavedOrder) {
+      setShowConfirmNewModal(true);
+    } else {
+      startFreshOrder();
+    }
+  };
+
+  // ==================== INITIAL ENTRY SELECTION MENU ====================
+  if (entryChoice === null) {
+    return (
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto font-sans pb-28 relative z-10">
+        {/* Header */}
+        <div className="text-center mb-8 pt-4">
+          <div className="inline-flex p-3.5 bg-teal-50 text-teal-700 rounded-2xl mb-3 shadow-inner border border-teal-100">
+            <ShoppingCart size={36} />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">Gestión de Pedidos</h1>
+          <p className="text-stone-500 mt-2 text-sm sm:text-base max-w-lg mx-auto">
+            Configuración y envío de comandas para compras y economato. Cada usuario puede mantener <strong>un único pedido activo</strong> guardado.
+          </p>
+        </div>
+
+        {/* 2 Main Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
+          {/* Card 1: Continuar con el pedido anterior */}
+          <button
+            type="button"
+            onClick={handleContinuePrevious}
+            disabled={!userSavedOrder}
+            className={`p-6 sm:p-7 rounded-2xl border-2 text-left transition-all flex flex-col justify-between group relative overflow-hidden text-stone-800 ${
+              userSavedOrder
+                ? 'bg-white border-teal-500 hover:border-teal-600 hover:shadow-xl cursor-pointer ring-4 ring-teal-50/50'
+                : 'bg-stone-50 border-stone-200 opacity-60 cursor-not-allowed'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-3.5 rounded-2xl ${userSavedOrder ? 'bg-teal-100 text-teal-800 group-hover:scale-110' : 'bg-stone-200 text-stone-500'} transition-transform`}>
+                  <FolderOpen size={30} />
+                </div>
+                {userSavedOrder ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                    Pedido guardado
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-stone-200 text-stone-500">
+                    Sin pedido previo
+                  </span>
+                )}
+              </div>
+              <h2 className="text-xl font-bold text-stone-900 mb-2 group-hover:text-teal-700 transition-colors">
+                Continuar con el pedido anterior
+              </h2>
+              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed mb-6">
+                Entra directamente a la sección de pedidos con tu comanda guardada abierta para editarla, revisar ingredientes o añadir nuevos productos.
+              </p>
+            </div>
+
+            {userSavedOrder ? (
+              <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs text-stone-700">
+                <div className="font-bold text-stone-900 truncate mb-1">
+                  📦 {userSavedOrder.title}
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-stone-500 mt-1">
+                  <span>{userSavedOrder.items.length} artículos</span>
+                  <span className="capitalize">{new Date(userSavedOrder.createdAt).toLocaleDateString('es-ES')}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${userSavedOrder.status === 'completed' ? 'bg-green-100 text-green-800' : userSavedOrder.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-700'}`}>
+                    {userSavedOrder.status === 'completed' ? 'Completado' : userSavedOrder.status === 'pending' ? 'Pendiente' : 'Guardado'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-stone-400 italic bg-stone-100 p-3 rounded-xl border border-stone-200">
+                No tienes ningún pedido guardado en este momento.
+              </div>
+            )}
+          </button>
+
+          {/* Card 2: Iniciar nuevo pedido */}
+          <button
+            type="button"
+            onClick={handleStartNewOrderClick}
+            className="p-6 sm:p-7 rounded-2xl border-2 border-stone-200 bg-white hover:border-teal-500 hover:shadow-xl transition-all flex flex-col justify-between text-left group cursor-pointer text-stone-800"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3.5 rounded-2xl bg-stone-100 text-stone-700 group-hover:scale-110 group-hover:bg-teal-100 group-hover:text-teal-800 transition-all">
+                  <PlusCircle size={30} />
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-100">
+                  Nuevo
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-stone-900 mb-2 group-hover:text-teal-700 transition-colors">
+                Iniciar nuevo pedido
+              </h2>
+              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed mb-6">
+                Entra a la sección de pedidos para preparar una nueva comanda desde cero seleccionando recetas, menús o ingredientes individuales.
+              </p>
+            </div>
+
+            {userSavedOrder ? (
+              <div className="bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-[11px] text-amber-900">
+                ⚠️ <strong>Aviso de pedido único:</strong> Ya tienes un pedido guardado. Al guardar este nuevo pedido, sustituirá al anterior para mantener 1 pedido por usuario.
+              </div>
+            ) : (
+              <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs text-stone-500">
+                Comenzarás con una comanda vacía para confeccionar tu pedido.
+              </div>
+            )}
+          </button>
+        </div>
+
+        {/* Quick link for Admin/Compras to Consolidate */}
+        {canConsolidate && (
+          <div className="text-center pt-4 border-t border-stone-200 max-w-4xl mx-auto">
+            <button
+              onClick={() => {
+                setActiveTab('consolidate');
+                setEntryChoice('consolidate');
+              }}
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 px-5 py-2.5 rounded-xl border border-teal-200 transition-colors shadow-sm"
+            >
+              <ListFilter size={18} />
+              Acceder directamente a Consolidación de Pedidos ({orders.length} pedidos del profesorado) &rarr;
+            </button>
+          </div>
+        )}
+
+        {/* Modal de confirmación si ya tiene pedido guardado al pulsar "Iniciar nuevo pedido" */}
+        {showConfirmNewModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200">
+              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mb-4">
+                <AlertCircle size={26} />
+              </div>
+              <h3 className="text-lg font-bold text-stone-900 mb-2">
+                ¿Iniciar un nuevo pedido?
+              </h3>
+              <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
+                Ya tienes un pedido guardado en el sistema: <strong className="text-stone-900">"{userSavedOrder?.title}"</strong>.
+                <br /><br />
+                Todos los usuarios pueden tener <strong>únicamente un pedido guardado</strong>. Si inicias un nuevo pedido y lo guardas, tu pedido anterior será reemplazado.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2.5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmNewModal(false);
+                    handleContinuePrevious();
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                >
+                  Continuar con el anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={startFreshOrder}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+                >
+                  Sí, iniciar nuevo pedido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 max-w-7xl font-sans pb-28 relative z-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
-          <p className="text-sm text-stone-500 mt-0.5">
-            {activeTab === 'create' ? 'Configura tu pedido semanal' : 'Consolidación de pedidos para compras y economato'}
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEntryChoice(null)}
+            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-950 transition-colors flex items-center gap-1.5 text-xs font-bold shadow-sm"
+            title="Volver al menú de pedidos"
+          >
+            <ArrowLeft size={16} className="text-teal-600" />
+            <span className="hidden sm:inline">Menú de Pedidos</span>
+          </button>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
+            <p className="text-xs sm:text-sm text-stone-500 mt-0.5">
+              {activeTab === 'create' 
+                ? (editingOrderId ? 'Editando tu pedido guardado' : 'Configura tu pedido semanal') 
+                : 'Consolidación de pedidos para compras y economato'}
+            </p>
+          </div>
         </div>
 
         {/* Tab Switcher */}
@@ -510,49 +735,59 @@ export default function Orders() {
           {activeTab === 'create' ? (
             /* ================= CREATE ORDER VIEW ================= */
             <>
-              {/* MY SAVED ORDERS HISTORY (MOVED TO TOP) */}
-              {mySavedOrders.length > 0 && (
+              {/* TU PEDIDO GUARDADO (MÁXIMO 1 PERMITIDO POR USUARIO) */}
+              {userSavedOrder && (
                 <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
-                  <h3 className="text-sm font-bold text-stone-900 mb-2 uppercase tracking-wider flex items-center gap-2">
-                    <Calendar size={16} className="text-teal-600" />
-                    Mis Pedidos Guardados
-                  </h3>
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {mySavedOrders.map(order => (
-                      <div key={order.id} className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex justify-between items-start">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <h4 className="font-semibold text-stone-900 text-sm truncate">{order.title}</h4>
-                          <p className="text-[11px] text-stone-500 flex items-center gap-1.5 mt-1">
-                            <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                            <span>•</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
-                              {order.status === 'completed' ? 'Completado' : order.status === 'pending' ? 'Pendiente' : 'Guardado'}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingOrderId(order.id);
-                              setOrderItems(order.items);
-                              setOrderTitle(order.title);
-                              setActiveTab('create');
-                            }}
-                            className="text-xs text-teal-600 hover:bg-teal-50 font-bold px-2 py-1 rounded transition-colors"
-                            title="Cargar pedido para editar"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteOrder(order.id)}
-                            className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded"
-                            title="Eliminar pedido"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar size={15} className="text-teal-600" />
+                      Tu Pedido Guardado (1 permitido)
+                    </h3>
+                    <span className="text-[10px] bg-stone-100 text-stone-600 font-semibold px-2 py-0.5 rounded-full">
+                      Máx. 1 pedido
+                    </span>
+                  </div>
+                  <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex justify-between items-start">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h4 className="font-semibold text-stone-900 text-sm truncate">{userSavedOrder.title}</h4>
+                      <p className="text-[11px] text-stone-500 flex flex-wrap items-center gap-1.5 mt-1">
+                        <span>{new Date(userSavedOrder.createdAt).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{userSavedOrder.items.length} artículos</span>
+                        <span>•</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${userSavedOrder.status === 'completed' ? 'bg-green-100 text-green-800' : userSavedOrder.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
+                          {userSavedOrder.status === 'completed' ? 'Completado' : userSavedOrder.status === 'pending' ? 'Pendiente' : 'Guardado'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingOrderId(userSavedOrder.id);
+                          setOrderItems(userSavedOrder.items);
+                          setOrderTitle(userSavedOrder.title);
+                          setActiveTab('create');
+                        }}
+                        className="text-xs text-teal-600 hover:bg-teal-50 font-bold px-2 py-1 rounded transition-colors"
+                        title="Cargar pedido para editar"
+                      >
+                        {editingOrderId === userSavedOrder.id ? 'Editando' : 'Editar'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteOrder(userSavedOrder.id);
+                          if (editingOrderId === userSavedOrder.id) {
+                            setEditingOrderId(null);
+                            setOrderItems([]);
+                            setOrderTitle('');
+                          }
+                        }}
+                        className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Eliminar pedido"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

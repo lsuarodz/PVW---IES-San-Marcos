@@ -46,7 +46,7 @@ interface ErrorReport {
 
 export default function Admin() {
   // Obtenemos el usuario actual para verificar sus permisos
-  const { appUser } = useAuth();
+  const { appUser, quotaExceeded } = useAuth();
   const { showToast } = useToast();
   const { settings, ingredients, recipes, menus } = useData();
   
@@ -236,7 +236,10 @@ export default function Admin() {
         setUsers(usersData);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'users');
+        console.error('Error fetching users in Admin:', error);
+        if (!String((error as any)?.message || error).includes('Quota exceeded')) {
+          handleFirestoreError(error, OperationType.GET, 'users');
+        }
       }
     );
 
@@ -1029,8 +1032,32 @@ export default function Admin() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-stone-500">
-                  No hay usuarios registrados.
+                <td colSpan={7} className="px-6 py-8 text-center">
+                  {quotaExceeded ? (
+                    <div className="max-w-lg mx-auto p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left text-amber-900">
+                      <p className="font-bold flex items-center gap-2 text-sm text-amber-950 mb-1">
+                        <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                        Los usuarios NO han sido borrados
+                      </p>
+                      <p className="text-xs text-amber-800 leading-relaxed mb-3">
+                        Tu base de datos de Firestore ha superado el <strong>límite gratuito diario de lecturas (Plan Spark)</strong>. Por este motivo, Firebase rechaza temporalmente la consulta de usuarios y no puede mostrarlos en pantalla. Todos tus usuarios y registros siguen intactos y a salvo en Firebase.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <a 
+                          href="https://console.firebase.google.com/project/gen-lang-client-0075861035/firestore/databases/ai-studio-d9fb2651-5d32-4cf0-b074-7764b55fada1/data?openUpgradeDialog=true" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold bg-amber-200/80 hover:bg-amber-300 text-amber-900 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <ExternalLink size={14} />
+                          Ampliar cuota en Firebase Console
+                        </a>
+                        <span className="text-[11px] text-amber-700">Se restablece a las 00:00 PST</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-stone-500">No hay usuarios registrados.</span>
+                  )}
                 </td>
               </tr>
             )}

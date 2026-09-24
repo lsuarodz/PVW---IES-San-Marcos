@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 
 export default function Login() {
   // Obtenemos las funciones y estados del contexto de autenticación
-  const { login, user, appUser, loading, loginInProgress } = useAuth();
+  const { login, user, appUser, loading, loginInProgress, quotaExceeded } = useAuth();
   const { settings } = useData();
 
   // Mientras se comprueba si hay una sesión activa, mostramos un indicador de carga
@@ -26,8 +26,23 @@ export default function Login() {
           Plataforma colaborativa para la gestión de escandallos y menús.
         </p>
 
-        {/* Si el usuario se ha logueado con Google pero no está en nuestra base de datos, mostramos un error */}
-        {user && !appUser ? (
+        {/* Aviso si la cuota de Firestore se ha superado */}
+        {quotaExceeded ? (
+          <div className="bg-red-50 text-red-800 p-4 rounded-xl text-sm mb-6 border border-red-200 text-left">
+            <p className="font-bold text-red-900 mb-1">⚠️ Límite de cuota diaria alcanzado (Firestore)</p>
+            <p className="text-xs text-red-700 leading-relaxed mb-2">
+              Se ha alcanzado el límite gratuito diario de lecturas de la base de datos Firestore (Plan Spark). La cuota se restablecerá automáticamente mañana.
+            </p>
+            <a 
+              href="https://console.firebase.google.com/project/gen-lang-client-0075861035/firestore/databases/ai-studio-d9fb2651-5d32-4cf0-b074-7764b55fada1/data?openUpgradeDialog=true" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-block text-xs font-semibold text-red-900 underline hover:text-red-950"
+            >
+              Abrir Firebase Console para ampliar cuota (Plan Blaze) &rarr;
+            </a>
+          </div>
+        ) : user && !appUser ? (
           <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm mb-6 border border-amber-200">
             Tu cuenta ({user.email}) no está registrada. Por favor, contacta con tu tutor para que te dé acceso.
           </div>

@@ -40,6 +40,7 @@ export default function Layout() {
     setViewAsStudent, 
     commissionMode, 
     setCommissionMode, 
+    quotaExceeded,
     logout 
   } = useAuth();
   const { settings, users } = useData();
@@ -436,6 +437,21 @@ export default function Layout() {
 
       {/* Contenido principal (aquí se renderizan las páginas hijas según la ruta) */}
       <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0 pb-24 relative">
+        {quotaExceeded && (
+          <div className="bg-red-600 text-white px-4 py-2.5 text-xs sm:text-sm font-medium flex flex-wrap items-center justify-between gap-3 shadow-md sticky top-0 z-40 print:hidden">
+            <span>
+              ⚠️ <strong>Límite de cuota diaria alcanzado en Firestore (Plan Spark).</strong> La cuota gratuita de lecturas se restablece automáticamente cada día.
+            </span>
+            <a 
+              href="https://console.firebase.google.com/project/gen-lang-client-0075861035/firestore/databases/ai-studio-d9fb2651-5d32-4cf0-b074-7764b55fada1/data?openUpgradeDialog=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white text-red-700 px-3 py-1 rounded font-bold hover:bg-stone-100 whitespace-nowrap text-xs transition-colors"
+            >
+              Ampliar cuota en Firebase Console
+            </a>
+          </div>
+        )}
         <Outlet />
       </main>
 
