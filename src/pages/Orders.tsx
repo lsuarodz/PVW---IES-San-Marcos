@@ -737,87 +737,185 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* ==================== LEFT COLUMN ==================== */}
-        <div className="lg:col-span-5 space-y-4">
-          {activeTab === 'create' ? (
-            /* ================= CREATE ORDER VIEW ================= */
-            <>
-              {/* TU PEDIDO GUARDADO (MÁXIMO 1 PERMITIDO POR USUARIO) */}
-              {userSavedOrder && (
-                <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Calendar size={15} className="text-teal-600" />
-                      Tu Pedido Guardado (1 permitido)
-                    </h3>
-                    <span className="text-[10px] bg-stone-100 text-stone-600 font-semibold px-2 py-0.5 rounded-full">
-                      Máx. 1 pedido
-                    </span>
-                  </div>
-                  <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex justify-between items-start">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h4 className="font-semibold text-stone-900 text-sm truncate">{userSavedOrder.title}</h4>
-                      <p className="text-[11px] text-stone-500 flex flex-wrap items-center gap-1.5 mt-1">
-                        <span>{new Date(userSavedOrder.createdAt).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <span>{userSavedOrder.items.length} artículos</span>
-                        <span>•</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${userSavedOrder.status === 'completed' ? 'bg-green-100 text-green-800' : userSavedOrder.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
-                          {userSavedOrder.status === 'completed' ? 'Completado' : userSavedOrder.status === 'pending' ? 'Pendiente' : 'Guardado'}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingOrderId(userSavedOrder.id);
-                          setOrderItems(userSavedOrder.items);
-                          setOrderTitle(userSavedOrder.title);
-                          setActiveTab('create');
-                        }}
-                        className="text-xs text-teal-600 hover:bg-teal-50 font-bold px-2 py-1 rounded transition-colors"
-                        title="Cargar pedido para editar"
-                      >
-                        {editingOrderId === userSavedOrder.id ? 'Editando' : 'Editar'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDeleteOrder(userSavedOrder.id);
-                          if (editingOrderId === userSavedOrder.id) {
-                            setEditingOrderId(null);
-                            setOrderItems([]);
-                            setOrderTitle('');
-                          }
-                        }}
-                        className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded"
-                        title="Eliminar pedido"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
-                <h2 className="text-base font-bold text-stone-900 mb-3 flex items-center gap-2 border-b border-stone-100 pb-2">
-                  <ShoppingCart size={18} className="text-teal-600" />
-                  {editingOrderId ? 'Editando Pedido' : 'Nuevo Pedido'}
-                </h2>
-
-                <div className="mb-3">
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Título o Identificador del Pedido</label>
+      {activeTab === 'create' ? (
+        /* ================= CREATE / EDIT ORDER VIEW ================= */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Columna Izquierda: Añadir al Pedido (Buscador) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+                <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+                  <PlusCircle size={17} className="text-teal-600" />
+                  Añadir al Pedido
+                </h3>
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={14} />
                   <input
                     type="text"
-                    placeholder="PTU RA1..."
-                    value={orderTitle}
-                    onChange={(e) => setOrderTitle(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    placeholder="Buscar recetas, menús..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
                   />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded-full"
+                      title="Limpiar búsqueda"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
-                
-                <div className="space-y-1.5 mb-4 max-h-[350px] overflow-y-auto pr-1">
+              </div>
+
+              {search.trim() !== '' ? (
+                <div className="mt-3 pt-3 border-t border-stone-100 max-h-[480px] overflow-y-auto space-y-3 pr-1">
+                  {filteredMenus.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Menús</div>
+                      <div className="space-y-1">
+                        {filteredMenus.map(menu => (
+                          <div key={menu.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800">{menu.nameES}</span>
+                            <button
+                              onClick={() => addOrderItem(menu.id, 'menu')}
+                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
+                              title="Añadir menú"
+                            >
+                              <Plus size={14} />
+                              Añadir
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {filteredRecipes.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Recetas</div>
+                      <div className="space-y-1">
+                        {filteredRecipes.map(recipe => (
+                          <div key={recipe.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800">{recipe.nameES}</span>
+                            <button
+                              onClick={() => addOrderItem(recipe.id, 'recipe')}
+                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
+                              title="Añadir receta"
+                            >
+                              <Plus size={14} />
+                              Añadir
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredIngredients.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Ingredientes Directos</div>
+                      <div className="space-y-1">
+                        {filteredIngredients.slice(0, 30).map(ing => (
+                          <div key={ing.id} className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                            <span className="font-semibold text-stone-800">
+                              {ing.nameES} <span className="text-[11px] text-stone-400 font-mono">({ing.unit})</span>
+                            </span>
+                            <button
+                              onClick={() => addOrderItem(ing.id, 'ingredient')}
+                              className="text-teal-600 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold text-xs"
+                              title="Añadir ingrediente"
+                            >
+                              <Plus size={14} />
+                              Añadir
+                            </button>
+                          </div>
+                        ))}
+                        {filteredIngredients.length > 30 && (
+                          <div className="text-center text-[10px] text-stone-400 py-1 font-mono">
+                            Escribe más para filtrar entre los {filteredIngredients.length} ingredientes restantes...
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
+                    <div className="text-center py-6 text-stone-400 text-xs">
+                      No se encontraron resultados para "{search}".
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-10 px-4 border-2 border-dashed border-stone-100 rounded-xl bg-stone-50/50">
+                  <Search size={28} className="mx-auto text-stone-300 mb-2" />
+                  <p className="text-xs font-semibold text-stone-700">Buscar para añadir</p>
+                  <p className="text-[11px] text-stone-400 mt-0.5 max-w-xs mx-auto">
+                    Escribe arriba para encontrar recetas, menús o ingredientes e incorporarlos a tu pedido.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Columna Derecha: Formulario del Pedido */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-3">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-teal-600" />
+                  <h2 className="text-base font-bold text-stone-900">
+                    {editingOrderId ? 'Editando Pedido' : 'Nuevo Pedido'}
+                  </h2>
+                  {editingOrderId && (
+                    <span className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Pedido Activo
+                    </span>
+                  )}
+                </div>
+                {editingOrderId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteOrder(editingOrderId);
+                      setEditingOrderId(null);
+                      setOrderItems([]);
+                      setOrderTitle('');
+                      setEntryChoice(null);
+                    }}
+                    className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium"
+                    title="Eliminar este pedido guardado"
+                  >
+                    <Trash2 size={13} />
+                    <span>Eliminar pedido</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="mb-3.5">
+                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">
+                  Título o Identificador del Pedido
+                </label>
+                <input
+                  type="text"
+                  placeholder="PTU RA1..."
+                  value={orderTitle}
+                  onChange={(e) => setOrderTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium"
+                />
+              </div>
+
+              {orderItems.length === 0 ? (
+                <div className="text-center py-12 px-4 border-2 border-dashed border-stone-200 rounded-xl bg-stone-50/60 mb-4">
+                  <ShoppingCart size={32} className="mx-auto text-stone-300 mb-2" />
+                  <p className="text-sm font-semibold text-stone-700">El pedido está vacío</p>
+                  <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+                    Busca recetas, menús o ingredientes en el panel izquierdo y pulsa "Añadir" para agregarlos a tu pedido.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 mb-4 max-h-[460px] overflow-y-auto pr-1">
                   {orderItems.map(item => {
                     const isRecipe = item.type === 'recipe';
                     const isMenu = item.type === 'menu';
@@ -829,7 +927,7 @@ export default function Orders() {
                         : ingredients.find(i => i.id === item.id);
                     if (!data) return null;
                     return (
-                      <div key={`${item.type}-${item.id}`} className="flex items-center gap-2 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
+                      <div key={`${item.type}-${item.id}`} className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
                         <div className="flex-1 min-w-0 text-sm flex items-center gap-1.5">
                           <span className="font-semibold text-stone-900 truncate">
                             {isIngredient ? (data as Ingredient).nameES : (data as Recipe).nameES}
@@ -873,150 +971,54 @@ export default function Orders() {
                     );
                   })}
                 </div>
+              )}
 
-                {orderItems.length > 0 && (
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
-                    {editingOrderId && (
-                      <button
-                        onClick={() => {
-                          setEditingOrderId(null);
-                          setOrderItems([]);
-                          setOrderTitle('');
-                        }}
-                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-1.5 px-3 rounded-lg transition-colors text-xs"
-                      >
-                        Cancelar Edición
-                      </button>
-                    )}
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-100">
+                <span className="text-xs text-stone-500 font-medium">
+                  {orderItems.length} {orderItems.length === 1 ? 'artículo' : 'artículos'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {editingOrderId && (
                     <button
-                      onClick={() => handleSaveOrder(true)}
-                      disabled={isSaving}
-                      className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold py-1.5 px-3.5 rounded-lg border border-teal-200 transition-colors text-xs disabled:opacity-50 flex items-center gap-1.5"
+                      onClick={() => {
+                        setEditingOrderId(null);
+                        setOrderItems([]);
+                        setOrderTitle('');
+                        setEntryChoice(null);
+                      }}
+                      className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-1.5 px-3 rounded-lg transition-colors text-xs"
                     >
-                      {isSaving ? '...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar')}
+                      Cerrar
                     </button>
-                    <button
-                      onClick={() => handleSaveOrder(false)}
-                      disabled={isSaving}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {isSaving ? 'Enviando...' : 'Enviar Pedido'}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* SEARCH RECIPES, MENUS & DIRECT INGREDIENTS */}
-              <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <h3 className="text-xs sm:text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                    <PlusCircle size={16} className="text-teal-600" />
-                    Añadir al Pedido
-                  </h3>
-                  <div className="relative flex-1 sm:max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={14} />
-                    <input
-                      type="text"
-                      placeholder="Buscar recetas, menús..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
-                    />
-                    {search && (
+                  )}
+                  {orderItems.length > 0 && (
+                    <>
                       <button
-                        onClick={() => setSearch('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded-full"
-                        title="Limpiar búsqueda"
+                        onClick={() => handleSaveOrder(true)}
+                        disabled={isSaving}
+                        className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold py-1.5 px-3.5 rounded-lg border border-teal-200 transition-colors text-xs disabled:opacity-50 flex items-center gap-1.5"
                       >
-                        <X size={12} />
+                        {isSaving ? '...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar Borrador')}
                       </button>
-                    )}
-                  </div>
+                      <button
+                        onClick={() => handleSaveOrder(false)}
+                        disabled={isSaving}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {isSaving ? 'Enviando...' : 'Enviar Pedido'}
+                      </button>
+                    </>
+                  )}
                 </div>
-
-                {search.trim() !== '' && (
-                  <div className="mt-3 pt-3 border-t border-stone-100 max-h-72 overflow-y-auto space-y-3 pr-1">
-                    {filteredMenus.length > 0 && (
-                      <div>
-                        <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Menús</div>
-                        <div className="space-y-1">
-                          {filteredMenus.map(menu => (
-                            <div key={menu.id} className="flex justify-between items-center p-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                              <span className="font-medium text-stone-700">{menu.nameES}</span>
-                              <button
-                                onClick={() => addOrderItem(menu.id, 'menu')}
-                                className="text-teal-600 hover:bg-teal-50 p-1 rounded-md transition-colors flex items-center gap-1 font-semibold"
-                                title="Añadir menú"
-                              >
-                                <Plus size={14} />
-                                Añadir
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {filteredRecipes.length > 0 && (
-                      <div>
-                        <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Recetas</div>
-                        <div className="space-y-1">
-                          {filteredRecipes.map(recipe => (
-                            <div key={recipe.id} className="flex justify-between items-center p-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                              <span className="font-medium text-stone-700">{recipe.nameES}</span>
-                              <button
-                                onClick={() => addOrderItem(recipe.id, 'recipe')}
-                                className="text-teal-600 hover:bg-teal-50 p-1 rounded-md transition-colors flex items-center gap-1 font-semibold"
-                                title="Añadir receta"
-                              >
-                                <Plus size={14} />
-                                Añadir
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {filteredIngredients.length > 0 && (
-                      <div>
-                        <div className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 px-1">Ingredientes Directos</div>
-                        <div className="space-y-1">
-                          {filteredIngredients.slice(0, 30).map(ing => (
-                            <div key={ing.id} className="flex justify-between items-center p-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                              <span className="font-medium text-stone-700">
-                                {ing.nameES} <span className="text-[11px] text-stone-400 font-mono">({ing.unit})</span>
-                              </span>
-                              <button
-                                onClick={() => addOrderItem(ing.id, 'ingredient')}
-                                className="text-teal-600 hover:bg-teal-50 p-1 rounded-md transition-colors flex items-center gap-1 font-semibold"
-                                title="Añadir ingrediente"
-                              >
-                                <Plus size={14} />
-                                Añadir
-                              </button>
-                            </div>
-                          ))}
-                          {filteredIngredients.length > 30 && (
-                            <div className="text-center text-[10px] text-stone-400 py-1 font-mono">
-                              Escribe más para filtrar entre los {filteredIngredients.length} ingredientes restantes...
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
-                      <div className="text-center py-3 text-stone-400 text-xs">
-                        No se encontraron resultados para "{search}".
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-            </>
-          ) : (
-            /* ================= CONSOLIDATE VIEW ================= */
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ================= CONSOLIDATE VIEW ================= */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* ==================== LEFT COLUMN: PEDIDOS DEL PROFESORADO ==================== */}
+          <div className="lg:col-span-5 space-y-4">
             <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4 space-y-3">
               <div className="flex justify-between items-center border-b border-stone-100 pb-2">
                 <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
@@ -1118,27 +1120,25 @@ export default function Orders() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* ==================== RIGHT COLUMN ==================== */}
-        <div className="lg:col-span-7">
-          <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 overflow-hidden sticky top-8">
-            <div className="p-4 border-b border-stone-100 bg-stone-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Calculator size={20} className="text-teal-600" />
-                <div>
-                  <h2 className="text-base font-bold text-stone-900">
-                    {activeTab === 'create' ? 'Mi Lista de la Compra' : 'Lista de Compra Consolidada'}
-                  </h2>
-                  <p className="text-xs text-stone-500">
-                    {activeTab === 'create' ? 'Ingredientes para tu pedido' : `Ingredientes combinados de ${selectedOrderIds.length} pedidos`}
-                  </p>
+          {/* ==================== RIGHT COLUMN: LISTA DE COMPRA CONSOLIDADA ==================== */}
+          <div className="lg:col-span-7">
+            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 overflow-hidden sticky top-8">
+              <div className="p-4 border-b border-stone-100 bg-stone-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Calculator size={20} className="text-teal-600" />
+                  <div>
+                    <h2 className="text-base font-bold text-stone-900">
+                      Lista de Compra Consolidada
+                    </h2>
+                    <p className="text-xs text-stone-500">
+                      {`Ingredientes combinados de ${selectedOrderIds.length} pedidos`}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end">
-                {activeTab === 'consolidate' && (
+                <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end">
                   <div className="flex items-center gap-2 mr-2 border-r border-stone-200 pr-4">
                     <select
                       value={groupBy}
@@ -1150,177 +1150,177 @@ export default function Orders() {
                       <option value="ingredient">Ordenado por Lista</option>
                     </select>
                   </div>
-                )}
-                <button
-                  onClick={exportPDF}
-                  disabled={isPrinting || aggregatedList.length === 0}
-                  className="px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-teal-700 bg-white hover:bg-stone-50 rounded-lg border border-stone-200 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Descargar PDF Consolidado de Compra"
-                >
-                  <Printer size={16} className="text-teal-600" />
-                  <span>{isPrinting ? 'Generando PDF...' : 'Imprimir / PDF'}</span>
-                </button>
-                <div className="text-right">
-                  <div className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
-                  <div className="text-xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
+                  <button
+                    onClick={exportPDF}
+                    disabled={isPrinting || aggregatedList.length === 0}
+                    className="px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-teal-700 bg-white hover:bg-stone-50 rounded-lg border border-stone-200 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Descargar PDF Consolidado de Compra"
+                  >
+                    <Printer size={16} className="text-teal-600" />
+                    <span>{isPrinting ? 'Generando PDF...' : 'Imprimir / PDF'}</span>
+                  </button>
+                  <div className="text-right">
+                    <div className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
+                    <div className="text-xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-0 max-h-[600px] overflow-y-auto">
-              {aggregatedList.length > 0 ? (
-                <>
-                  {groupBy === 'provider' || activeTab === 'create' ? (
-                    /* ================= GROUPED BY PROVIDER VIEW ================= */
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-stone-50 border-b border-stone-200">
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Coste Est.</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {sortedProviders.map(provider => {
-                          const providerItems = groupedIngredients[provider];
-                          const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
+              <div className="p-0 max-h-[600px] overflow-y-auto">
+                {aggregatedList.length > 0 ? (
+                  <>
+                    {groupBy === 'provider' ? (
+                      /* ================= GROUPED BY PROVIDER VIEW ================= */
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200">
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Coste Est.</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {sortedProviders.map(provider => {
+                            const providerItems = groupedIngredients[provider];
+                            const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
 
-                          return (
-                            <React.Fragment key={provider}>
-                              <tr className="bg-stone-100/90 border-y border-stone-200">
-                                <td colSpan={2} className="px-6 py-2 text-xs font-bold text-stone-800 uppercase tracking-wider">
-                                  {provider} ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
-                                </td>
-                                <td className="px-6 py-2 text-xs font-bold text-stone-900 text-right">
-                                  Subtotal: {providerTotal.toFixed(2)} €
-                                </td>
-                              </tr>
-                              {providerItems.map((item) => {
-                                const teacherBreakdown = Object.entries(item.byTeacher || {})
-                                  .map(([t, q]) => `${formatTeacherName(t)}: ${q % 1 === 0 ? q : q.toFixed(2)} ${item.unit}`)
-                                  .join(' · ');
+                            return (
+                              <React.Fragment key={provider}>
+                                <tr className="bg-stone-100/90 border-y border-stone-200">
+                                  <td colSpan={2} className="px-6 py-2 text-xs font-bold text-stone-800 uppercase tracking-wider">
+                                    {provider} ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
+                                  </td>
+                                  <td className="px-6 py-2 text-xs font-bold text-stone-900 text-right">
+                                    Subtotal: {providerTotal.toFixed(2)} €
+                                  </td>
+                                </tr>
+                                {providerItems.map((item) => {
+                                  const teacherBreakdown = Object.entries(item.byTeacher || {})
+                                    .map(([t, q]) => `${formatTeacherName(t)}: ${q % 1 === 0 ? q : q.toFixed(2)} ${item.unit}`)
+                                    .join(' · ');
 
-                                return (
-                                  <tr key={item.ingredientId} className="hover:bg-stone-50/50 transition-colors">
-                                    <td className="px-6 py-2.5 pl-8">
+                                  return (
+                                    <tr key={item.ingredientId} className="hover:bg-stone-50/50 transition-colors">
+                                      <td className="px-6 py-2.5 pl-8">
+                                        <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                                        {teacherBreakdown && (
+                                          <div className="text-xs text-stone-500 mt-0.5">
+                                            Solicitado por: <span className="text-stone-700">{teacherBreakdown}</span>
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-2.5 text-right">
+                                        <div className="text-sm font-bold text-stone-900">
+                                          {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
+                                        </div>
+                                        {item.costPerUnit > 0 && (
+                                          <div className="text-[11px] text-stone-400">
+                                            {item.costPerUnit.toFixed(2)} €/{item.unit}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-2.5 text-right">
+                                        <div className="text-sm text-stone-900 font-bold">
+                                          {item.totalCost.toFixed(2)} €
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : groupBy === 'teacher' ? (
+                      /* ================= GROUPED BY TEACHER VIEW ================= */
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200">
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Proveedor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {sortedTeachers.map(teacher => {
+                            const parts = teacher.split(' (Justificación:');
+                            const nameOnly = parts[0];
+                            const formattedName = formatTeacherName(nameOnly);
+                            const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
+                            return (
+                              <React.Fragment key={teacher}>
+                                <tr className="bg-teal-50 border-y border-teal-100">
+                                  <td colSpan={3} className="px-6 py-1.5 text-xs font-bold text-teal-900 uppercase tracking-wider">
+                                    <span style={{ fontSize: '75%' }}>{formattedName}</span>
+                                    {justification && <span className="text-stone-500 italic font-normal ml-2">{justification}</span>}
+                                  </td>
+                                </tr>
+                                {groupedByTeacher[teacher].map((item, idx) => (
+                                  <tr key={`${teacher}-${item.ingredientId}-${idx}`} className="hover:bg-stone-50/30 transition-colors">
+                                    <td className="px-6 py-3 pl-8">
                                       <div className="text-sm font-semibold text-stone-900">{item.name}</div>
-                                      {activeTab === 'consolidate' && teacherBreakdown && (
-                                        <div className="text-xs text-stone-500 mt-0.5">
-                                          Solicitado por: <span className="text-stone-700">{teacherBreakdown}</span>
-                                        </div>
-                                      )}
                                     </td>
-                                    <td className="px-6 py-2.5 text-right">
+                                    <td className="px-6 py-3 text-right">
                                       <div className="text-sm font-bold text-stone-900">
-                                        {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
+                                        {item.quantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
                                       </div>
-                                      {item.costPerUnit > 0 && (
-                                        <div className="text-[11px] text-stone-400">
-                                          {item.costPerUnit.toFixed(2)} €/{item.unit}
-                                        </div>
-                                      )}
                                     </td>
-                                    <td className="px-6 py-2.5 text-right">
-                                      <div className="text-sm text-stone-900 font-bold">
-                                        {item.totalCost.toFixed(2)} €
+                                    <td className="px-6 py-3 text-right">
+                                      <div className="text-xs text-stone-500 italic">
+                                        {item.provider || 'Sin proveedor'}
                                       </div>
                                     </td>
                                   </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : groupBy === 'teacher' ? (
-                    /* ================= GROUPED BY TEACHER VIEW ================= */
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-stone-50 border-b border-stone-200">
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Proveedor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {sortedTeachers.map(teacher => {
-                          const parts = teacher.split(' (Justificación:');
-                          const nameOnly = parts[0];
-                          const formattedName = formatTeacherName(nameOnly);
-                          const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
-                          return (
-                            <React.Fragment key={teacher}>
-                              <tr className="bg-teal-50 border-y border-teal-100">
-                                <td colSpan={3} className="px-6 py-1.5 text-xs font-bold text-teal-900 uppercase tracking-wider">
-                                  <span style={{ fontSize: '75%' }}>{formattedName}</span>
-                                  {justification && <span className="text-stone-500 italic font-normal ml-2">{justification}</span>}
-                                </td>
-                              </tr>
-                              {groupedByTeacher[teacher].map((item, idx) => (
-                                <tr key={`${teacher}-${item.ingredientId}-${idx}`} className="hover:bg-stone-50/30 transition-colors">
-                                  <td className="px-6 py-3 pl-8">
-                                    <div className="text-sm font-semibold text-stone-900">{item.name}</div>
-                                  </td>
-                                  <td className="px-6 py-3 text-right">
-                                    <div className="text-sm font-bold text-stone-900">
-                                      {item.quantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-3 text-right">
-                                    <div className="text-xs text-stone-500 italic">
-                                      {item.provider || 'Sin proveedor'}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    /* ================= GROUPED BY INGREDIENT VIEW ================= */
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-stone-50 border-b border-stone-200">
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
-                          <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Coste Est.</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {aggregatedList.map((item) => (
-                          <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors bg-white">
-                            <td className="px-6 py-3 pl-8">
-                              <div className="text-sm font-semibold text-stone-900">{item.name}</div>
-                            </td>
-                            <td className="px-6 py-3 text-right">
-                              <div className="text-sm font-bold text-stone-900">
-                                {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-3 text-right">
-                              <div className="text-sm text-stone-600 font-medium">
-                                {item.totalCost.toFixed(2)} €
-                              </div>
-                            </td>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      /* ================= GROUPED BY INGREDIENT VIEW ================= */
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200">
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingrediente</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Cantidad</th>
+                            <th className="px-6 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wider text-right">Coste Est.</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </>
-              ) : (
-                <div className="p-16 text-center text-stone-500">
-                  <Calculator size={48} className=" text-stone-300 mb-4" />
-                  <p className="text-sm font-medium">Añade o selecciona pedidos para ver la lista de la compra detallada.</p>
-                </div>
-              )}
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {aggregatedList.map((item) => (
+                            <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors bg-white">
+                              <td className="px-6 py-3 pl-8">
+                                <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                <div className="text-sm font-bold text-stone-900">
+                                  {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                <div className="text-sm text-stone-600 font-medium">
+                                  {item.totalCost.toFixed(2)} €
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-16 text-center text-stone-500">
+                    <Calculator size={48} className=" text-stone-300 mb-4" />
+                    <p className="text-sm font-medium">Selecciona pedidos de la lista para ver la consolidación detallada.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ==================== PRINT LAYOUT (PDF & PRINT) ==================== */}
       {isPrinting && (
