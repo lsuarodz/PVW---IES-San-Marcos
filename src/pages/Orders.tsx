@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle } from 'lucide-react';
+import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
 import { Recipe, Ingredient, Order, OrderItem } from '../types';
@@ -526,124 +527,109 @@ export default function Orders() {
   // ==================== INITIAL ENTRY SELECTION MENU ====================
   if (entryChoice === null) {
     return (
-      <div className="p-4 sm:p-6 max-w-5xl mx-auto font-sans pb-28 relative z-10">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-6 sm:p-10 max-w-5xl mx-auto text-center font-sans pb-24 relative z-10">
         {/* Header */}
-        <div className="text-center mb-8 pt-4">
-          <div className="inline-flex p-3.5 bg-teal-50 text-teal-700 rounded-2xl mb-3 shadow-inner border border-teal-100">
-            <ShoppingCart size={36} />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">Gestión de Pedidos</h1>
-          <p className="text-stone-500 mt-2 text-sm sm:text-base max-w-lg mx-auto">
-            Configuración y envío de comandas para compras y economato. Cada usuario puede mantener <strong>un único pedido activo</strong> guardado.
+        <div className="mb-10 max-w-xl">
+          <h1 className="text-3xl sm:text-5xl font-bold text-stone-800 mb-3 font-serif tracking-tight">
+            Gestión de Pedidos
+          </h1>
+          <p className="text-stone-500 text-sm sm:text-base leading-relaxed">
+            Selecciona la opción con la que deseas trabajar. Recuerda que cada usuario mantiene un único pedido activo.
           </p>
         </div>
 
-        {/* 2 Main Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-          {/* Card 1: Continuar con el pedido anterior */}
+        {/* Action Buttons: MenuTile style (similar to Home) */}
+        <div className="flex flex-wrap items-start justify-center gap-8 sm:gap-10 md:gap-14 mb-8">
+          {/* Botón 1: Continuar con el pedido anterior */}
           <button
             type="button"
-            onClick={handleContinuePrevious}
-            disabled={!userSavedOrder}
-            className={`p-6 sm:p-7 rounded-2xl border-2 text-left transition-all flex flex-col justify-between group relative overflow-hidden text-stone-800 ${
+            onClick={() => {
+              if (!userSavedOrder) {
+                showToast('No tienes ningún pedido guardado anteriormente.', 'info');
+              } else {
+                handleContinuePrevious();
+              }
+            }}
+            className={`group flex flex-col items-center text-center transition-all focus:outline-none ${
               userSavedOrder
-                ? 'bg-white border-teal-500 hover:border-teal-600 hover:shadow-xl cursor-pointer ring-4 ring-teal-50/50'
-                : 'bg-stone-50 border-stone-200 opacity-60 cursor-not-allowed'
+                ? 'cursor-pointer hover:-translate-y-1'
+                : 'opacity-40 cursor-not-allowed'
             }`}
+            title={userSavedOrder ? `Continuar con "${userSavedOrder.title}"` : 'No tienes ningún pedido guardado'}
           >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3.5 rounded-2xl ${userSavedOrder ? 'bg-teal-100 text-teal-800 group-hover:scale-110' : 'bg-stone-200 text-stone-500'} transition-transform`}>
-                  <FolderOpen size={30} />
-                </div>
-                {userSavedOrder ? (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                    Pedido guardado
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-stone-200 text-stone-500">
-                    Sin pedido previo
-                  </span>
-                )}
-              </div>
-              <h2 className="text-xl font-bold text-stone-900 mb-2 group-hover:text-teal-700 transition-colors">
-                Continuar con el pedido anterior
-              </h2>
-              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed mb-6">
-                Entra directamente a la sección de pedidos con tu comanda guardada abierta para editarla, revisar ingredientes o añadir nuevos productos.
-              </p>
-            </div>
-
+            <MenuTile
+              label="CONTINUAR"
+              icon="anterior"
+              className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+            />
+            <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+              Continuar pedido
+            </span>
+            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+              Editar pedido anterior
+            </span>
             {userSavedOrder ? (
-              <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs text-stone-700">
-                <div className="font-bold text-stone-900 truncate mb-1">
-                  📦 {userSavedOrder.title}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-stone-500 mt-1">
-                  <span>{userSavedOrder.items.length} artículos</span>
-                  <span className="capitalize">{new Date(userSavedOrder.createdAt).toLocaleDateString('es-ES')}</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${userSavedOrder.status === 'completed' ? 'bg-green-100 text-green-800' : userSavedOrder.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-700'}`}>
-                    {userSavedOrder.status === 'completed' ? 'Completado' : userSavedOrder.status === 'pending' ? 'Pendiente' : 'Guardado'}
-                  </span>
-                </div>
-              </div>
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                1 activo
+              </span>
             ) : (
-              <div className="text-xs text-stone-400 italic bg-stone-100 p-3 rounded-xl border border-stone-200">
-                No tienes ningún pedido guardado en este momento.
-              </div>
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-400">
+                Sin pedido
+              </span>
             )}
           </button>
 
-          {/* Card 2: Iniciar nuevo pedido */}
+          {/* Botón 2: Iniciar nuevo pedido */}
           <button
             type="button"
             onClick={handleStartNewOrderClick}
-            className="p-6 sm:p-7 rounded-2xl border-2 border-stone-200 bg-white hover:border-teal-500 hover:shadow-xl transition-all flex flex-col justify-between text-left group cursor-pointer text-stone-800"
+            className="group flex flex-col items-center text-center transition-all focus:outline-none cursor-pointer hover:-translate-y-1"
+            title="Iniciar nuevo pedido desde cero"
           >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3.5 rounded-2xl bg-stone-100 text-stone-700 group-hover:scale-110 group-hover:bg-teal-100 group-hover:text-teal-800 transition-all">
-                  <PlusCircle size={30} />
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-100">
-                  Nuevo
-                </span>
-              </div>
-              <h2 className="text-xl font-bold text-stone-900 mb-2 group-hover:text-teal-700 transition-colors">
-                Iniciar nuevo pedido
-              </h2>
-              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed mb-6">
-                Entra a la sección de pedidos para preparar una nueva comanda desde cero seleccionando recetas, menús o ingredientes individuales.
-              </p>
-            </div>
-
-            {userSavedOrder ? (
-              <div className="bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-[11px] text-amber-900">
-                ⚠️ <strong>Aviso de pedido único:</strong> Ya tienes un pedido guardado. Al guardar este nuevo pedido, sustituirá al anterior para mantener 1 pedido por usuario.
-              </div>
-            ) : (
-              <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs text-stone-500">
-                Comenzarás con una comanda vacía para confeccionar tu pedido.
-              </div>
-            )}
+            <MenuTile
+              label="NUEVO"
+              icon="nuevo"
+              className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+            />
+            <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+              Nuevo pedido
+            </span>
+            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+              Iniciar desde cero
+            </span>
+            <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-600 border border-stone-200">
+              Crear
+            </span>
           </button>
-        </div>
 
-        {/* Quick link for Admin/Compras to Consolidate */}
-        {canConsolidate && (
-          <div className="text-center pt-4 border-t border-stone-200 max-w-4xl mx-auto">
+          {/* Botón 3: Consolidación de pedidos (SOLO visible para Administrador y Compras) */}
+          {canConsolidate && (
             <button
+              type="button"
               onClick={() => {
                 setActiveTab('consolidate');
                 setEntryChoice('consolidate');
               }}
-              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 px-5 py-2.5 rounded-xl border border-teal-200 transition-colors shadow-sm"
+              className="group flex flex-col items-center text-center transition-all focus:outline-none cursor-pointer hover:-translate-y-1"
+              title="Consolidación de pedidos por proveedor o docente"
             >
-              <ListFilter size={18} />
-              Acceder directamente a Consolidación de Pedidos ({orders.length} pedidos del profesorado) &rarr;
+              <MenuTile
+                label="CONSOLIDAR"
+                icon="consolidar"
+                className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+              />
+              <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+                Consolidación
+              </span>
+              <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+                Compras y economato
+              </span>
+              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
+              </span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Modal de confirmación si ya tiene pedido guardado al pulsar "Iniciar nuevo pedido" */}
         {showConfirmNewModal && (

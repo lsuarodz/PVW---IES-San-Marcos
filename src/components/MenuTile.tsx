@@ -8,7 +8,10 @@ export type MenuTileIconType =
   | 'proveedores' 
   | 'ingredientes' 
   | 'menus'
-  | 'trabajo';
+  | 'trabajo'
+  | 'anterior'
+  | 'nuevo'
+  | 'consolidar';
 
 export interface MenuTileProps {
   label: string;
@@ -168,6 +171,56 @@ export default function MenuTile({
             <path d="M9 2h6v4H9z" />
             <path d="M9 10h6" />
             <path d="M9 14h4" />
+          </g>
+        );
+
+      case 'anterior':
+        return (
+          <g
+            transform="translate(29, 18) scale(1.75)"
+            stroke={iconColor}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          >
+            {/* Folder / previous order */}
+            <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+            <path d="M2 10h20" />
+          </g>
+        );
+
+      case 'nuevo':
+        return (
+          <g
+            transform="translate(29, 18) scale(1.75)"
+            stroke={iconColor}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          >
+            {/* Plus in circle */}
+            <circle cx="12" cy="12" r="9" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </g>
+        );
+
+      case 'consolidar':
+        return (
+          <g
+            transform="translate(29, 18) scale(1.75)"
+            stroke={iconColor}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          >
+            {/* Layers / Consolidation */}
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
           </g>
         );
 
