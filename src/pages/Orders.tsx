@@ -1173,32 +1173,56 @@ export default function Orders() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                        {sortedProviders.map(provider => (
-                          <React.Fragment key={provider}>
-                            <tr className="bg-stone-100/60 border-y border-stone-200/80">
-                              <td colSpan={3} className="px-6 py-1.5 text-xs font-bold text-stone-700 uppercase tracking-wider">
-                                {provider}
-                              </td>
-                            </tr>
-                            {groupedIngredients[provider].map((item) => (
-                              <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors">
-                                <td className="px-6 py-3 pl-8">
-                                  <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                        {sortedProviders.map(provider => {
+                          const providerItems = groupedIngredients[provider];
+                          const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
+
+                          return (
+                            <React.Fragment key={provider}>
+                              <tr className="bg-stone-100/90 border-y border-stone-200">
+                                <td colSpan={2} className="px-6 py-2 text-xs font-bold text-stone-800 uppercase tracking-wider">
+                                  {provider} ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
                                 </td>
-                                <td className="px-6 py-3 text-right">
-                                  <div className="text-sm font-bold text-stone-900">
-                                    {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-3 text-right">
-                                  <div className="text-sm text-stone-600 font-medium">
-                                    {item.totalCost.toFixed(2)} €
-                                  </div>
+                                <td className="px-6 py-2 text-xs font-bold text-stone-900 text-right">
+                                  Subtotal: {providerTotal.toFixed(2)} €
                                 </td>
                               </tr>
-                            ))}
-                          </React.Fragment>
-                        ))}
+                              {providerItems.map((item) => {
+                                const teacherBreakdown = Object.entries(item.byTeacher || {})
+                                  .map(([t, q]) => `${formatTeacherName(t)}: ${q % 1 === 0 ? q : q.toFixed(2)} ${item.unit}`)
+                                  .join(' · ');
+
+                                return (
+                                  <tr key={item.ingredientId} className="hover:bg-stone-50/50 transition-colors">
+                                    <td className="px-6 py-2.5 pl-8">
+                                      <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                                      {activeTab === 'consolidate' && teacherBreakdown && (
+                                        <div className="text-xs text-stone-500 mt-0.5">
+                                          Solicitado por: <span className="text-stone-700">{teacherBreakdown}</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-2.5 text-right">
+                                      <div className="text-sm font-bold text-stone-900">
+                                        {item.totalQuantity.toFixed(3)} <span className="text-stone-500 font-normal">{item.unit}</span>
+                                      </div>
+                                      {item.costPerUnit > 0 && (
+                                        <div className="text-[11px] text-stone-400">
+                                          {item.costPerUnit.toFixed(2)} €/{item.unit}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-2.5 text-right">
+                                      <div className="text-sm text-stone-900 font-bold">
+                                        {item.totalCost.toFixed(2)} €
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   ) : groupBy === 'teacher' ? (
@@ -1353,7 +1377,7 @@ export default function Orders() {
                       />
                     ) : (
                       <div className="font-bold text-base tracking-wider uppercase text-stone-900">
-                        PROYECTO INTERMODULAR
+                        CIFP HOSTELERÍA
                       </div>
                     )}
                     <div className="border-l border-stone-300 pl-3">
@@ -1399,167 +1423,228 @@ export default function Orders() {
               {/* Contenido Principal de las Listas */}
               <div>
                 {groupBy === 'provider' ? (
-                  <>
-                    {sortedProviders.map((provider) => {
-                      const providerItems = groupedIngredients[provider];
-                      const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
+                  <div className="border border-stone-300 rounded overflow-hidden mb-5">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-stone-800 text-white uppercase tracking-wider text-[9px]">
+                          <th className="py-2 px-2 w-8 text-center border-r border-stone-700">✓</th>
+                          <th className="py-2 px-2.5 font-bold w-44">Ingrediente</th>
+                          <th className="py-2 px-2 font-bold text-right w-24">Cantidad Total</th>
+                          <th className="py-2 px-2 font-bold text-right w-16">P. Unit.</th>
+                          <th className="py-2 px-2 font-bold text-right w-20">Coste Est.</th>
+                          <th className="py-2 px-2.5 font-bold">Solicitado por / Reparto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200">
+                        {sortedProviders.map((provider) => {
+                          const providerItems = groupedIngredients[provider];
+                          const providerTotal = providerItems.reduce((sum, item) => sum + item.totalCost, 0);
 
-                      return (
-                        <div key={provider} className="provider-section mb-5 print-avoid-break text-stone-900">
-                          {/* Encabezado del Proveedor */}
-                          <div className="flex justify-between items-center bg-stone-100 border border-stone-300 px-3 py-1.5 rounded-t text-xs font-semibold text-stone-900">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-stone-700 inline-block"></span>
-                              <span className="uppercase tracking-wider font-bold">{provider}</span>
-                              <span className="text-[10px] text-stone-500 font-normal">
-                                ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
-                              </span>
-                            </div>
-                            <div className="text-xs font-bold text-stone-900">
-                              Subtotal: {providerTotal.toFixed(2)} €
-                            </div>
-                          </div>
-
-                          {/* Tabla de Productos del Proveedor */}
-                          <table className="w-full text-left border-collapse border border-t-0 border-stone-300">
-                            <thead>
-                              <tr className="bg-stone-50 border-b border-stone-300 text-stone-600 uppercase tracking-wider text-[9px]">
-                                <th className="py-1 px-2.5 w-8 text-center border-r border-stone-200">Revisión</th>
-                                <th className="py-1 px-2.5 font-bold">Ingrediente / Petición</th>
-                                <th className="py-1 px-2.5 font-bold text-right w-28">Cantidad</th>
-                                <th className="py-1 px-2.5 font-bold text-right w-24">Coste Est.</th>
+                          return (
+                            <React.Fragment key={provider}>
+                              {/* Provider Category Header Row */}
+                              <tr className="bg-stone-200 text-stone-900 border-t-2 border-b border-stone-400 print-avoid-break">
+                                <td colSpan={6} className="py-2 px-2.5">
+                                  <div className="flex justify-between items-center text-xs font-bold">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-stone-700 inline-block"></span>
+                                      <span className="uppercase tracking-wider">PROVEEDOR: {provider}</span>
+                                      <span className="text-[10px] text-stone-600 font-normal">
+                                        ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-stone-900 bg-white/70 px-2 py-0.5 rounded border border-stone-300">
+                                      Subtotal: {providerTotal.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody className="divide-y divide-stone-200">
-                              {providerItems.map((item, idx) => (
-                                <tr key={item.ingredientId || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
-                                  <td className="py-1 px-2.5 text-center border-r border-stone-200">
+
+                              {/* Product rows for this provider */}
+                              {providerItems.map((item, idx) => {
+                                const teacherBreakdown = Object.entries(item.byTeacher || {})
+                                  .map(([t, q]) => `${formatTeacherName(t)}: ${q % 1 === 0 ? q : q.toFixed(2)} ${item.unit}`)
+                                  .join(', ');
+
+                                return (
+                                  <tr
+                                    key={item.ingredientId || idx}
+                                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/80'} print-avoid-break text-[10px]`}
+                                  >
+                                    <td className="py-1.5 px-2 text-center border-r border-stone-200 align-middle">
+                                      <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
+                                    </td>
+                                    <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
+                                      {item.name}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                                      {item.totalQuantity.toFixed(3)} {item.unit}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-right text-stone-600 whitespace-nowrap align-middle">
+                                      {item.costPerUnit > 0 ? `${item.costPerUnit.toFixed(2)} €` : '-'}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                                      {item.totalCost.toFixed(2)} €
+                                    </td>
+                                    <td className="py-1.5 px-2.5 text-stone-600 text-[9.5px] leading-snug align-middle">
+                                      {teacherBreakdown || '-'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-stone-100 border-t-2 border-stone-400 font-bold text-stone-900">
+                          <td colSpan={4} className="py-2.5 px-2.5 text-right uppercase tracking-wider text-[10px] text-stone-700">
+                            Total Estimado Proveedores:
+                          </td>
+                          <td className="py-2.5 px-2 text-right text-xs font-black text-stone-950 whitespace-nowrap">
+                            {totalOrderCost.toFixed(2)} €
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : groupBy === 'teacher' ? (
+                  <div className="border border-stone-300 rounded overflow-hidden mb-5">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-stone-800 text-white uppercase tracking-wider text-[9px]">
+                          <th className="py-2 px-2 w-8 text-center border-r border-stone-700">✓</th>
+                          <th className="py-2 px-2.5 font-bold w-48">Ingrediente</th>
+                          <th className="py-2 px-2 font-bold text-right w-24">Cantidad</th>
+                          <th className="py-2 px-2.5 font-bold w-36">Proveedor</th>
+                          <th className="py-2 px-2 font-bold text-right w-20">Coste Est.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200">
+                        {sortedTeachers.map((teacher) => {
+                          const teacherItems = groupedByTeacher[teacher];
+                          const teacherTotal = teacherItems.reduce((sum, item) => sum + item.totalCost, 0);
+                          const parts = teacher.split(' (Justificación:');
+                          const nameOnly = parts[0];
+                          const formattedName = formatTeacherName(nameOnly);
+                          const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
+
+                          return (
+                            <React.Fragment key={teacher}>
+                              {/* Teacher Category Header Row */}
+                              <tr className="bg-stone-200 text-stone-900 border-t-2 border-b border-stone-400 print-avoid-break">
+                                <td colSpan={5} className="py-2 px-2.5">
+                                  <div className="flex justify-between items-center text-xs font-bold">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-stone-700 inline-block"></span>
+                                      <span className="uppercase tracking-wider">DOCENTE: {formattedName}</span>
+                                      {justification && (
+                                        <span className="text-[10px] text-stone-600 font-normal italic">
+                                          {justification}
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] text-stone-500 font-normal">
+                                        ({teacherItems.length} {teacherItems.length === 1 ? 'producto' : 'productos'})
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-stone-900 bg-white/70 px-2 py-0.5 rounded border border-stone-300">
+                                      Subtotal: {teacherTotal.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* Product rows for this teacher */}
+                              {teacherItems.map((item, idx) => (
+                                <tr
+                                  key={`${teacher}-${item.ingredientId}-${idx}`}
+                                  className={`${idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/80'} print-avoid-break text-[10px]`}
+                                >
+                                  <td className="py-1.5 px-2 text-center border-r border-stone-200 align-middle">
                                     <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
                                   </td>
-                                  <td className="py-1 px-2.5 text-[11px] font-semibold text-stone-900">{item.name}</td>
-                                  <td className="py-1 px-2.5 text-[11px] text-right font-bold text-stone-900 whitespace-nowrap">
-                                    {item.totalQuantity.toFixed(3)} {item.unit}
+                                  <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
+                                    {item.name}
                                   </td>
-                                  <td className="py-1 px-2.5 text-[11px] text-right text-stone-700 whitespace-nowrap">
+                                  <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                                    {item.quantity.toFixed(3)} {item.unit}
+                                  </td>
+                                  <td className="py-1.5 px-2.5 text-stone-600 text-[10px] italic align-middle">
+                                    {item.provider || 'Sin proveedor'}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                                     {item.totalCost.toFixed(2)} €
                                   </td>
                                 </tr>
                               ))}
-                            </tbody>
-                            <tfoot>
-                              <tr className="bg-stone-100/70 border-t border-stone-300 font-medium text-stone-800">
-                                <td colSpan={3} className="py-1.5 px-2.5 text-right uppercase tracking-wider text-[9px] text-stone-600 font-bold">
-                                  Subtotal {provider}
-                                </td>
-                                <td className="py-1.5 px-2.5 text-right text-[11px] font-bold text-stone-950 whitespace-nowrap">
-                                  {providerTotal.toFixed(2)} €
-                                </td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      );
-                    })}
-                  </>
-                ) : groupBy === 'teacher' ? (
-                  <>
-                    {sortedTeachers.map((teacher) => {
-                      const teacherItems = groupedByTeacher[teacher];
-                      const teacherTotal = teacherItems.reduce((sum, item) => sum + item.totalCost, 0);
-                      const parts = teacher.split(' (Justificación:');
-                      const nameOnly = parts[0];
-                      const formattedName = formatTeacherName(nameOnly);
-                      const justification = parts.length > 1 ? ` (Justificación:${parts[1]}` : '';
-
-                      return (
-                        <div key={teacher} className="teacher-section mb-5 print-avoid-break text-stone-900">
-                          {/* Encabezado del Profesor */}
-                          <div className="flex justify-between items-center bg-stone-100 border border-stone-300 px-3 py-1.5 rounded-t text-xs font-semibold text-stone-900">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-stone-700 inline-block"></span>
-                              <span className="uppercase tracking-wider font-bold">{formattedName}</span>
-                              {justification && (
-                                <span className="text-[10px] text-stone-500 font-normal italic">
-                                  {justification}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs font-bold text-stone-900">
-                              Subtotal: {teacherTotal.toFixed(2)} €
-                            </div>
-                          </div>
-
-                          {/* Tabla de Productos por Profesor */}
-                          <table className="w-full text-left border-collapse border border-t-0 border-stone-300">
-                            <thead>
-                              <tr className="bg-stone-50 border-b border-stone-300 text-stone-600 uppercase tracking-wider text-[9px]">
-                                <th className="py-1 px-2.5 w-8 text-center border-r border-stone-200">Revisión</th>
-                                <th className="py-1 px-2.5 font-bold">Ingrediente</th>
-                                <th className="py-1 px-2.5 font-bold text-right w-28">Cantidad</th>
-                                <th className="py-1 px-2.5 font-bold text-right w-36">Proveedor</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-stone-200">
-                              {teacherItems.map((item, idx) => (
-                                <tr key={`${teacher}-${item.ingredientId}-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
-                                  <td className="py-1 px-2.5 text-center border-r border-stone-200">
-                                    <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
-                                  </td>
-                                  <td className="py-1 px-2.5 text-[11px] font-semibold text-stone-900">{item.name}</td>
-                                  <td className="py-1 px-2.5 text-[11px] text-right font-bold text-stone-900 whitespace-nowrap">
-                                    {item.quantity.toFixed(3)} {item.unit}
-                                  </td>
-                                  <td className="py-1 px-2.5 text-[11px] text-right text-stone-600 italic whitespace-nowrap">
-                                    {item.provider || 'Sin proveedor'}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot>
-                              <tr className="bg-stone-100/70 border-t border-stone-300 font-medium text-stone-800">
-                                <td colSpan={3} className="py-1.5 px-2.5 text-right uppercase tracking-wider text-[9px] text-stone-600 font-bold">
-                                  Subtotal {formattedName}
-                                </td>
-                                <td className="py-1.5 px-2.5 text-right text-[11px] font-bold text-stone-950 whitespace-nowrap">
-                                  {teacherTotal.toFixed(2)} €
-                                </td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      );
-                    })}
-                  </>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-stone-100 border-t-2 border-stone-400 font-bold text-stone-900">
+                          <td colSpan={4} className="py-2.5 px-2.5 text-right uppercase tracking-wider text-[10px] text-stone-700">
+                            Total General Estimado:
+                          </td>
+                          <td className="py-2.5 px-2 text-right text-xs font-black text-stone-950 whitespace-nowrap">
+                            {totalOrderCost.toFixed(2)} €
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 ) : (
-                  <div className="print-avoid-break text-stone-900 mb-5">
-                    <div className="bg-stone-100 border border-stone-300 px-3 py-1.5 rounded-t text-xs font-semibold text-stone-900 uppercase tracking-wider">
-                      Lista Completa de Ingredientes
-                    </div>
-                    <table className="w-full text-left border-collapse border border-t-0 border-stone-300">
+                  <div className="border border-stone-300 rounded overflow-hidden mb-5">
+                    <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-stone-50 border-b border-stone-300 text-stone-600 uppercase tracking-wider text-[9px]">
-                          <th className="py-1 px-2.5 w-8 text-center border-r border-stone-200">Revisión</th>
-                          <th className="py-1 px-2.5 font-bold">Ingrediente</th>
-                          <th className="py-1 px-2.5 font-bold text-right w-28">Cantidad</th>
-                          <th className="py-1 px-2.5 font-bold text-right w-24">Coste Est.</th>
+                        <tr className="bg-stone-800 text-white uppercase tracking-wider text-[9px]">
+                          <th className="py-2 px-2 w-8 text-center border-r border-stone-700">✓</th>
+                          <th className="py-2 px-2.5 font-bold">Ingrediente</th>
+                          <th className="py-2 px-2 font-bold text-right w-24">Cantidad</th>
+                          <th className="py-2 px-2 font-bold text-right w-16">P. Unit.</th>
+                          <th className="py-2 px-2 font-bold text-right w-20">Coste Est.</th>
+                          <th className="py-2 px-2.5 font-bold w-36">Proveedor</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-200">
                         {aggregatedList.map((item, idx) => (
-                          <tr key={item.ingredientId || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
-                            <td className="py-1 px-2.5 text-center border-r border-stone-200">
+                          <tr
+                            key={item.ingredientId || idx}
+                            className={`${idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/80'} print-avoid-break text-[10px]`}
+                          >
+                            <td className="py-1.5 px-2 text-center border-r border-stone-200 align-middle">
                               <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
                             </td>
-                            <td className="py-1 px-2.5 text-[11px] font-semibold text-stone-900">{item.name}</td>
-                            <td className="py-1 px-2.5 text-[11px] text-right font-bold text-stone-900 whitespace-nowrap">
+                            <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
+                              {item.name}
+                            </td>
+                            <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                               {item.totalQuantity.toFixed(3)} {item.unit}
                             </td>
-                            <td className="py-1 px-2.5 text-[11px] text-right text-stone-700 whitespace-nowrap">
+                            <td className="py-1.5 px-2 text-right text-stone-600 whitespace-nowrap align-middle">
+                              {item.costPerUnit > 0 ? `${item.costPerUnit.toFixed(2)} €` : '-'}
+                            </td>
+                            <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                               {item.totalCost.toFixed(2)} €
+                            </td>
+                            <td className="py-1.5 px-2.5 text-stone-600 text-[10px] italic align-middle">
+                              {item.provider || 'Sin proveedor'}
                             </td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot>
+                        <tr className="bg-stone-100 border-t-2 border-stone-400 font-bold text-stone-900">
+                          <td colSpan={4} className="py-2.5 px-2.5 text-right uppercase tracking-wider text-[10px] text-stone-700">
+                            Total General Estimado:
+                          </td>
+                          <td className="py-2.5 px-2 text-right text-xs font-black text-stone-950 whitespace-nowrap">
+                            {totalOrderCost.toFixed(2)} €
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 )}
@@ -1587,7 +1672,7 @@ export default function Orders() {
                   </div>
 
                   <div className="text-center pt-2 border-t border-stone-200 text-[8px] text-stone-400 uppercase tracking-widest font-sans">
-                    Documento consolidado generado automáticamente · Proyecto Intermodular Hostelería
+                    Documento consolidado generado automáticamente · CIFP Hostelería
                   </div>
                 </div>
               </div>
