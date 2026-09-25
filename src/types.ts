@@ -121,10 +121,15 @@ export interface AppUser {
 }
 
 export interface OrderItem {
-  type: 'recipe' | 'menu' | 'ingredient';
+  type: 'recipe' | 'menu' | 'ingredient' | 'custom';
   id: string;
-  quantity: number; // For recipe: quantity, For menu: diners, For ingredient: quantity
+  quantity: number; // For recipe: quantity, For menu: diners, For ingredient: quantity, For custom: quantity
   justification?: string;
+  notes?: string; // Anotaciones específicas para el jefe de compras
+  customName?: string; // Nombre para productos no catalogados
+  customUnit?: string; // Unidad de medida (kg, l, ud, etc.)
+  customProvider?: string; // Proveedor sugerido opcional
+  customEstimatedPrice?: number; // Precio estimado por unidad opcional
 }
 
 export interface Order {

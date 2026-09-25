@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
@@ -28,7 +28,9 @@ interface AggregatedIngredient {
   costPerUnit: number;
   totalCost: number;
   provider?: string;
+  isCustom?: boolean;
   byTeacher: Record<string, number>; // maps teacherName -> quantity
+  teacherNotes?: Record<string, string>; // maps teacherName -> note
 }
 
 interface TeacherIngredient {
@@ -39,6 +41,8 @@ interface TeacherIngredient {
   costPerUnit: number;
   totalCost: number;
   provider?: string;
+  isCustom?: boolean;
+  notes?: string;
 }
 
 export default function Orders() {
@@ -62,6 +66,21 @@ export default function Orders() {
   const [orderTitle, setOrderTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+
+  // Anotaciones expandidas por item (key: `${type}-${id}`)
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+
+  // Modal para pedir producto fuera de catálogo
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customQuantity, setCustomQuantity] = useState<number>(1);
+  const [customUnit, setCustomUnit] = useState('ud');
+  const [customProvider, setCustomProvider] = useState('');
+  const [customPrice, setCustomPrice] = useState<string>('');
+  const [customNotes, setCustomNotes] = useState('');
+
+  // Modal para ver detalles y anotaciones de un pedido (jefe de compras / admin)
+  const [viewingOrderDetail, setViewingOrderDetail] = useState<Order | null>(null);
 
   // Consolidate Tab States
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -100,22 +119,67 @@ export default function Orders() {
     setIsSearchOpen(false);
   };
 
+  // Open modal to order a custom product (outside of database)
+  const openCustomProductModal = (prefillName: string = '') => {
+    setCustomName(prefillName);
+    setCustomQuantity(1);
+    setCustomUnit('ud');
+    setCustomProvider('');
+    setCustomPrice('');
+    setCustomNotes('');
+    setShowCustomModal(true);
+    // Cierra el desplegable de búsqueda si estaba abierto
+    setIsSearchOpen(false);
+  };
+
+  // Submit custom product to local workspace only (never saved to ingredients collection)
+  const handleAddCustomProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customName.trim()) {
+      showToast('Introduce el nombre del producto.', 'error');
+      return;
+    }
+    const parsedPrice = parseFloat(customPrice);
+    const validPrice = !isNaN(parsedPrice) && parsedPrice >= 0 ? parsedPrice : 0;
+    const newItem: OrderItem = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      type: 'custom',
+      quantity: Math.max(0.001, customQuantity || 1),
+      customName: customName.trim(),
+      customUnit: customUnit.trim() || 'ud',
+      customProvider: customProvider.trim() || 'Fuera de catálogo / Especial',
+      customEstimatedPrice: validPrice,
+      notes: customNotes.trim() ? customNotes.trim() : undefined
+    };
+
+    setOrderItems([...orderItems, newItem]);
+    setShowCustomModal(false);
+    showToast(`"${newItem.customName}" añadido a tu pedido (fuera de catálogo)`, 'success');
+  };
+
   // Update quantity in local workspace
-  const updateOrderItemQuantity = (id: string, type: 'recipe' | 'menu' | 'ingredient', quantity: number, inputValue?: string) => {
+  const updateOrderItemQuantity = (id: string, type: 'recipe' | 'menu' | 'ingredient' | 'custom', quantity: number, inputValue?: string) => {
     setOrderItems(orderItems.map(item => 
       item.id === id && item.type === type ? { ...item, quantity: Math.max(0, quantity), inputValue } : item
     ));
   };
 
+  // Update notes/annotations for an item
+  const updateOrderItemNotes = (id: string, type: 'recipe' | 'menu' | 'ingredient' | 'custom', notes: string) => {
+    setOrderItems(orderItems.map(item => 
+      item.id === id && item.type === type ? { ...item, notes: notes } : item
+    ));
+  };
+
   // Remove item from local workspace
-  const removeOrderItem = (id: string, type: 'recipe' | 'menu' | 'ingredient') => {
+  const removeOrderItem = (id: string, type: 'recipe' | 'menu' | 'ingredient' | 'custom') => {
     setOrderItems(orderItems.filter(item => !(item.id === id && item.type === type)));
   };
 
   // Save current workspace to Firestore (enforcing strictly 1 order per user)
   const handleSaveOrder = async (isDraft: boolean = true) => {
     if (orderItems.length === 0) {
-      showToast('Añade al menos una receta, menú o ingrediente suelto a tu pedido.', 'error');
+      showToast('Añade al menos una receta, menú o ingrediente a tu pedido.', 'error');
       return;
     }
     setIsSaving(true);
@@ -142,12 +206,30 @@ export default function Orders() {
       if (!isDraft) newStatus = 'pending';
       else if (existingOrder) newStatus = existingOrder.status;
 
+      // Sanitize items: exclude frontend-only properties (inputValue) and undefined fields
+      const cleanedItems: OrderItem[] = orderItems.map(item => {
+        const clean: OrderItem = {
+          id: item.id,
+          type: item.type,
+          quantity: item.quantity
+        };
+        if (item.justification) clean.justification = item.justification;
+        if (item.notes && item.notes.trim()) clean.notes = item.notes.trim();
+        if (item.customName) clean.customName = item.customName;
+        if (item.customUnit) clean.customUnit = item.customUnit;
+        if (item.customProvider) clean.customProvider = item.customProvider;
+        if (item.customEstimatedPrice !== undefined && item.customEstimatedPrice !== null) {
+          clean.customEstimatedPrice = item.customEstimatedPrice;
+        }
+        return clean;
+      });
+
       const newOrder: Order = {
         id: targetOrderId,
         title: titleStr,
         userId: appUser?.uid || (existingOrder ? existingOrder.userId : ''),
         userName: appUser?.name || (existingOrder ? existingOrder.userName : 'Profesor'),
-        items: orderItems,
+        items: cleanedItems,
         createdAt: existingOrder?.createdAt || new Date().toISOString(),
         status: newStatus
       };
@@ -320,6 +402,10 @@ export default function Orders() {
                 aggregation[ing.id].totalQuantity += requiredQty;
                 aggregation[ing.id].totalCost += requiredQty * ing.costPerUnit;
                 aggregation[ing.id].byTeacher[teacherLabel] = (aggregation[ing.id].byTeacher[teacherLabel] || 0) + requiredQty;
+                if (item.notes) {
+                  if (!aggregation[ing.id].teacherNotes) aggregation[ing.id].teacherNotes = {};
+                  aggregation[ing.id].teacherNotes![source.userName] = item.notes;
+                }
               } else {
                 aggregation[ing.id] = {
                   ingredientId: ing.id,
@@ -331,9 +417,45 @@ export default function Orders() {
                   provider: ing.provider || '',
                   byTeacher: {
                     [teacherLabel]: requiredQty
-                  }
+                  },
+                  teacherNotes: item.notes ? { [source.userName]: item.notes } : {}
                 };
               }
+            }
+          } else if (item.type === 'custom') {
+            const requiredQty = item.quantity;
+            const customId = item.id;
+            const customName = item.customName || 'Producto fuera de catálogo';
+            const customUnit = item.customUnit || 'ud';
+            const customCost = item.customEstimatedPrice || 0;
+            const customProvider = item.customProvider || 'Fuera de catálogo / Especial';
+            const teacherLabel = item.justification 
+              ? `${source.userName} (Justificación: ${item.justification})` 
+              : source.userName;
+
+            if (aggregation[customId]) {
+              aggregation[customId].totalQuantity += requiredQty;
+              aggregation[customId].totalCost += requiredQty * customCost;
+              aggregation[customId].byTeacher[teacherLabel] = (aggregation[customId].byTeacher[teacherLabel] || 0) + requiredQty;
+              if (item.notes) {
+                if (!aggregation[customId].teacherNotes) aggregation[customId].teacherNotes = {};
+                aggregation[customId].teacherNotes![source.userName] = item.notes;
+              }
+            } else {
+              aggregation[customId] = {
+                ingredientId: customId,
+                name: customName,
+                totalQuantity: requiredQty,
+                unit: customUnit,
+                costPerUnit: customCost,
+                totalCost: requiredQty * customCost,
+                provider: customProvider,
+                isCustom: true,
+                byTeacher: {
+                  [teacherLabel]: requiredQty
+                },
+                teacherNotes: item.notes ? { [source.userName]: item.notes } : {}
+              };
             }
           }
         }
@@ -378,6 +500,10 @@ export default function Orders() {
         if (!teacherGroups[teacher]) {
           teacherGroups[teacher] = [];
         }
+        const parts = teacher.split(' (Justificación:');
+        const rawTeacherName = parts[0];
+        const teacherNote = item.teacherNotes ? (item.teacherNotes[rawTeacherName] || item.teacherNotes[teacher]) : undefined;
+
         teacherGroups[teacher].push({
           ingredientId: item.ingredientId,
           name: item.name,
@@ -385,7 +511,9 @@ export default function Orders() {
           unit: item.unit,
           costPerUnit: item.costPerUnit,
           totalCost: qty * item.costPerUnit,
-          provider: item.provider
+          provider: item.provider,
+          isCustom: item.isCustom,
+          notes: teacherNote
         });
       });
     });
@@ -421,37 +549,47 @@ export default function Orders() {
       return orderItems.filter(item => item.quantity > 0).map(item => {
         const isRecipe = item.type === 'recipe';
         const isMenu = item.type === 'menu';
-        const data = isRecipe 
-          ? recipes.find(r => r.id === item.id) 
-          : isMenu 
-            ? menus.find(m => m.id === item.id)
-            : ingredients.find(i => i.id === item.id);
+        const isCustom = item.type === 'custom';
+        let name = '';
+        if (isRecipe) name = recipes.find(r => r.id === item.id)?.nameES || '';
+        else if (isMenu) name = menus.find(m => m.id === item.id)?.nameES || '';
+        else if (isCustom) name = item.customName || 'Producto fuera de catálogo';
+        else name = ingredients.find(i => i.id === item.id)?.nameES || '';
+
         return {
-          name: data?.nameES || '',
-          type: isRecipe ? 'Receta' : isMenu ? 'Menú' : 'Ingrediente Directo',
+          name,
+          type: isRecipe ? 'Receta' : isMenu ? 'Menú' : isCustom ? 'Fuera de catálogo' : 'Ingrediente Directo',
           quantity: item.quantity,
+          unit: isCustom ? (item.customUnit || 'ud') : undefined,
           teacherName: appUser?.name || 'Profesor',
-          justification: item.type === 'ingredient' ? item.justification : undefined
+          justification: item.type === 'ingredient' ? item.justification : undefined,
+          notes: item.notes,
+          isCustom
         };
       });
     } else {
-      const prodItems: { name: string; type: string; quantity: number; teacherName: string; justification?: string; }[] = [];
+      const prodItems: { name: string; type: string; quantity: number; unit?: string; teacherName: string; justification?: string; notes?: string; isCustom?: boolean; }[] = [];
       orders.filter(o => selectedOrderIds.includes(o.id)).forEach(order => {
         order.items.forEach(item => {
           if (item.quantity > 0) {
             const isRecipe = item.type === 'recipe';
             const isMenu = item.type === 'menu';
-            const data = isRecipe 
-              ? recipes.find(r => r.id === item.id) 
-              : isMenu 
-                ? menus.find(m => m.id === item.id)
-                : ingredients.find(i => i.id === item.id);
+            const isCustom = item.type === 'custom';
+            let name = '';
+            if (isRecipe) name = recipes.find(r => r.id === item.id)?.nameES || '';
+            else if (isMenu) name = menus.find(m => m.id === item.id)?.nameES || '';
+            else if (isCustom) name = item.customName || 'Producto fuera de catálogo';
+            else name = ingredients.find(i => i.id === item.id)?.nameES || '';
+
             prodItems.push({
-              name: data?.nameES || '',
-              type: isRecipe ? 'Receta' : isMenu ? 'Menú' : 'Ingrediente Directo',
+              name,
+              type: isRecipe ? 'Receta' : isMenu ? 'Menú' : isCustom ? 'Fuera de catálogo' : 'Ingrediente Directo',
               quantity: item.quantity,
+              unit: isCustom ? (item.customUnit || 'ud') : undefined,
               teacherName: order.userName,
-              justification: item.type === 'ingredient' ? item.justification : undefined
+              justification: item.type === 'ingredient' ? item.justification : undefined,
+              notes: item.notes,
+              isCustom
             });
           }
         });
@@ -768,7 +906,7 @@ export default function Orders() {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={13} />
                   <input
                     type="text"
-                    placeholder="Buscar recetas, menús..."
+                    placeholder="buscar ingredientes, recetas..."
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
@@ -882,8 +1020,16 @@ export default function Orders() {
                   )}
                   
                   {filteredRecipes.length === 0 && filteredMenus.length === 0 && filteredIngredients.length === 0 && (
-                    <div className="text-center py-4 text-stone-400 text-xs">
-                      No se encontraron resultados para "{search}".
+                    <div className="text-center py-4 px-2 text-stone-400 text-xs">
+                      <p>No se encontraron resultados para "{search}".</p>
+                      <button
+                        type="button"
+                        onClick={() => openCustomProductModal(search)}
+                        className="mt-2 text-xs text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-md font-semibold inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        <Plus size={13} />
+                        Pedir "{search}" fuera de catálogo
+                      </button>
                     </div>
                   )}
                 </div>
@@ -895,6 +1041,19 @@ export default function Orders() {
                   </p>
                 </div>
               )}
+
+              {/* Botón para solicitar producto fuera de catálogo (sin añadir a BD) */}
+              <div className="mt-2.5 pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => openCustomProductModal()}
+                  className="w-full py-1.5 px-2.5 bg-stone-50 hover:bg-teal-50/70 border border-dashed border-stone-300 hover:border-teal-400 rounded-lg text-xs text-stone-700 hover:text-teal-800 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                  title="Pedir un producto especial no disponible en el catálogo"
+                >
+                  <PlusCircle size={14} className="text-teal-600 shrink-0" />
+                  <span>¿No encuentras un producto? <strong>Pedir fuera de catálogo</strong></span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -950,62 +1109,132 @@ export default function Orders() {
                   <ShoppingCart size={32} className="mx-auto text-stone-300 mb-2" />
                   <p className="text-sm font-semibold text-stone-700">El pedido está vacío</p>
                   <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                    Busca recetas, menús o ingredientes en el panel izquierdo y pulsa "Añadir" para agregarlos a tu pedido.
+                    Busca recetas, menús o ingredientes en el panel izquierdo, o solicita un producto fuera de catálogo.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-1.5 mb-4 max-h-[460px] overflow-y-auto pr-1">
+                <div className="space-y-2 mb-4 max-h-[460px] overflow-y-auto pr-1">
                   {orderItems.map(item => {
                     const isRecipe = item.type === 'recipe';
                     const isMenu = item.type === 'menu';
                     const isIngredient = item.type === 'ingredient';
+                    const isCustom = item.type === 'custom';
+
                     const data = isRecipe 
                       ? recipes.find(r => r.id === item.id) 
                       : isMenu 
                         ? menus.find(m => m.id === item.id)
-                        : ingredients.find(i => i.id === item.id);
-                    if (!data) return null;
+                        : isIngredient
+                          ? ingredients.find(i => i.id === item.id)
+                          : null;
+
+                    if (!isCustom && !data) return null;
+
+                    const itemName = isCustom
+                      ? item.customName || 'Producto no catalogado'
+                      : isIngredient
+                        ? (data as Ingredient).nameES
+                        : (data as Recipe).nameES;
+
+                    const itemKey = `${item.type}-${item.id}`;
+                    const isNoteOpen = expandedNotes[itemKey] || Boolean(item.notes && item.notes.trim() !== '');
+
                     return (
-                      <div key={`${item.type}-${item.id}`} className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
-                        <div className="flex-1 min-w-0 text-sm flex items-center gap-1.5">
-                          <span className="font-semibold text-stone-900 truncate">
-                            {isIngredient ? (data as Ingredient).nameES : (data as Recipe).nameES}
-                          </span>
-                          {isIngredient ? (
-                            <span className="text-xs text-stone-500 font-mono flex-shrink-0">
-                              ({ (data as Ingredient).unit })
+                      <div key={itemKey} className="bg-stone-50 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors p-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0 text-sm flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-stone-900 truncate">
+                              {itemName}
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-medium text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded flex-shrink-0">
-                              {isRecipe ? 'Receta' : 'Menú'}
+                            {isCustom ? (
+                              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-1 flex-shrink-0">
+                                Fuera de catálogo ({item.customUnit || 'ud'})
+                              </span>
+                            ) : isIngredient ? (
+                              <span className="text-xs text-stone-500 font-mono flex-shrink-0">
+                                ({ (data as Ingredient).unit })
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded flex-shrink-0">
+                                {isRecipe ? 'Receta' : 'Menú'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-xs text-stone-500 font-medium">
+                              {isRecipe ? 'Cant:' : isMenu ? 'Pax:' : 'Cant:'}
                             </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="text-xs text-stone-500 font-medium">
-                            {isRecipe ? 'Cant:' : isMenu ? 'Pax:' : 'Cant:'}
-                          </span>
-                          <input
-                            type="number"
-                            min="0.001"
-                            step="any"
-                            value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
-                            onChange={(e) => {
-                              const rawValue = e.target.value;
-                              const numValue = parseFloat(rawValue) || 0;
-                              updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
+                            <input
+                              type="number"
+                              min="0.001"
+                              step="any"
+                              value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
+                              onChange={(e) => {
+                                const rawValue = e.target.value;
+                                const numValue = parseFloat(rawValue) || 0;
+                                updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
+                              }}
+                              onFocus={e => e.target.select()}
+                              className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500"
+                            />
+                          </div>
+
+                          {/* Botón para añadir/editar anotación para compras */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpandedNotes(prev => ({ ...prev, [itemKey]: !prev[itemKey] }));
                             }}
-                            onFocus={e => e.target.select()}
-                            className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500"
-                          />
+                            className={`p-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 flex-shrink-0 ${
+                              item.notes && item.notes.trim() !== ''
+                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                                : 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/60'
+                            }`}
+                            title={item.notes ? `Nota para compras: "${item.notes}"` : 'Añadir anotación o especificación para el jefe de compras'}
+                          >
+                            <MessageSquare size={14} className={item.notes ? 'text-amber-700' : 'text-stone-400'} />
+                            <span className="text-[10px] hidden sm:inline">
+                              {item.notes ? 'Nota' : '+ Nota'}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => removeOrderItem(item.id, item.type)}
+                            className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                            title="Eliminar del pedido"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => removeOrderItem(item.id, item.type)}
-                          className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                          title="Eliminar del pedido"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+
+                        {/* Campo de anotación para el jefe de compras */}
+                        {isNoteOpen && (
+                          <div className="mt-2 pt-2 border-t border-stone-200/70 flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="text"
+                                placeholder="Anotación para compras (ej. marca, calibre, madurez, formato específico...)"
+                                value={item.notes || ''}
+                                onChange={(e) => updateOrderItemNotes(item.id, item.type, e.target.value)}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-400 rounded-md text-stone-900 placeholder:text-stone-400"
+                              />
+                            </div>
+                            {item.notes && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateOrderItemNotes(item.id, item.type, '');
+                                  setExpandedNotes(prev => ({ ...prev, [itemKey]: false }));
+                                }}
+                                className="text-[11px] text-stone-400 hover:text-red-600 px-1 py-1 rounded transition-colors whitespace-nowrap"
+                                title="Borrar anotación"
+                              >
+                                Borrar nota
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1118,13 +1347,46 @@ export default function Orders() {
                         <p className="text-xs text-stone-600 mt-1 flex items-center gap-1">
                           <span className="font-medium text-stone-800">{order.userName}</span>
                         </p>
+
+                        {/* Badges de notas y productos fuera de catálogo */}
+                        {(() => {
+                          const hasNotes = order.items.some(i => i.notes && i.notes.trim() !== '');
+                          const hasCustom = order.items.some(i => i.type === 'custom');
+                          if (!hasNotes && !hasCustom) return null;
+                          return (
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {hasNotes && (
+                                <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <MessageSquare size={10} className="text-amber-700" /> Con notas
+                                </span>
+                              )}
+                              {hasCustom && (
+                                <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+                                  Fuera de catálogo
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         
-                        <div className="text-[10px] text-stone-500 mt-2 flex justify-between">
+                        <div className="text-[10px] text-stone-500 mt-2 flex justify-between items-center">
                           <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                           <span className="font-semibold text-stone-700">
                             {order.items.reduce((sum, i) => sum + i.quantity, 0)} items
                           </span>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingOrderDetail(order);
+                          }}
+                          className="mt-2 text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-stone-100 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 w-fit border border-stone-200 hover:border-teal-200"
+                        >
+                          <Eye size={12} />
+                          Ver pedido y notas
+                        </button>
                       </div>
                     </div>
                   );
@@ -1241,10 +1503,27 @@ export default function Orders() {
                                   return (
                                     <tr key={item.ingredientId} className="hover:bg-stone-50/50 transition-colors">
                                       <td className="px-6 py-2.5 pl-8">
-                                        <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                                        <div className="text-sm font-semibold text-stone-900 flex items-center gap-1.5">
+                                          <span>{item.name}</span>
+                                          {item.isCustom && (
+                                            <span className="text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                              Fuera de catálogo
+                                            </span>
+                                          )}
+                                        </div>
                                         {teacherBreakdown && (
                                           <div className="text-xs text-stone-500 mt-0.5">
                                             Solicitado por: <span className="text-stone-700">{teacherBreakdown}</span>
+                                          </div>
+                                        )}
+                                        {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
+                                          <div className="mt-1 space-y-1">
+                                            {Object.entries(item.teacherNotes).map(([teacher, note]) => (
+                                              <div key={teacher} className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 flex items-start gap-1 font-medium">
+                                                <MessageSquare size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                                                <span><strong>{formatTeacherName(teacher)}:</strong> {note}</span>
+                                              </div>
+                                            ))}
                                           </div>
                                         )}
                                       </td>
@@ -1298,7 +1577,20 @@ export default function Orders() {
                                 {groupedByTeacher[teacher].map((item, idx) => (
                                   <tr key={`${teacher}-${item.ingredientId}-${idx}`} className="hover:bg-stone-50/30 transition-colors">
                                     <td className="px-6 py-3 pl-8">
-                                      <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                                      <div className="text-sm font-semibold text-stone-900 flex items-center gap-1.5">
+                                        <span>{item.name}</span>
+                                        {item.isCustom && (
+                                          <span className="text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                            Fuera de catálogo
+                                          </span>
+                                        )}
+                                      </div>
+                                      {item.notes && (
+                                        <div className="mt-1 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 flex items-start gap-1 font-medium">
+                                          <MessageSquare size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                                          <span><strong>Anotación para compras:</strong> {item.notes}</span>
+                                        </div>
+                                      )}
                                     </td>
                                     <td className="px-6 py-3 text-right">
                                       <div className="text-sm font-bold text-stone-900">
@@ -1331,7 +1623,24 @@ export default function Orders() {
                           {aggregatedList.map((item) => (
                             <tr key={item.ingredientId} className="hover:bg-stone-50/30 transition-colors bg-white">
                               <td className="px-6 py-3 pl-8">
-                                <div className="text-sm font-semibold text-stone-900">{item.name}</div>
+                                <div className="text-sm font-semibold text-stone-900 flex items-center gap-1.5">
+                                  <span>{item.name}</span>
+                                  {item.isCustom && (
+                                    <span className="text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                      Fuera de catálogo
+                                    </span>
+                                  )}
+                                </div>
+                                {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    {Object.entries(item.teacherNotes).map(([teacher, note]) => (
+                                      <div key={teacher} className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 flex items-start gap-1 font-medium">
+                                        <MessageSquare size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                                        <span><strong>{formatTeacherName(teacher)}:</strong> {note}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-6 py-3 text-right">
                                 <div className="text-sm font-bold text-stone-900">
@@ -1522,7 +1831,7 @@ export default function Orders() {
                                       <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
                                     </td>
                                     <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
-                                      {item.name}
+                                      <div>{item.name} {item.isCustom ? '(Fuera de catálogo)' : ''}</div>
                                     </td>
                                     <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                                       {item.totalQuantity.toFixed(3)} {item.unit}
@@ -1534,7 +1843,12 @@ export default function Orders() {
                                       {item.totalCost.toFixed(2)} €
                                     </td>
                                     <td className="py-1.5 px-2.5 text-stone-600 text-[9.5px] leading-snug align-middle">
-                                      {teacherBreakdown || '-'}
+                                      <div>{teacherBreakdown || '-'}</div>
+                                      {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
+                                        <div className="text-[9px] text-amber-900 font-semibold mt-0.5">
+                                          {Object.entries(item.teacherNotes).map(([t, n]) => `[Nota ${formatTeacherName(t)}: ${n}]`).join(' · ')}
+                                        </div>
+                                      )}
                                     </td>
                                   </tr>
                                 );
@@ -1612,7 +1926,12 @@ export default function Orders() {
                                     <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
                                   </td>
                                   <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
-                                    {item.name}
+                                    <div>{item.name} {item.isCustom ? '(Fuera de catálogo)' : ''}</div>
+                                    {item.notes && (
+                                      <div className="text-[9px] text-amber-900 font-semibold italic mt-0.5">
+                                        [Nota: {item.notes}]
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                                     {item.quantity.toFixed(3)} {item.unit}
@@ -1664,7 +1983,12 @@ export default function Orders() {
                               <span className="inline-block w-3.5 h-3.5 border border-stone-400 rounded-sm"></span>
                             </td>
                             <td className="py-1.5 px-2.5 font-semibold text-stone-900 align-middle">
-                              {item.name}
+                              <div>{item.name} {item.isCustom ? '(Fuera de catálogo)' : ''}</div>
+                              {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
+                                <div className="text-[9px] text-amber-900 font-semibold mt-0.5">
+                                  {Object.entries(item.teacherNotes).map(([t, n]) => `[Nota ${formatTeacherName(t)}: ${n}]`).join(' · ')}
+                                </div>
+                              )}
                             </td>
                             <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                               {item.totalQuantity.toFixed(3)} {item.unit}
@@ -1723,6 +2047,286 @@ export default function Orders() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: PEDIR PRODUCTO FUERA DE CATÁLOGO ==================== */}
+      {showCustomModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-stone-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center">
+                  <PackagePlus size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">Pedir producto fuera de catálogo</h3>
+                  <p className="text-xs text-stone-500">Solo se incluirá en tu pedido, sin alterar la base de datos general</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(false)}
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCustomProduct} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Nombre del producto <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Brotes de shiso fresco, Trufa negra de verano, Harina de algarroba..."
+                  value={customName}
+                  onChange={e => setCustomName(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium placeholder:text-stone-400"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Cantidad <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0.001"
+                    step="any"
+                    value={customQuantity}
+                    onChange={e => setCustomQuantity(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Unidad de medida <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={customUnit}
+                    onChange={e => setCustomUnit(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+                  >
+                    <option value="kg">kg (Kilogramos)</option>
+                    <option value="g">g (Gramos)</option>
+                    <option value="l">l (Litros)</option>
+                    <option value="ml">ml (Mililitros)</option>
+                    <option value="ud">ud (Unidades)</option>
+                    <option value="manojo">manojo</option>
+                    <option value="bote">bote / tarro</option>
+                    <option value="lata">lata</option>
+                    <option value="bandeja">bandeja</option>
+                    <option value="caja">caja</option>
+                    <option value="paquete">paquete</option>
+                    <option value="botella">botella</option>
+                    <option value="pieza">pieza</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Proveedor sugerido <span className="text-stone-400 font-normal lowercase">(opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Frutería El Huerto, Makro..."
+                    value={customProvider}
+                    onChange={e => setCustomProvider(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-stone-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Precio est. €/ud <span className="text-stone-400 font-normal lowercase">(opcional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    value={customPrice}
+                    onChange={e => setCustomPrice(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-stone-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Anotación para el jefe de compras <span className="text-stone-400 font-normal lowercase">(opcional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Especificaciones de compra: tamaño, maduración, marca, conservación, uso previsto..."
+                  value={customNotes}
+                  onChange={e => setCustomNotes(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none placeholder:text-stone-400"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-900 flex items-start gap-2">
+                <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  Este producto se solicitará únicamente en este pedido para el economato. <strong>No se agregará a la base de datos de ingredientes.</strong>
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <Plus size={14} />
+                  Añadir al Pedido
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: DETALLES Y ANOTACIONES DEL PEDIDO (JEFE DE COMPRAS) ==================== */}
+      {viewingOrderDetail && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="flex items-start justify-between border-b border-stone-100 pb-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-bold text-stone-900">{viewingOrderDetail.title}</h3>
+                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                    viewingOrderDetail.status === 'completed'
+                      ? 'bg-green-100 text-green-800'
+                      : viewingOrderDetail.status === 'pending'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-stone-200 text-stone-600'
+                  }`}>
+                    {viewingOrderDetail.status === 'completed' ? 'Completado' : viewingOrderDetail.status === 'pending' ? 'Pendiente' : 'Borrador'}
+                  </span>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">
+                  Docente: <strong className="text-stone-800">{viewingOrderDetail.userName}</strong> · Creado: {new Date(viewingOrderDetail.createdAt).toLocaleString('es-ES')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingOrderDetail(null)}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Listado de artículos y notas */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 mb-4">
+              <div className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                Productos solicitados ({viewingOrderDetail.items.length})
+              </div>
+
+              {viewingOrderDetail.items.map((item, idx) => {
+                const isRecipe = item.type === 'recipe';
+                const isMenu = item.type === 'menu';
+                const isIngredient = item.type === 'ingredient';
+                const isCustom = item.type === 'custom';
+
+                const data = isRecipe 
+                  ? recipes.find(r => r.id === item.id) 
+                  : isMenu 
+                    ? menus.find(m => m.id === item.id)
+                    : isIngredient
+                      ? ingredients.find(i => i.id === item.id)
+                      : null;
+
+                const name = isCustom 
+                  ? item.customName || 'Producto no catalogado' 
+                  : isIngredient 
+                    ? (data as Ingredient)?.nameES || 'Ingrediente'
+                    : isRecipe
+                      ? (data as Recipe)?.nameES || 'Receta'
+                      : (data as any)?.nameES || 'Menú';
+
+                const unit = isCustom
+                  ? item.customUnit || 'ud'
+                  : isIngredient
+                    ? (data as Ingredient)?.unit || 'ud'
+                    : isRecipe
+                      ? 'raciones'
+                      : 'comensales';
+
+                return (
+                  <div key={idx} className="bg-stone-50 rounded-xl p-3 border border-stone-200">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-sm text-stone-900">{name}</span>
+                          {isCustom ? (
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                              Fuera de catálogo
+                            </span>
+                          ) : isIngredient ? (
+                            <span className="text-[10px] font-medium text-stone-600 bg-stone-200/80 px-1.5 py-0.5 rounded">
+                              Ingrediente directo
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+                              {isRecipe ? 'Receta' : 'Menú'}
+                            </span>
+                          )}
+                        </div>
+
+                        {item.customProvider && (
+                          <div className="text-xs text-stone-500 mt-0.5">
+                            Proveedor sugerido: <span className="text-stone-700 font-medium">{item.customProvider}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-black text-stone-900">
+                          {item.quantity} {unit}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Anotaciones del docente para el jefe de compras */}
+                    {item.notes && item.notes.trim() !== '' && (
+                      <div className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start gap-2">
+                        <MessageSquare size={14} className="text-amber-700 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-amber-950 font-semibold mb-0.5">Anotación para compras:</strong>
+                          <p className="italic text-stone-800 leading-relaxed font-sans">{item.notes}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setViewingOrderDetail(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
