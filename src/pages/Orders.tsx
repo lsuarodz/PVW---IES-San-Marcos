@@ -75,9 +75,10 @@ export default function Orders() {
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState<number>(1);
   const [customUnit, setCustomUnit] = useState('ud');
-  const [customProvider, setCustomProvider] = useState('');
-  const [customPrice, setCustomPrice] = useState<string>('');
   const [customNotes, setCustomNotes] = useState('');
+
+  // Modal para previsualizar el pedido actual
+  const [showOrderPreviewModal, setShowOrderPreviewModal] = useState(false);
 
   // Modal para ver detalles y anotaciones de un pedido (jefe de compras / admin)
   const [viewingOrderDetail, setViewingOrderDetail] = useState<Order | null>(null);
@@ -124,8 +125,6 @@ export default function Orders() {
     setCustomName(prefillName);
     setCustomQuantity(1);
     setCustomUnit('ud');
-    setCustomProvider('');
-    setCustomPrice('');
     setCustomNotes('');
     setShowCustomModal(true);
     // Cierra el desplegable de búsqueda si estaba abierto
@@ -139,16 +138,12 @@ export default function Orders() {
       showToast('Introduce el nombre del producto.', 'error');
       return;
     }
-    const parsedPrice = parseFloat(customPrice);
-    const validPrice = !isNaN(parsedPrice) && parsedPrice >= 0 ? parsedPrice : 0;
     const newItem: OrderItem = {
       id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       type: 'custom',
       quantity: Math.max(0.001, customQuantity || 1),
       customName: customName.trim(),
       customUnit: customUnit.trim() || 'ud',
-      customProvider: customProvider.trim() || 'Fuera de catálogo / Especial',
-      customEstimatedPrice: validPrice,
       notes: customNotes.trim() ? customNotes.trim() : undefined
     };
 
@@ -895,7 +890,23 @@ export default function Orders() {
         /* ================= CREATE / EDIT ORDER VIEW ================= */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Columna Izquierda: Añadir al Pedido (Buscador) */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-3">
+            {/* Botón para previsualizar el pedido encima del cuadro de añadir pedido */}
+            <button
+              type="button"
+              onClick={() => setShowOrderPreviewModal(true)}
+              className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow cursor-pointer"
+              title="Previsualizar el pedido actual y su desglose"
+            >
+              <Eye size={17} />
+              <span>Previsualizar Pedido</span>
+              {orderItems.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-teal-800 text-teal-100">
+                  {orderItems.length} {orderItems.length === 1 ? 'artículo' : 'artículos'}
+                </span>
+              )}
+            </button>
+
             <div ref={searchBoxRef} className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-3 sm:p-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                 <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
@@ -2132,35 +2143,6 @@ export default function Orders() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                    Proveedor sugerido <span className="text-stone-400 font-normal lowercase">(opcional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej. Frutería El Huerto, Makro..."
-                    value={customProvider}
-                    onChange={e => setCustomProvider(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-stone-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                    Precio est. €/ud <span className="text-stone-400 font-normal lowercase">(opcional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="0.00"
-                    value={customPrice}
-                    onChange={e => setCustomPrice(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-stone-400"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
                   Anotación para el jefe de compras <span className="text-stone-400 font-normal lowercase">(opcional)</span>
@@ -2172,13 +2154,6 @@ export default function Orders() {
                   onChange={e => setCustomNotes(e.target.value)}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none placeholder:text-stone-400"
                 />
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-900 flex items-start gap-2">
-                <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  Este producto se solicitará únicamente en este pedido para el economato. <strong>No se agregará a la base de datos de ingredientes.</strong>
-                </p>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">
@@ -2327,6 +2302,229 @@ export default function Orders() {
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: PREVISUALIZAR PEDIDO (DOCENTE / USUARIO) ==================== */}
+      {showOrderPreviewModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 max-h-[92vh] overflow-y-auto flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-stone-100 pb-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-bold text-stone-900 flex items-center gap-2">
+                    <Eye size={20} className="text-teal-600" />
+                    Previsualización del Pedido
+                  </h3>
+                  <span className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {editingOrderId ? 'Borrador Guardado' : 'Nuevo Pedido'}
+                  </span>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">
+                  <strong>{orderTitle.trim() || 'Pedido semanal'}</strong> · Solicitante: {appUser?.name || 'Profesor'} · Fecha: {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOrderPreviewModal(false)}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {orderItems.length === 0 ? (
+              <div className="text-center py-12 px-4 border-2 border-dashed border-stone-200 rounded-xl bg-stone-50/60 my-4">
+                <ShoppingCart size={36} className="mx-auto text-stone-300 mb-2" />
+                <p className="text-sm font-semibold text-stone-700">Tu pedido está actualmente vacío</p>
+                <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+                  Añade recetas, menús o ingredientes antes de previsualizar el pedido.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5 overflow-y-auto flex-1 pr-1">
+                {/* Resumen rápido */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Artículos Pedidos</span>
+                    <span className="text-xl font-bold text-stone-900">{orderItems.length}</span>
+                  </div>
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Referencias Ingredientes</span>
+                    <span className="text-xl font-bold text-teal-700">{aggregatedList.length}</span>
+                  </div>
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Coste Est. Total</span>
+                    <span className="text-xl font-bold text-teal-700">{totalOrderCost.toFixed(2)} €</span>
+                  </div>
+                </div>
+
+                {/* Sección 1: Artículos pedidos */}
+                <div>
+                  <h4 className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <ShoppingCart size={14} className="text-teal-600" />
+                    Artículos solicitados directamente ({orderItems.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {orderItems.map((item, idx) => {
+                      const isRecipe = item.type === 'recipe';
+                      const isMenu = item.type === 'menu';
+                      const isIngredient = item.type === 'ingredient';
+                      const isCustom = item.type === 'custom';
+
+                      const data = isRecipe 
+                        ? recipes.find(r => r.id === item.id) 
+                        : isMenu 
+                          ? menus.find(m => m.id === item.id)
+                          : isIngredient
+                            ? ingredients.find(i => i.id === item.id)
+                            : null;
+
+                      const name = isCustom 
+                        ? item.customName || 'Producto no catalogado' 
+                        : isIngredient 
+                          ? (data as Ingredient)?.nameES || 'Ingrediente'
+                          : isRecipe
+                            ? (data as Recipe)?.nameES || 'Receta'
+                            : (data as any)?.nameES || 'Menú';
+
+                      const unit = isCustom
+                        ? item.customUnit || 'ud'
+                        : isIngredient
+                          ? (data as Ingredient)?.unit || 'ud'
+                          : isRecipe
+                            ? 'raciones'
+                            : 'comensales';
+
+                      return (
+                        <div key={idx} className="bg-stone-50 rounded-lg p-2.5 border border-stone-200 text-xs">
+                          <div className="flex justify-between items-center gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-stone-900">{name}</span>
+                              {isCustom ? (
+                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Fuera de catálogo
+                                </span>
+                              ) : isIngredient ? (
+                                <span className="text-[10px] text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded">
+                                  Ingrediente directo
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded font-medium">
+                                  {isRecipe ? 'Receta' : 'Menú'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-stone-900">
+                              {item.quantity} {unit}
+                            </span>
+                          </div>
+
+                          {item.notes && item.notes.trim() !== '' && (
+                            <div className="mt-1.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-start gap-1 font-medium">
+                              <MessageSquare size={12} className="text-amber-700 shrink-0 mt-0.5" />
+                              <span><strong>Anotación para compras:</strong> {item.notes}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Sección 2: Desglose consolidado de ingredientes */}
+                {aggregatedList.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Calculator size={14} className="text-teal-600" />
+                      Desglose consolidado para economato ({aggregatedList.length} ingredientes)
+                    </h4>
+                    <div className="border border-stone-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-stone-100 border-b border-stone-200 text-stone-600 font-bold uppercase tracking-wider text-[10px]">
+                          <tr>
+                            <th className="py-2 px-3">Ingrediente / Referencia</th>
+                            <th className="py-2 px-3 text-right">Cantidad</th>
+                            <th className="py-2 px-3 text-right">Proveedor</th>
+                            <th className="py-2 px-3 text-right">Coste Est.</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 bg-white">
+                          {aggregatedList.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-stone-50/70">
+                              <td className="py-2 px-3">
+                                <div className="font-semibold text-stone-900 flex items-center gap-1.5">
+                                  <span>{item.name}</span>
+                                  {item.isCustom && (
+                                    <span className="text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.2 rounded">
+                                      Fuera de catálogo
+                                    </span>
+                                  )}
+                                </div>
+                                {item.teacherNotes && Object.values(item.teacherNotes).length > 0 && (
+                                  <div className="text-[11px] text-amber-900 bg-amber-50/80 border border-amber-200/80 rounded px-1.5 py-0.5 mt-0.5 font-medium flex items-center gap-1">
+                                    <MessageSquare size={10} className="text-amber-700" />
+                                    <span>Nota: {Object.values(item.teacherNotes).join(' · ')}</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-right font-bold text-stone-900">
+                                {item.totalQuantity.toFixed(3)} {item.unit}
+                              </td>
+                              <td className="py-2 px-3 text-right text-stone-500 italic text-[11px]">
+                                {item.provider || 'Sin asignar'}
+                              </td>
+                              <td className="py-2 px-3 text-right font-semibold text-stone-700">
+                                {item.totalCost > 0 ? `${item.totalCost.toFixed(2)} €` : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-stone-50 border-t border-stone-200 font-bold text-stone-900">
+                          <tr>
+                            <td colSpan={3} className="py-2 px-3 text-right text-[11px] uppercase tracking-wider text-stone-600">
+                              Total Estimado:
+                            </td>
+                            <td className="py-2 px-3 text-right text-sm text-teal-800">
+                              {totalOrderCost.toFixed(2)} €
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-100 mt-4">
+              <span className="text-xs text-stone-500 font-medium">
+                {orderItems.length} {orderItems.length === 1 ? 'artículo en pedido' : 'artículos en pedido'}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOrderPreviewModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+                {orderItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportPDF}
+                    disabled={isPrinting}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    <Printer size={14} />
+                    {isPrinting ? 'Generando PDF...' : 'Imprimir / PDF'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
