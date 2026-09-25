@@ -896,7 +896,7 @@ export default function Orders() {
               type="button"
               onClick={() => setShowOrderPreviewModal(true)}
               className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow cursor-pointer"
-              title="Previsualizar el pedido actual y su desglose"
+              title="Previsualizar el pedido actual"
             >
               <Eye size={17} />
               <span>Previsualizar Pedido</span>
@@ -2310,7 +2310,7 @@ export default function Orders() {
       {/* ==================== MODAL: PREVISUALIZAR PEDIDO (DOCENTE / USUARIO) ==================== */}
       {showOrderPreviewModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 max-h-[92vh] overflow-y-auto flex flex-col">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 max-h-[92vh] overflow-y-auto flex flex-col">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-stone-100 pb-3 mb-4">
               <div>
@@ -2345,158 +2345,142 @@ export default function Orders() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-5 overflow-y-auto flex-1 pr-1">
-                {/* Resumen rápido */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Artículos Pedidos</span>
-                    <span className="text-xl font-bold text-stone-900">{orderItems.length}</span>
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* Resumen de artículos del pedido */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-stone-50 border border-stone-200 rounded-xl p-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+                      <ShoppingCart size={20} />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">Artículos en el pedido</span>
+                      <span className="text-base font-bold text-stone-900">
+                        {orderItems.length} {orderItems.length === 1 ? 'artículo añadido' : 'artículos añadidos'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Referencias Ingredientes</span>
-                    <span className="text-xl font-bold text-teal-700">{aggregatedList.length}</span>
-                  </div>
-                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider block">Coste Est. Total</span>
-                    <span className="text-xl font-bold text-teal-700">{totalOrderCost.toFixed(2)} €</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {orderItems.some(i => i.type === 'custom') && (
+                      <span className="text-xs font-semibold text-amber-800 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                        <PackagePlus size={13} />
+                        Fuera de catálogo
+                      </span>
+                    )}
+                    {orderItems.some(i => i.notes && i.notes.trim() !== '') && (
+                      <span className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                        <MessageSquare size={13} className="text-amber-700" />
+                        Con anotaciones
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Sección 1: Artículos pedidos */}
+                {/* Listado de artículos pedidos en formato de tabla */}
                 <div>
-                  <h4 className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <ShoppingCart size={14} className="text-teal-600" />
-                    Artículos solicitados directamente ({orderItems.length})
+                  <h4 className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <ShoppingCart size={14} className="text-teal-600" />
+                      Artículos solicitados en este pedido ({orderItems.length})
+                    </span>
                   </h4>
-                  <div className="space-y-1.5">
-                    {orderItems.map((item, idx) => {
-                      const isRecipe = item.type === 'recipe';
-                      const isMenu = item.type === 'menu';
-                      const isIngredient = item.type === 'ingredient';
-                      const isCustom = item.type === 'custom';
-
-                      const data = isRecipe 
-                        ? recipes.find(r => r.id === item.id) 
-                        : isMenu 
-                          ? menus.find(m => m.id === item.id)
-                          : isIngredient
-                            ? ingredients.find(i => i.id === item.id)
-                            : null;
-
-                      const name = isCustom 
-                        ? item.customName || 'Producto no catalogado' 
-                        : isIngredient 
-                          ? (data as Ingredient)?.nameES || 'Ingrediente'
-                          : isRecipe
-                            ? (data as Recipe)?.nameES || 'Receta'
-                            : (data as any)?.nameES || 'Menú';
-
-                      const unit = isCustom
-                        ? item.customUnit || 'ud'
-                        : isIngredient
-                          ? (data as Ingredient)?.unit || 'ud'
-                          : isRecipe
-                            ? 'raciones'
-                            : 'comensales';
-
-                      return (
-                        <div key={idx} className="bg-stone-50 rounded-lg p-2.5 border border-stone-200 text-xs">
-                          <div className="flex justify-between items-center gap-2">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold text-stone-900">{name}</span>
-                              {isCustom ? (
-                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
-                                  Fuera de catálogo
-                                </span>
-                              ) : isIngredient ? (
-                                <span className="text-[10px] text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded">
-                                  Ingrediente directo
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded font-medium">
-                                  {isRecipe ? 'Receta' : 'Menú'}
-                                </span>
-                              )}
-                            </div>
-                            <span className="font-bold text-stone-900">
-                              {item.quantity} {unit}
-                            </span>
-                          </div>
-
-                          {item.notes && item.notes.trim() !== '' && (
-                            <div className="mt-1.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-start gap-1 font-medium">
-                              <MessageSquare size={12} className="text-amber-700 shrink-0 mt-0.5" />
-                              <span><strong>Anotación para compras:</strong> {item.notes}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Sección 2: Desglose consolidado de ingredientes */}
-                {aggregatedList.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Calculator size={14} className="text-teal-600" />
-                      Desglose consolidado para economato ({aggregatedList.length} ingredientes)
-                    </h4>
-                    <div className="border border-stone-200 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-stone-100 border-b border-stone-200 text-stone-600 font-bold uppercase tracking-wider text-[10px]">
-                          <tr>
-                            <th className="py-2 px-3">Ingrediente / Referencia</th>
-                            <th className="py-2 px-3 text-right">Cantidad</th>
-                            <th className="py-2 px-3 text-right">Proveedor</th>
-                            <th className="py-2 px-3 text-right">Coste Est.</th>
+                  <div className="border border-stone-200 rounded-xl overflow-hidden shadow-xs bg-white">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-stone-50/90 border-b border-stone-200 text-stone-600 font-semibold text-[11px] uppercase tracking-wider">
+                            <th className="py-2.5 px-3 w-10 text-center text-stone-400">#</th>
+                            <th className="py-2.5 px-3">Artículo / Producto</th>
+                            <th className="py-2.5 px-3 w-36">Tipo</th>
+                            <th className="py-2.5 px-3 text-right w-32">Cantidad</th>
+                            <th className="py-2.5 px-3 min-w-[200px]">Anotaciones para compras</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-stone-100 bg-white">
-                          {aggregatedList.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-stone-50/70">
-                              <td className="py-2 px-3">
-                                <div className="font-semibold text-stone-900 flex items-center gap-1.5">
-                                  <span>{item.name}</span>
-                                  {item.isCustom && (
-                                    <span className="text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.2 rounded">
+                        <tbody className="divide-y divide-stone-100">
+                          {orderItems.map((item, idx) => {
+                            const isRecipe = item.type === 'recipe';
+                            const isMenu = item.type === 'menu';
+                            const isIngredient = item.type === 'ingredient';
+                            const isCustom = item.type === 'custom';
+
+                            const data = isRecipe 
+                              ? recipes.find(r => r.id === item.id) 
+                              : isMenu 
+                                ? menus.find(m => m.id === item.id)
+                                : isIngredient
+                                  ? ingredients.find(i => i.id === item.id)
+                                  : null;
+
+                            const name = isCustom 
+                              ? item.customName || 'Producto no catalogado' 
+                              : isIngredient 
+                                ? (data as Ingredient)?.nameES || 'Ingrediente'
+                                : isRecipe
+                                  ? (data as Recipe)?.nameES || 'Receta'
+                                  : (data as any)?.nameES || 'Menú';
+
+                            const unit = isCustom
+                              ? item.customUnit || 'ud'
+                              : isIngredient
+                                ? (data as Ingredient)?.unit || 'ud'
+                                : isRecipe
+                                  ? 'raciones'
+                                  : 'comensales';
+
+                            const hasNotes = Boolean(item.notes && item.notes.trim() !== '');
+
+                            return (
+                              <tr 
+                                key={idx} 
+                                className="hover:bg-stone-50/70 transition-colors"
+                              >
+                                <td className="py-2.5 px-3 text-center font-medium text-stone-400">
+                                  {idx + 1}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <div className="font-semibold text-stone-900 text-sm">
+                                    {name}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  {isCustom ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                      <PackagePlus size={12} className="text-amber-700" />
                                       Fuera de catálogo
                                     </span>
+                                  ) : isIngredient ? (
+                                    <span className="inline-flex items-center text-[11px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md">
+                                      Ingrediente directo
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+                                      {isRecipe ? 'Receta' : 'Menú'}
+                                    </span>
                                   )}
-                                </div>
-                                {item.teacherNotes && Object.values(item.teacherNotes).length > 0 && (
-                                  <div className="text-[11px] text-amber-900 bg-amber-50/80 border border-amber-200/80 rounded px-1.5 py-0.5 mt-0.5 font-medium flex items-center gap-1">
-                                    <MessageSquare size={10} className="text-amber-700" />
-                                    <span>Nota: {Object.values(item.teacherNotes).join(' · ')}</span>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-2 px-3 text-right font-bold text-stone-900">
-                                {item.totalQuantity.toFixed(3)} {item.unit}
-                              </td>
-                              <td className="py-2 px-3 text-right text-stone-500 italic text-[11px]">
-                                {item.provider || 'Sin asignar'}
-                              </td>
-                              <td className="py-2 px-3 text-right font-semibold text-stone-700">
-                                {item.totalCost > 0 ? `${item.totalCost.toFixed(2)} €` : '-'}
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                  <span className="inline-flex items-baseline gap-1 bg-stone-50 border border-stone-200 px-2.5 py-1 rounded-lg">
+                                    <span className="font-bold text-stone-900 text-sm">{item.quantity}</span>
+                                    <span className="text-stone-500 font-normal text-xs">{unit}</span>
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  {hasNotes ? (
+                                    <div className="flex items-start gap-1.5 text-xs text-amber-900 bg-amber-50/80 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium max-w-md">
+                                      <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
+                                      <span>{item.notes}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-stone-300 italic text-[11px]">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
-                        <tfoot className="bg-stone-50 border-t border-stone-200 font-bold text-stone-900">
-                          <tr>
-                            <td colSpan={3} className="py-2 px-3 text-right text-[11px] uppercase tracking-wider text-stone-600">
-                              Total Estimado:
-                            </td>
-                            <td className="py-2 px-3 text-right text-sm text-teal-800">
-                              {totalOrderCost.toFixed(2)} €
-                            </td>
-                          </tr>
-                        </tfoot>
                       </table>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
