@@ -481,7 +481,7 @@ service cloud.firestore {
 
     match /settings/{settingId} {
       allow read: if isStudentOrAdmin();
-      allow create, update: if isAdmin();
+      allow create, update: if isComprasOrAdmin();
       allow delete: if isSuperAdmin();
     }
 

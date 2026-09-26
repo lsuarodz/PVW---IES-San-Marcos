@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
+import { checkOrderCutoffStatus, DAYS_OF_WEEK } from '../utils/orderCutoff';
 import { Recipe, Ingredient, Order, OrderItem } from '../types';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
@@ -87,6 +88,93 @@ export default function Orders() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<'provider' | 'teacher' | 'ingredient'>('provider');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Security confirmation state for deleting an individual order
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; title: string } | null>(null);
+
+  // Security confirmation state for bulk deleting orders
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
+  // Weekly order cutoff status & management states
+  const cutoffStatus = useMemo(() => checkOrderCutoffStatus(settings?.orderCutoff), [settings?.orderCutoff]);
+  const isLockedForCurrentUser = cutoffStatus.isLocked && !canConsolidate;
+
+  const [cutoffEnabled, setCutoffEnabled] = useState(false);
+  const [cutoffDay, setCutoffDay] = useState(1); // 1 = Lunes
+  const [cutoffTime, setCutoffTime] = useState('11:00');
+  const [isSavingCutoff, setIsSavingCutoff] = useState(false);
+
+  // Sync cutoff local state when settings document changes
+  useEffect(() => {
+    if (settings?.orderCutoff) {
+      setCutoffEnabled(!!settings.orderCutoff.enabled);
+      setCutoffDay(typeof settings.orderCutoff.dayOfWeek === 'number' ? settings.orderCutoff.dayOfWeek : 1);
+      setCutoffTime(settings.orderCutoff.time || '11:00');
+    }
+  }, [settings?.orderCutoff]);
+
+  // Handler to save weekly deadline configuration
+  const handleSaveCutoffConfig = async () => {
+    setIsSavingCutoff(true);
+    try {
+      const currentCutoff = settings?.orderCutoff;
+      const newCutoff = {
+        enabled: cutoffEnabled,
+        dayOfWeek: cutoffDay,
+        time: cutoffTime,
+        isManuallyLocked: currentCutoff?.isManuallyLocked ?? false,
+        lastUnlockedAt: currentCutoff?.lastUnlockedAt ?? new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'settings', 'global'), { orderCutoff: newCutoff }, { merge: true });
+      showToast('Configuración del plazo semanal guardada correctamente.', 'success');
+    } catch (err) {
+      console.error('Error saving cutoff config:', err);
+      showToast('Error al guardar la configuración de horario.', 'error');
+    } finally {
+      setIsSavingCutoff(false);
+    }
+  };
+
+  // Handler for purchasing manager / admin to unlock orders for next week
+  const handleUnlockOrdersForNextWeek = async () => {
+    setIsSavingCutoff(true);
+    try {
+      const currentCutoff = settings?.orderCutoff || { enabled: true, dayOfWeek: 1, time: '11:00' };
+      const updatedCutoff = {
+        ...currentCutoff,
+        enabled: true,
+        isManuallyLocked: false,
+        lastUnlockedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'settings', 'global'), { orderCutoff: updatedCutoff }, { merge: true });
+      showToast('Pedidos reactivados con éxito para la próxima semana.', 'success');
+    } catch (err) {
+      console.error('Error unlocking orders:', err);
+      showToast('Error al reactivar los pedidos.', 'error');
+    } finally {
+      setIsSavingCutoff(false);
+    }
+  };
+
+  // Handler to manually lock orders now
+  const handleLockOrdersNow = async () => {
+    setIsSavingCutoff(true);
+    try {
+      const currentCutoff = settings?.orderCutoff || { enabled: true, dayOfWeek: 1, time: '11:00' };
+      const updatedCutoff = {
+        ...currentCutoff,
+        isManuallyLocked: true,
+        lastLockedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'settings', 'global'), { orderCutoff: updatedCutoff }, { merge: true });
+      showToast('Pedidos bloqueados para los docentes.', 'info');
+    } catch (err) {
+      console.error('Error locking orders:', err);
+      showToast('Error al bloquear los pedidos.', 'error');
+    } finally {
+      setIsSavingCutoff(false);
+    }
+  };
 
   // Print Setup
   const printRef = useRef<HTMLDivElement>(null);
@@ -272,10 +360,11 @@ export default function Orders() {
     }
   };
 
-  // Delete selected orders
-  const handleDeleteSelected = async () => {
+  // Delete selected orders (confirmed)
+  const confirmDeleteSelected = async () => {
     if (selectedOrderIds.length === 0) return;
     setIsUpdatingStatus(true);
+    setShowBulkDeleteModal(false);
     try {
       await Promise.all(
         selectedOrderIds.map(async (id) => {
@@ -290,6 +379,11 @@ export default function Orders() {
     } finally {
       setIsUpdatingStatus(false);
     }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedOrderIds.length === 0) return;
+    setShowBulkDeleteModal(true);
   };
 
   // Toggle order selection for consolidation
@@ -687,6 +781,46 @@ export default function Orders() {
           </p>
         </div>
 
+        {/* Banner de estado de límite semanal para docentes */}
+        {isLockedForCurrentUser && (
+          <div className="mb-8 w-full max-w-xl mx-auto bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 shadow-xs text-left">
+            <div className="p-2 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+              <Lock size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-amber-950 text-sm">Plazo semanal de pedidos cerrado</h4>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase">
+                  Tramitación en curso
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                La hora límite semanal fue el <strong>{cutoffStatus.cutoffText}</strong>. El departamento de compras está procesando los pedidos con los proveedores. Podrás volver a añadir productos una vez que el jefe de compras reactive los pedidos para la próxima semana.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de estado para Compras / Administración */}
+        {canConsolidate && cutoffStatus.isLocked && (
+          <div className="mb-8 w-full max-w-xl mx-auto bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-start gap-3 shadow-xs text-left">
+            <div className="p-2 bg-teal-100 rounded-xl text-teal-800 shrink-0 mt-0.5">
+              <Lock size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-teal-950 text-sm">Modo Compras / Administración</h4>
+                <span className="text-[10px] font-bold bg-teal-200 text-teal-900 px-2 py-0.5 rounded-full uppercase">
+                  Pedidos cerrados para docentes
+                </span>
+              </div>
+              <p className="text-xs text-teal-900/90 mt-1 leading-relaxed">
+                Los docentes tienen los pedidos bloqueados ({cutoffStatus.cutoffText}). Puedes revisar la consolidación y reactivar los pedidos para la próxima semana en cuanto termines con los proveedores.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons: MenuTile style (similar to Home) */}
         <div className="flex flex-wrap items-start justify-center gap-8 sm:gap-10 md:gap-14 mb-8">
           {/* Botón 1: Continuar con el pedido anterior */}
@@ -886,6 +1020,48 @@ export default function Orders() {
         </div>
       </div>
 
+      {/* Banner de aviso de cierre semanal en la vista de edición/creación */}
+      {isLockedForCurrentUser && (
+        <div className="mb-5 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3.5 shadow-xs">
+          <div className="p-2 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+            <Lock size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-bold text-amber-950 text-sm sm:text-base">
+                Plazo semanal de pedidos cerrado
+              </h3>
+              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase">
+                Tramitación en curso
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-amber-900/90 mt-1 leading-relaxed">
+              La hora límite de pedidos fue el <strong>{cutoffStatus.cutoffText}</strong>. El departamento de compras está pasando los pedidos a los proveedores. No es posible añadir ni modificar productos hasta que compras vuelva a abrir el plazo para la próxima semana.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {canConsolidate && cutoffStatus.isLocked && activeTab === 'create' && (
+        <div className="mb-5 bg-teal-50 border border-teal-200 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-teal-100 rounded-lg text-teal-800 shrink-0">
+              <Lock size={16} />
+            </div>
+            <p className="text-xs text-teal-900 font-medium">
+              <strong>Modo Compras / Administración:</strong> Los pedidos están cerrados para los docentes ({cutoffStatus.cutoffText}). Puedes tramitar pedidos con proveedores y reactivarlos desde la pestaña <strong>Consolidar Pedidos</strong>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('consolidate')}
+            className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer"
+          >
+            Ir a Consolidar Pedidos
+          </button>
+        </div>
+      )}
+
       {activeTab === 'create' ? (
         /* ================= CREATE / EDIT ORDER VIEW ================= */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -913,43 +1089,59 @@ export default function Orders() {
                   <PlusCircle size={16} className="text-teal-600" />
                   Añadir al Pedido
                 </h3>
-                <div className="relative flex-1 sm:max-w-xs">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={13} />
-                  <input
-                    type="text"
-                    placeholder="buscar ingredientes, recetas..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setIsSearchOpen(true);
-                    }}
-                    onFocus={() => {
-                      if (search.trim() !== '') setIsSearchOpen(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setIsSearchOpen(false);
-                      }
-                    }}
-                    className="w-full pl-8 pr-7 py-1 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
-                  />
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch('');
-                        setIsSearchOpen(false);
+                {isLockedForCurrentUser ? (
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Lock size={11} /> Plazo cerrado
+                  </span>
+                ) : (
+                  <div className="relative flex-1 sm:max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" size={13} />
+                    <input
+                      type="text"
+                      placeholder="buscar ingredientes, recetas..."
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setIsSearchOpen(true);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded-full"
-                      title="Limpiar y cerrar búsqueda"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
+                      onFocus={() => {
+                        if (search.trim() !== '') setIsSearchOpen(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setIsSearchOpen(false);
+                        }
+                      }}
+                      className="w-full pl-8 pr-7 py-1 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs text-stone-800 placeholder:text-stone-400"
+                    />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch('');
+                          setIsSearchOpen(false);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded-full"
+                        title="Limpiar y cerrar búsqueda"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {search.trim() !== '' && isSearchOpen ? (
+              {isLockedForCurrentUser ? (
+                <div className="text-center py-4 px-3 border border-dashed border-amber-200 rounded-lg bg-amber-50/50 flex flex-col items-center justify-center gap-1.5">
+                  <Lock size={20} className="text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-900 font-semibold">
+                    No se pueden añadir productos en este momento
+                  </p>
+                  <p className="text-[11px] text-amber-700">
+                    Hora límite: {cutoffStatus.cutoffText}. El departamento de compras está tramitando los pedidos semanales.
+                  </p>
+                </div>
+              ) : search.trim() !== '' && isSearchOpen ? (
                 <div className="mt-2 pt-2 border-t border-stone-100 max-h-[220px] overflow-y-auto space-y-2.5 pr-1">
                   {filteredMenus.length > 0 && (
                     <div>
@@ -1044,24 +1236,26 @@ export default function Orders() {
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="text-center py-3.5 px-3 border border-dashed border-stone-200 rounded-lg bg-stone-50/60 flex items-center justify-center gap-2">
-                  <Search size={14} className="text-stone-400 shrink-0" />
-                  <p className="text-xs text-stone-500 font-medium">
-                    Escribe en el buscador para añadir recetas, menús o ingredientes
-                  </p>
-                </div>
-              )}
+              ) : null}
 
               {/* Botón para solicitar producto fuera de catálogo (sin añadir a BD) */}
               <div className="mt-2.5 pt-2 border-t border-stone-100">
                 <button
                   type="button"
+                  disabled={isLockedForCurrentUser}
                   onClick={() => openCustomProductModal()}
-                  className="w-full py-1.5 px-2.5 bg-stone-50 hover:bg-teal-50/70 border border-dashed border-stone-300 hover:border-teal-400 rounded-lg text-xs text-stone-700 hover:text-teal-800 font-semibold flex items-center justify-center gap-1.5 transition-colors"
-                  title="Pedir un producto especial no disponible en el catálogo"
+                  className={`w-full py-1.5 px-2.5 border rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                    isLockedForCurrentUser
+                      ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed'
+                      : 'bg-stone-50 hover:bg-teal-50/70 border-dashed border-stone-300 hover:border-teal-400 text-stone-700 hover:text-teal-800 cursor-pointer'
+                  }`}
+                  title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado' : 'Pedir un producto especial no disponible en el catálogo'}
                 >
-                  <PlusCircle size={14} className="text-teal-600 shrink-0" />
+                  {isLockedForCurrentUser ? (
+                    <Lock size={14} className="text-stone-400 shrink-0" />
+                  ) : (
+                    <PlusCircle size={14} className="text-teal-600 shrink-0" />
+                  )}
                   <span>¿No encuentras un producto? <strong>Pedir fuera de catálogo</strong></span>
                 </button>
               </div>
@@ -1086,14 +1280,8 @@ export default function Orders() {
                 {editingOrderId && (
                   <button
                     type="button"
-                    onClick={() => {
-                      handleDeleteOrder(editingOrderId);
-                      setEditingOrderId(null);
-                      setOrderItems([]);
-                      setOrderTitle('');
-                      setEntryChoice(null);
-                    }}
-                    className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium"
+                    onClick={() => setOrderToDelete({ id: editingOrderId, title: orderTitle.trim() || 'este pedido guardado' })}
+                    className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
                     title="Eliminar este pedido guardado"
                   >
                     <Trash2 size={13} />
@@ -1281,9 +1469,11 @@ export default function Orders() {
                       </button>
                       <button
                         onClick={() => handleSaveOrder(false)}
-                        disabled={isSaving}
-                        className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-50 flex items-center gap-1.5"
+                        disabled={isSaving || isLockedForCurrentUser}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                        title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado por compras' : undefined}
                       >
+                        {isLockedForCurrentUser && <Lock size={12} />}
                         {isSaving ? 'Enviando...' : 'Enviar Pedido'}
                       </button>
                     </>
@@ -1295,7 +1485,130 @@ export default function Orders() {
         </div>
       ) : (
         /* ================= CONSOLIDATE VIEW ================= */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="space-y-4">
+          {/* Panel de Control de Límite Semanal de Pedidos (Rol de Compras y Administración) */}
+          {canConsolidate && (
+            <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4 sm:p-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-bold text-stone-900">
+                        Control de Plazo Semanal de Pedidos
+                      </h2>
+                      {cutoffStatus.isLocked ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-red-100 text-red-800 border border-red-200 px-2 py-0.5 rounded-full">
+                          <Lock size={12} /> Pedidos bloqueados para docentes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-green-100 text-green-800 border border-green-200 px-2 py-0.5 rounded-full">
+                          <CheckCircle size={12} /> Pedidos abiertos para docentes
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {cutoffEnabled
+                        ? `Límite programado: ${DAYS_OF_WEEK.find(d => d.value === cutoffDay)?.label} a las ${cutoffTime}. ${cutoffStatus.isLocked ? 'Los docentes no pueden añadir productos hasta que los reactives.' : `Próximo cierre: ${cutoffStatus.nextCutoffText}`}`
+                        : 'El límite semanal está desactivado. Los docentes pueden realizar pedidos libremente.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Acciones Rápidas de Bloqueo / Desbloqueo */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {cutoffStatus.isLocked ? (
+                    <button
+                      type="button"
+                      onClick={handleUnlockOrdersForNextWeek}
+                      disabled={isSavingCutoff}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      title="Permitir que los docentes vuelvan a añadir pedidos para la próxima semana"
+                    >
+                      <Unlock size={15} />
+                      <span>Reactivar pedidos para la próxima semana</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleLockOrdersNow}
+                      disabled={isSavingCutoff}
+                      className="px-3.5 py-2 bg-stone-100 hover:bg-amber-100 text-stone-700 hover:text-amber-900 border border-stone-200 hover:border-amber-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      title="Bloquear pedidos a los docentes ahora mismo (cierre anticipado)"
+                    >
+                      <Lock size={14} className="text-amber-700" />
+                      <span>Bloquear pedidos ahora</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Formulario de Configuración de Día y Hora */}
+              <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-bold text-stone-600 mb-1">
+                    Límite semanal automático
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={cutoffEnabled}
+                      onChange={(e) => setCutoffEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                    <span className="ml-2.5 text-xs font-semibold text-stone-800">
+                      {cutoffEnabled ? 'Activado' : 'Desactivado'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-bold text-stone-600 mb-1">
+                    Día de corte semanal
+                  </label>
+                  <select
+                    value={cutoffDay}
+                    disabled={!cutoffEnabled}
+                    onChange={(e) => setCutoffDay(Number(e.target.value))}
+                    className="w-full text-xs font-medium border border-stone-200 rounded-lg bg-stone-50 disabled:bg-stone-100 disabled:text-stone-400 text-stone-800 py-1.5 px-2.5 focus:ring-2 focus:ring-teal-500"
+                  >
+                    {DAYS_OF_WEEK.map(d => (
+                      <option key={d.value} value={d.value}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-bold text-stone-600 mb-1">
+                    Hora límite (HH:MM)
+                  </label>
+                  <input
+                    type="time"
+                    value={cutoffTime}
+                    disabled={!cutoffEnabled}
+                    onChange={(e) => setCutoffTime(e.target.value)}
+                    className="w-full text-xs font-medium border border-stone-200 rounded-lg bg-stone-50 disabled:bg-stone-100 disabled:text-stone-400 text-stone-800 py-1.5 px-2.5 focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                <div className="lg:col-span-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveCutoffConfig}
+                    disabled={isSavingCutoff}
+                    className="w-full sm:w-auto px-4 py-2 bg-teal-700 hover:bg-teal-800 active:bg-teal-900 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSavingCutoff ? 'Guardando...' : 'Guardar horario límite'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* ==================== LEFT COLUMN: PEDIDOS DEL PROFESORADO ==================== */}
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4 space-y-3">
@@ -1422,9 +1735,9 @@ export default function Orders() {
                     Completar Seleccionados
                   </button>
                   <button
-                    onClick={handleDeleteSelected}
+                    onClick={() => setShowBulkDeleteModal(true)}
                     disabled={isUpdatingStatus}
-                    className="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-xl transition-all border border-red-200"
+                    className="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-xl transition-all border border-red-200 cursor-pointer"
                     title="Eliminar seleccionados"
                   >
                     <Trash size={15} />
@@ -1437,44 +1750,54 @@ export default function Orders() {
           {/* ==================== RIGHT COLUMN: LISTA DE COMPRA CONSOLIDADA ==================== */}
           <div className="lg:col-span-7">
             <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 overflow-hidden sticky top-8">
-              <div className="p-4 border-b border-stone-100 bg-stone-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Calculator size={20} className="text-teal-600" />
-                  <div>
-                    <h2 className="text-base font-bold text-stone-900">
-                      Lista de Compra Consolidada
-                    </h2>
-                    <p className="text-xs text-stone-500">
-                      {`Ingredientes combinados de ${selectedOrderIds.length} pedidos`}
-                    </p>
+              <div className="p-3.5 sm:p-4 border-b border-stone-100 bg-stone-50/50 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Calculator size={20} className="text-teal-600 shrink-0" />
+                    <div className="min-w-0">
+                      <h2 className="text-base font-bold text-stone-900 leading-tight truncate">
+                        Lista de Compra Consolidada
+                      </h2>
+                      <p className="text-xs text-stone-500">
+                        {`Ingredientes combinados de ${selectedOrderIds.length} pedidos`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Coste Total Badge - Prominente, con texto completo y sin cortes en pantalla móvil */}
+                  <div className="bg-teal-50 border border-teal-200/90 rounded-xl px-3.5 py-2 flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto shrink-0 shadow-xs">
+                    <span className="text-[10px] text-teal-800 uppercase font-black tracking-wider whitespace-nowrap">
+                      Coste Total
+                    </span>
+                    <span className="text-lg sm:text-xl font-black text-teal-800 whitespace-nowrap tracking-tight">
+                      {totalOrderCost.toFixed(2)} €
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end">
-                  <div className="flex items-center gap-2 mr-2 border-r border-stone-200 pr-4">
+                {/* Barra de opciones de agrupación y exportación a PDF */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2 border-t border-stone-200/60">
+                  <div className="flex-1 min-w-[160px] sm:max-w-xs">
                     <select
                       value={groupBy}
                       onChange={(e) => setGroupBy(e.target.value as 'provider' | 'teacher' | 'ingredient')}
-                      className="text-xs border border-stone-200 rounded-lg bg-stone-50 text-stone-600 focus:ring-teal-500 py-1.5 pl-2 pr-6"
+                      className="w-full text-xs font-medium border border-stone-200 rounded-lg bg-white text-stone-700 focus:ring-2 focus:ring-teal-500 py-1.5 pl-2.5 pr-8 shadow-xs"
                     >
                       <option value="provider">Ordenado por Proveedor</option>
                       <option value="teacher">Ordenado por Profesor</option>
                       <option value="ingredient">Ordenado por Lista</option>
                     </select>
                   </div>
+
                   <button
                     onClick={exportPDF}
                     disabled={isPrinting || aggregatedList.length === 0}
-                    className="px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-teal-700 bg-white hover:bg-stone-50 rounded-lg border border-stone-200 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3.5 py-1.5 text-xs font-semibold text-stone-700 hover:text-teal-800 bg-white hover:bg-stone-50 rounded-lg border border-stone-200 transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0 cursor-pointer"
                     title="Descargar PDF Consolidado de Compra"
                   >
-                    <Printer size={16} className="text-teal-600" />
+                    <Printer size={15} className="text-teal-600" />
                     <span>{isPrinting ? 'Generando PDF...' : 'Imprimir / PDF'}</span>
                   </button>
-                  <div className="text-right">
-                    <div className="text-[10px] text-stone-500 uppercase font-bold tracking-wider">Coste Total</div>
-                    <div className="text-xl font-black text-teal-700">{totalOrderCost.toFixed(2)} €</div>
-                  </div>
                 </div>
               </div>
 
@@ -1678,6 +2001,7 @@ export default function Orders() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 
@@ -2509,6 +2833,98 @@ export default function Orders() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: SEGURIDAD PARA ELIMINAR PEDIDO ==================== */}
+      {orderToDelete && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-stone-200 flex flex-col">
+            <div className="flex items-start gap-3.5 mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <AlertTriangle size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-stone-900">¿Eliminar este pedido?</h3>
+                <p className="text-xs text-stone-500 mt-0.5">Confirmación de seguridad obligatoria</p>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200 mb-4 text-xs text-stone-700 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente el pedido <strong className="text-stone-900 font-bold">"{orderToDelete.title}"</strong>?
+              <p className="mt-1.5 text-red-700 font-medium">
+                Esta acción no se puede deshacer y se borrarán todos los artículos solicitados y sus anotaciones para compras.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setOrderToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = orderToDelete.id;
+                  setOrderToDelete(null);
+                  await handleDeleteOrder(id);
+                  if (editingOrderId === id) {
+                    setEditingOrderId(null);
+                    setOrderItems([]);
+                    setOrderTitle('');
+                    setEntryChoice(null);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>Sí, eliminar pedido</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: SEGURIDAD PARA ELIMINAR PEDIDOS SELECCIONADOS ==================== */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-stone-200 flex flex-col">
+            <div className="flex items-start gap-3.5 mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <AlertTriangle size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-stone-900">¿Eliminar pedidos seleccionados?</h3>
+                <p className="text-xs text-stone-500 mt-0.5">Acción masiva de eliminación</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente los <strong className="text-stone-900">{selectedOrderIds.length} pedidos seleccionados</strong>? Esta acción no se puede deshacer.
+            </p>
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteSelected}
+                disabled={isUpdatingStatus}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>Sí, eliminar {selectedOrderIds.length} pedidos</span>
+              </button>
             </div>
           </div>
         </div>

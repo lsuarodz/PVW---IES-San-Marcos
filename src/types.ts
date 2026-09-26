@@ -289,10 +289,21 @@ export interface WorkList {
   createdAt: string;
 }
 
+export interface OrderCutoffConfig {
+  enabled: boolean;
+  dayOfWeek: number; // 0 = Domingo, 1 = Lunes, 2 = Martes, 3 = Miércoles, 4 = Jueves, 5 = Viernes, 6 = Sábado
+  time: string; // "11:00" (HH:mm)
+  isManuallyLocked?: boolean;
+  lastUnlockedAt?: string; // ISO date string of when admin/compras re-opened orders
+  lastLockedAt?: string; // ISO date string
+  message?: string;
+}
+
 export interface AppSettings {
   id?: string;
   logoUrl?: string;
   processes?: string[];
+  orderCutoff?: OrderCutoffConfig;
 }
 
 export interface IdeasBoardSubItem {
