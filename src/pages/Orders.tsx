@@ -180,12 +180,23 @@ export default function Orders() {
   const printRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Automatically select all pending orders when orders list loads or tab changes
-  useEffect(() => {
-    if (orders.length > 0 && selectedOrderIds.length === 0) {
-      setSelectedOrderIds(orders.filter(o => o.status === 'pending').map(o => o.id));
-    }
+  // Pedidos enviados a consolidación (excluyendo borradores)
+  const submittedOrders = useMemo(() => {
+    return orders.filter(o => o.status !== 'draft');
   }, [orders]);
+
+  // Automatically select all pending orders when submitted orders list loads or tab changes
+  useEffect(() => {
+    if (submittedOrders.length > 0 && selectedOrderIds.length === 0) {
+      setSelectedOrderIds(submittedOrders.filter(o => o.status === 'pending').map(o => o.id));
+    }
+  }, [submittedOrders]);
+
+  // Clean up selection if any selected order is no longer in submittedOrders
+  useEffect(() => {
+    const validIds = new Set(submittedOrders.map(o => o.id));
+    setSelectedOrderIds(prev => prev.filter(id => validIds.has(id)));
+  }, [submittedOrders]);
 
   // Close search dropdown on click outside
   useEffect(() => {
@@ -395,14 +406,14 @@ export default function Orders() {
     }
   };
 
-  // Select all pending / completed / all orders
+  // Select all pending / completed / all orders (solo pedidos enviados a consolidación)
   const selectAllOrders = (type: 'all' | 'pending' | 'none') => {
     if (type === 'none') {
       setSelectedOrderIds([]);
     } else if (type === 'pending') {
-      setSelectedOrderIds(orders.filter(o => o.status === 'pending').map(o => o.id));
+      setSelectedOrderIds(submittedOrders.filter(o => o.status === 'pending').map(o => o.id));
     } else {
-      setSelectedOrderIds(orders.map(o => o.id));
+      setSelectedOrderIds(submittedOrders.map(o => o.id));
     }
   };
 
@@ -411,11 +422,11 @@ export default function Orders() {
     if (activeTab === 'create') {
       return orderItems.length > 0 ? [{ items: orderItems, userName: appUser?.name || 'Mi Pedido' }] : [];
     } else {
-      return orders
+      return submittedOrders
         .filter(o => selectedOrderIds.includes(o.id))
         .map(o => ({ items: o.items, userName: o.userName }));
     }
-  }, [activeTab, orderItems, selectedOrderIds, orders, appUser]);
+  }, [activeTab, orderItems, selectedOrderIds, submittedOrders, appUser]);
 
   // Aggregate ingredients
   const aggregatedList = useMemo((): AggregatedIngredient[] => {
@@ -658,7 +669,7 @@ export default function Orders() {
       });
     } else {
       const prodItems: { name: string; type: string; quantity: number; unit?: string; teacherName: string; justification?: string; notes?: string; isCustom?: boolean; }[] = [];
-      orders.filter(o => selectedOrderIds.includes(o.id)).forEach(order => {
+      submittedOrders.filter(o => selectedOrderIds.includes(o.id)).forEach(order => {
         order.items.forEach(item => {
           if (item.quantity > 0) {
             const isRecipe = item.type === 'recipe';
@@ -685,7 +696,7 @@ export default function Orders() {
       });
       return prodItems;
     }
-  }, [activeTab, orderItems, selectedOrderIds, orders, recipes, menus, ingredients, appUser]);
+  }, [activeTab, orderItems, selectedOrderIds, submittedOrders, recipes, menus, ingredients, appUser]);
 
   const exportPDF = () => {
     if (aggregatedList.length === 0) return;
@@ -851,15 +862,15 @@ export default function Orders() {
             }`}>
               Continuar pedido
             </span>
-            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center">
               {userSavedOrder ? 'Editar pedido anterior' : 'Sin pedido guardado'}
             </span>
             {userSavedOrder ? (
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
                 1 activo
               </span>
             ) : (
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-400 border border-stone-200">
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-stone-100 text-stone-400 border border-stone-200">
                 Desactivado
               </span>
             )}
@@ -893,15 +904,15 @@ export default function Orders() {
             }`}>
               Nuevo pedido
             </span>
-            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center inline-block">
               {userSavedOrder ? 'Ya tienes un pedido activo' : 'Iniciar desde cero'}
             </span>
             {userSavedOrder ? (
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-200/90 text-stone-500 border border-stone-300">
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-stone-200/90 text-stone-500 border border-stone-300">
                 Desactivado (1 máx.)
               </span>
             ) : (
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
                 Disponible
               </span>
             )}
@@ -926,11 +937,11 @@ export default function Orders() {
               <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
                 Consolidación
               </span>
-              <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5">
+              <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center">
                 Compras y economato
               </span>
-              <span className="mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-amber-50 text-amber-800 border border-amber-200">
+                {submittedOrders.length} {submittedOrders.length === 1 ? 'pedido enviado' : 'pedidos enviados'}
               </span>
             </button>
           )}
@@ -1266,13 +1277,13 @@ export default function Orders() {
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
               <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-3">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-teal-600" />
-                  <h2 className="text-base font-bold text-stone-900">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <ShoppingCart size={18} className="text-teal-600 shrink-0" />
+                  <h2 className="text-base font-bold text-stone-900 leading-none">
                     {editingOrderId ? 'Editando Pedido' : 'Nuevo Pedido'}
                   </h2>
                   {editingOrderId && (
-                    <span className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="inline-flex items-center justify-center text-center text-[10px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0">
                       Pedido Activo
                     </span>
                   )}
@@ -1618,7 +1629,7 @@ export default function Orders() {
                   Pedidos del Profesorado
                 </h2>
                 <div className="text-[10px] bg-teal-50 text-teal-800 font-bold px-2 py-0.5 rounded-full uppercase">
-                  {orders.length} guardados
+                  {submittedOrders.length} {submittedOrders.length === 1 ? 'enviado' : 'enviados'}
                 </div>
               </div>
 
@@ -1645,7 +1656,7 @@ export default function Orders() {
               </div>
 
               <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
-                {orders.map(order => {
+                {submittedOrders.map(order => {
                   const isChecked = selectedOrderIds.includes(order.id);
                   return (
                     <div
@@ -1663,8 +1674,8 @@ export default function Orders() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start gap-2">
                           <h4 className="font-bold text-stone-900 text-sm truncate">{order.title}</h4>
-                          <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
-                            {order.status === 'completed' ? 'Completado' : order.status === 'pending' ? 'Pendiente' : 'Borrador'}
+                          <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {order.status === 'completed' ? 'Completado' : 'Pendiente'}
                           </span>
                         </div>
                         
@@ -1715,10 +1726,10 @@ export default function Orders() {
                     </div>
                   );
                 })}
-                {orders.length === 0 && (
+                {submittedOrders.length === 0 && (
                   <div className="text-center py-8 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-lg bg-stone-50/50">
-                    <FolderOpen size={24} className=" text-stone-300 mb-1" />
-                    No hay ningún pedido guardado.
+                    <FolderOpen size={24} className="mx-auto text-stone-300 mb-1" />
+                    No hay ningún pedido enviado pendiente de consolidar.
                   </div>
                 )}
               </div>
