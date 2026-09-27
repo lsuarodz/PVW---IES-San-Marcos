@@ -44,7 +44,7 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       descriptionEN: '',
       yieldUnit,
       yieldQuantity,
-      portions,
+      portions: yieldUnit === 'ud' ? portions : null,
       steps: [],
       stepsEN: [],
       equipment: [],
@@ -130,17 +130,19 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
                 </select>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-orange-900 mb-1">Raciones/Unidades finales</label>
-              <input
-                type="number"
-                value={portions}
-                onChange={(e) => setPortions(Number(e.target.value))}
-                className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                placeholder="Ej. 10"
-              />
-              <p className="text-[10px] text-stone-400 mt-1">¿Cuántas raciones se sirven de este total?</p>
-            </div>
+            {yieldUnit === 'ud' && (
+              <div>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Raciones/Unidades finales</label>
+                <input
+                  type="number"
+                  value={portions}
+                  onChange={(e) => setPortions(Number(e.target.value))}
+                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Ej. 10"
+                />
+                <p className="text-[10px] text-stone-400 mt-1">¿Cuántas raciones se sirven de este total?</p>
+              </div>
+            )}
           </form>
         </div>
         <div className="p-6 border-t border-orange-200 flex justify-end gap-3 bg-white rounded-b-2xl">

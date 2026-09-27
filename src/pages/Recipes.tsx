@@ -81,6 +81,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
   const [isElaboradoModalOpen, setIsElaboradoModalOpen] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
+  const [newlyAddedIndex, setNewlyAddedIndex] = useState<number | null>(null);
+  const [focusedNetIndex, setFocusedNetIndex] = useState<number | null>(null);
+  const [newlyAddedStepIndex, setNewlyAddedStepIndex] = useState<number | null>(null);
   
   // Estado para saber si estamos editando un escandallo existente
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -209,7 +212,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     
     const recipeData: Record<string, any> = {
       ...formData,
-      portions: formData.type !== 'elaborado' ? 1 : (Number(formData.portions) || null),
+      portions: formData.type !== 'elaborado' ? 1 : (formData.yieldUnit === 'ud' ? (Number(formData.portions) || null) : null),
       yieldQuantity: Number(formData.yieldQuantity) || null,
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
@@ -406,6 +409,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const resetForm = () => {
     setFormData({ type: type as 'plato' | 'elaborado' | 'bebida', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
     setEditingId(null);
+    setNewlyAddedIndex(null);
+    setFocusedNetIndex(null);
+    setNewlyAddedStepIndex(null);
   };
 
   useEffect(() => {
@@ -421,10 +427,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   }, [searchParams, recipes]);
 
   const addStep = () => {
+    const nextIdx = formData.steps.length;
     setFormData({
       ...formData,
       steps: [...formData.steps, '']
     });
+    setNewlyAddedStepIndex(nextIdx);
   };
 
   const updateStep = (index: number, value: string) => {
@@ -505,17 +513,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const addIngredientToRecipe = () => {
+    const nextIdx = formData.ingredients.length;
     setFormData({
       ...formData,
       ingredients: [...formData.ingredients, { ingredientId: '', quantity: 0, itemType: 'ingredient' }]
     });
+    setNewlyAddedIndex(nextIdx);
   };
 
   const addElaboradoToRecipe = () => {
+    const nextIdx = formData.ingredients.length;
     setFormData({
       ...formData,
       ingredients: [...formData.ingredients, { ingredientId: '', quantity: 0, itemType: 'elaborado' }]
     });
+    setNewlyAddedIndex(nextIdx);
   };
 
   const updateRecipeIngredient = (index: number, field: keyof RecipeIngredient, value: any) => {
@@ -1010,7 +1022,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <select
                             value={formData.yieldUnit}
                             disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => setFormData({...formData, yieldUnit: e.target.value as 'kg' | 'L' | 'ud'})}
+                            onChange={e => {
+                              const newUnit = e.target.value as 'kg' | 'L' | 'ud';
+                              setFormData({
+                                ...formData,
+                                yieldUnit: newUnit,
+                                portions: newUnit === 'ud' ? formData.portions : null
+                              });
+                            }}
                             className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="kg">kg</option>
@@ -1019,28 +1038,30 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           </select>
                         </div>
                       </div>
-                      <div className="flex gap-4">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
-                          <input
-                            type="number" min="1" step="1"
-                            value={formData.portions ?? ''}
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => setFormData({...formData, portions: e.target.value})}
-                            onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            placeholder="Ej: 10"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-orange-900 mb-1">Peso por ración</label>
-                          <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
-                            {formData.yieldQuantity && formData.portions 
-                              ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
-                              : '-'}
+                      {formData.yieldUnit === 'ud' && (
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
+                            <input
+                              type="number" min="1" step="1"
+                              value={formData.portions ?? ''}
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                              onChange={e => setFormData({...formData, portions: e.target.value})}
+                              onFocus={e => e.target.select()}
+                              className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              placeholder="Ej: 10"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-orange-900 mb-1">Peso por ración</label>
+                            <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
+                              {formData.yieldQuantity && formData.portions 
+                                ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
+                                : '-'}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   ) : (
                     <div>
@@ -1083,12 +1104,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <div className="flex-1 min-w-0 flex gap-1.5 pt-3">
                             <IngredientSelect
                               value={ri.ingredientId}
-                              onChange={id => updateRecipeIngredient(index, 'ingredientId', id)}
+                              onChange={id => {
+                                updateRecipeIngredient(index, 'ingredientId', id);
+                                if (newlyAddedIndex === index) {
+                                  setNewlyAddedIndex(null);
+                                }
+                                setFocusedNetIndex(index);
+                              }}
                               ingredients={ingredients}
                               recipes={recipes}
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                               itemType={ri.itemType}
                               currentRecipeId={editingId}
+                              autoFocus={newlyAddedIndex === index}
+                              onClose={() => {
+                                if (newlyAddedIndex === index) {
+                                  setNewlyAddedIndex(null);
+                                }
+                              }}
                             />
                             {selectedIng && (
                               <button
@@ -1141,6 +1174,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               recipes={recipes}
                               updateRecipeIngredient={updateRecipeIngredient}
                               canEditField={canEditField}
+                              autoFocusNet={focusedNetIndex === index}
+                              onNetFocused={() => setFocusedNetIndex(null)}
                             />
                           </div>
                           <div className="w-24 text-right font-bold text-teal-700 pt-[22px] text-sm">
@@ -1248,6 +1283,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             )}
                           </div>
                           <textarea
+                            ref={el => {
+                              if (el && newlyAddedStepIndex === index) {
+                                el.focus();
+                                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                setNewlyAddedStepIndex(null);
+                              }
+                            }}
                             required
                             rows={2}
                             value={formData.type !== 'elaborado' ? parsed.text : step}
@@ -1561,6 +1603,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       <span className="text-orange-900 font-bold">{printingRecipe.portions}</span>
                     </div>
                   )}
+                  {printingRecipe.yieldQuantity && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Cantidad Resultante:</span>
+                      <span className="text-orange-900 font-bold">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
                     <span className="text-orange-900">{printingRecipe.createdBy}</span>
@@ -1570,14 +1618,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               <div className="grid grid-cols-1 gap-6">
                 <div>
                   <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Escandallo Detallado</h3>
-                  <table className="w-[94%]  text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
+                  <table className="w-full text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
                     <thead>
-                      <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans">
-                        <th className="py-3 px-3 font-medium w-[28%]">Ingrediente</th>
-                        <th className="py-3 px-3 font-medium w-[36%]">Preelaboración</th>
-                        <th className="py-3 px-3 font-medium text-right w-[13%]">Cantidad</th>
-                        <th className="py-3 px-3 font-medium text-right w-[11%]">Coste/Ud</th>
-                        <th className="py-3 px-3 font-medium text-right w-[12%]">Total</th>
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans text-[9px]">
+                        <th className="py-2.5 px-2 font-medium w-[26%]">Ingrediente</th>
+                        <th className="py-2.5 px-2 font-medium w-[23%]">Preelaboración</th>
+                        <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Bruto</th>
+                        <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Neto</th>
+                        <th className="py-2.5 px-2 font-medium text-right w-[11%]">Coste/Ud</th>
+                        <th className="py-2.5 px-2 font-medium text-right w-[12%]">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 font-sans">
@@ -1598,23 +1647,32 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           }
                         }
                         
-                        const itemTotalCost = realCostPerUnit * ri.quantity;
+                        const gross = Number(ri.quantity) || 0;
+                        const waste = ing?.wastePercentage || 0;
+                        const net = waste === 100 ? 0 : (waste > 0 ? gross * (1 - waste / 100) : gross);
+                        const formattedGross = Number(gross.toFixed(3));
+                        const formattedNet = Number(net.toFixed(3));
+                        const itemTotalCost = realCostPerUnit * gross;
 
                         return (
                           <tr key={idx} className="hover:bg-stone-50">
-                            <td className="py-3 px-3 font-medium text-stone-800 break-words">{name}</td>
-                            <td className="py-3 px-3 text-stone-600 break-words">{ri.preparation || '-'}</td>
-                            <td className="py-3 px-3 text-right text-stone-600 whitespace-nowrap">{ri.quantity} {unit}</td>
-                            <td className="py-3 px-3 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
-                            <td className="py-3 px-3 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
+                            <td className="py-2.5 px-2 font-medium text-stone-800 break-words">{name}</td>
+                            <td className="py-2.5 px-2 text-stone-600 break-words">{ri.preparation || '-'}</td>
+                            <td className="py-2.5 px-2 text-right text-stone-700 whitespace-nowrap font-mono">{formattedGross} {unit}</td>
+                            <td className="py-2.5 px-2 text-right text-stone-600 whitespace-nowrap font-mono">
+                              {formattedNet} {unit}
+                              {waste > 0 && <span className="text-[8px] text-stone-400 block font-sans">(-{waste}%)</span>}
+                            </td>
+                            <td className="py-2.5 px-2 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
+                            <td className="py-2.5 px-2 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
-                        <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
-                        <td className="py-3 px-3 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
+                        <td colSpan={5} className="py-2.5 px-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
+                        <td className="py-2.5 px-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
                       </tr>
                     </tfoot>
                   </table>

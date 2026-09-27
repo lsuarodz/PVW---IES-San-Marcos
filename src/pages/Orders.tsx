@@ -46,6 +46,88 @@ interface TeacherIngredient {
   notes?: string;
 }
 
+// Subcomponente de cuenta atrás para la hora límite semanal de pedidos
+function OrderCountdownBadge({
+  targetDate,
+  isLocked,
+  cutoffText,
+  nextCutoffText,
+}: {
+  targetDate?: Date | null;
+  isLocked: boolean;
+  cutoffText?: string;
+  nextCutoffText?: string;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!targetDate || isLocked) return;
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate, isLocked]);
+
+  if (isLocked) {
+    return (
+      <span
+        className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-stone-100 text-stone-700 border border-stone-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
+        title={`El plazo semanal de pedidos finalizó el ${cutoffText || ''}.`}
+      >
+        <Lock size={11} className="text-stone-500 shrink-0" />
+        <span>Plazo cerrado</span>
+      </span>
+    );
+  }
+
+  if (!targetDate) return null;
+
+  const diff = Math.max(0, targetDate.getTime() - now);
+  if (diff <= 0) {
+    return (
+      <span
+        className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-red-100 text-red-800 border border-red-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
+        title="La hora límite semanal ha finalizado."
+      >
+        <Lock size={11} className="text-red-600 shrink-0" />
+        <span>Plazo expirado</span>
+      </span>
+    );
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  const isUrgent = diff < 2 * 60 * 60 * 1000; // Menos de 2 horas
+  const isWarning = diff < 24 * 60 * 60 * 1000; // Menos de 24 horas
+
+  const formattedTime =
+    days > 0
+      ? `${days}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`
+      : hours > 0
+        ? `${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`
+        : `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none px-2.5 py-1 rounded-full tracking-wide shrink-0 shadow-2xs transition-colors ${
+        isUrgent
+          ? 'bg-red-50 text-red-900 border border-red-300 animate-pulse'
+          : isWarning
+            ? 'bg-amber-50 text-amber-900 border border-amber-300'
+            : 'bg-teal-50 text-teal-800 border border-teal-200'
+      }`}
+      title={`Hora límite semanal: ${nextCutoffText || cutoffText || ''}.`}
+    >
+      <Clock size={11} className={isUrgent ? 'text-red-600 shrink-0' : isWarning ? 'text-amber-700 shrink-0' : 'text-teal-600 shrink-0'} />
+      <span className="uppercase text-[9px] text-stone-500 font-semibold hidden sm:inline">Quedan:</span>
+      <span className="font-mono font-bold text-[11px] tracking-tight">{formattedTime}</span>
+    </span>
+  );
+}
+
 export default function Orders() {
   const { appUser, commissionMode } = useAuth();
   const isAdmin = appUser?.role === 'admin' || appUser?.role === 'docente';
@@ -748,6 +830,17 @@ export default function Orders() {
 
   const userSavedOrder = mySavedOrders[0] || null;
 
+  // Pedido actualmente en edición o espacio de trabajo
+  const currentActiveOrder = useMemo(() => {
+    if (editingOrderId) {
+      return orders.find(o => o.id === editingOrderId) || null;
+    }
+    return userSavedOrder;
+  }, [editingOrderId, orders, userSavedOrder]);
+
+  // Si el pedido actual ya ha sido enviado a consolidación o si sigue en borrador / sin enviar
+  const isCurrentOrderSent = Boolean(currentActiveOrder && currentActiveOrder.status !== 'draft');
+
   const handleContinuePrevious = () => {
     if (!userSavedOrder) {
       showToast('No tienes ningún pedido anterior guardado.', 'error');
@@ -832,6 +925,21 @@ export default function Orders() {
           </div>
         )}
 
+        {/* Banner informativo de plazo activo con cuenta atrás */}
+        {!cutoffStatus.isLocked && cutoffStatus.nextCutoffDate && (
+          <div className="mb-8 inline-flex flex-wrap items-center justify-center gap-2.5 bg-white border border-stone-200/90 rounded-2xl px-4 py-2.5 shadow-xs text-center max-w-xl mx-auto">
+            <span className="text-xs text-stone-600 font-medium">
+              Hora límite semanal de pedidos: <strong>{cutoffStatus.nextCutoffText}</strong>
+            </span>
+            <OrderCountdownBadge
+              targetDate={cutoffStatus.nextCutoffDate}
+              isLocked={cutoffStatus.isLocked}
+              cutoffText={cutoffStatus.cutoffText}
+              nextCutoffText={cutoffStatus.nextCutoffText}
+            />
+          </div>
+        )}
+
         {/* Action Buttons: MenuTile style (similar to Home) */}
         <div className="flex flex-wrap items-start justify-center gap-8 sm:gap-10 md:gap-14 mb-8">
           {/* Botón 1: Continuar con el pedido anterior */}
@@ -866,9 +974,18 @@ export default function Orders() {
               {userSavedOrder ? 'Editar pedido anterior' : 'Sin pedido guardado'}
             </span>
             {userSavedOrder ? (
-              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
-                1 activo
-              </span>
+              <div className="mt-2 flex flex-col items-center gap-1">
+                <span className="inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
+                  1 activo
+                </span>
+                <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  userSavedOrder.status === 'draft'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                    : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                }`}>
+                  {userSavedOrder.status === 'draft' ? 'Aún no enviado' : 'Enviado'}
+                </span>
+              </div>
             ) : (
               <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-stone-100 text-stone-400 border border-stone-200">
                 Desactivado
@@ -1276,10 +1393,10 @@ export default function Orders() {
           {/* Columna Derecha: Formulario del Pedido */}
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white rounded-xl shadow-md border-2 border-stone-200 p-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-3">
-                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-3 gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <ShoppingCart size={18} className="text-teal-600 shrink-0" />
-                  <h2 className="text-base font-bold text-stone-900 leading-none">
+                  <h2 className="text-base font-bold text-stone-900 leading-none mr-0.5">
                     {editingOrderId ? 'Editando Pedido' : 'Nuevo Pedido'}
                   </h2>
                   {editingOrderId && (
@@ -1287,12 +1404,39 @@ export default function Orders() {
                       Pedido Activo
                     </span>
                   )}
+
+                  {/* Cuadro de estado: Pedido aún no enviado / Pedido enviado */}
+                  {!isCurrentOrderSent ? (
+                    <span
+                      className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-amber-50 text-amber-800 border border-amber-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
+                      title="Este pedido aún no ha sido enviado a compras. Recuerda pulsar 'Enviar Pedido' antes de que finalice el plazo semanal."
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                      Pedido aún no enviado
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
+                      title="Este pedido ya ha sido formalmente enviado a la consolidación de compras."
+                    >
+                      <CheckCircle size={11} className="text-emerald-600 shrink-0" />
+                      Pedido enviado
+                    </span>
+                  )}
+
+                  {/* Cuenta atrás según la hora límite definida por compras o administración */}
+                  <OrderCountdownBadge
+                    targetDate={cutoffStatus.nextCutoffDate}
+                    isLocked={cutoffStatus.isLocked}
+                    cutoffText={cutoffStatus.cutoffText}
+                    nextCutoffText={cutoffStatus.nextCutoffText}
+                  />
                 </div>
                 {editingOrderId && (
                   <button
                     type="button"
                     onClick={() => setOrderToDelete({ id: editingOrderId, title: orderTitle.trim() || 'este pedido guardado' })}
-                    className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
+                    className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer shrink-0"
                     title="Eliminar este pedido guardado"
                   >
                     <Trash2 size={13} />

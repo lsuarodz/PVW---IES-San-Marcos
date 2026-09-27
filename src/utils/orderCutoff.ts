@@ -15,6 +15,7 @@ export interface CutoffStatus {
   reason: 'disabled' | 'scheduled_lock' | 'manual_lock' | 'unlocked_by_admin' | 'open_before_cutoff';
   cutoffText: string;
   nextCutoffText: string;
+  nextCutoffDate?: Date | null;
 }
 
 export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus {
@@ -25,6 +26,7 @@ export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus
         reason: 'manual_lock',
         cutoffText: 'Bloqueado manualmente',
         nextCutoffText: 'Hasta que compras o administración lo reactive',
+        nextCutoffDate: null,
       };
     }
     return {
@@ -32,6 +34,7 @@ export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus
       reason: 'disabled',
       cutoffText: 'Sin límite activo',
       nextCutoffText: 'Abierto continuamente',
+      nextCutoffDate: null,
     };
   }
 
@@ -46,6 +49,7 @@ export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus
       reason: 'manual_lock',
       cutoffText,
       nextCutoffText: 'Bloqueado manualmente por compras',
+      nextCutoffDate: null,
     };
   }
 
@@ -80,8 +84,20 @@ export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus
         reason: 'unlocked_by_admin',
         cutoffText,
         nextCutoffText,
+        nextCutoffDate,
       };
     }
+  }
+
+  // If lastUnlockedAt was not explicitly set yet, check if currently before next cutoff
+  if (!cutoff.lastUnlockedAt && now.getTime() < nextCutoffDate.getTime()) {
+    return {
+      isLocked: false,
+      reason: 'open_before_cutoff',
+      cutoffText,
+      nextCutoffText,
+      nextCutoffDate,
+    };
   }
 
   // Cutoff has passed and manager hasn't unlocked it yet
@@ -90,5 +106,6 @@ export function checkOrderCutoffStatus(cutoff?: OrderCutoffConfig): CutoffStatus
     reason: 'scheduled_lock',
     cutoffText,
     nextCutoffText,
+    nextCutoffDate: null,
   };
 }

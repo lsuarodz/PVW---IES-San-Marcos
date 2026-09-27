@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RecipeIngredient, Ingredient, Recipe } from '../types';
-import { Trash2 } from 'lucide-react'; // not needed for this component actually, we're not rendering trash here
 
 interface Props {
   ri: RecipeIngredient;
@@ -11,15 +10,37 @@ interface Props {
   recipes: Recipe[];
   updateRecipeIngredient: (index: number, field: keyof RecipeIngredient, value: any) => void;
   canEditField: (recipe: Recipe, field: string) => boolean;
+  autoFocusNet?: boolean;
+  onNetFocused?: () => void;
 }
 
 export const RecipeIngredientInput: React.FC<Props> = ({
-  ri, index, selectedIng, subRecipe, editingId, recipes, updateRecipeIngredient, canEditField
+  ri, index, selectedIng, subRecipe, editingId, recipes, updateRecipeIngredient, canEditField, autoFocusNet, onNetFocused
 }) => {
   const isUnit = ri.usePortions || selectedIng?.unit === 'ud' || selectedIng?.unit === 'unidad' || subRecipe?.yieldUnit === 'ud' || subRecipe?.yieldUnit === 'unidad';
   const waste = selectedIng?.wastePercentage || 0;
   
   const isDisabled = editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false;
+
+  const netInputRef = useRef<HTMLInputElement>(null);
+  const unitInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus directly into Net weight (or Units) when autoFocusNet is triggered
+  useEffect(() => {
+    if (autoFocusNet && !isDisabled) {
+      const timer = setTimeout(() => {
+        if (isUnit) {
+          unitInputRef.current?.focus();
+          unitInputRef.current?.select();
+        } else {
+          netInputRef.current?.focus();
+          netInputRef.current?.select();
+        }
+        onNetFocused?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocusNet, isUnit, isDisabled, onNetFocused]);
 
   // Local state to hold the exact string typed by the user to avoid losing dots/commas
   const [localGross, setLocalGross] = useState<string>(ri.quantity?.toString() || '');
@@ -59,6 +80,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
       <div className="relative">
         <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Unidades</div>
         <input
+          ref={unitInputRef}
           type="number"
           step="0.001"
           min="0"
@@ -90,8 +112,46 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   return (
     <div className="flex gap-2 relative">
       <div className="relative flex-1">
-        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Neto</div>
+        <div className="absolute -top-3.5 left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
         <input
+          type="text"
+          inputMode="decimal"
+          required
+          value={localGross}
+          disabled={isDisabled}
+          onChange={e => {
+            const val = e.target.value.replace(',', '.');
+            setLocalGross(val);
+            if (val === '') {
+              setLocalNet('');
+              updateRecipeIngredient(index, 'quantity', '');
+              return;
+            }
+            if (/^\d*\.?\d*$/.test(val) && !val.endsWith('.')) {
+              const grossNum = Number(val);
+              const netNum = grossNum * (1 - waste / 100);
+              const formattedNet = netNum.toFixed(3);
+              setLocalNet(formattedNet);
+              updateRecipeIngredient(index, 'quantity', val);
+            }
+          }}
+          onBlur={() => {
+            if (localGross && !isNaN(Number(localGross))) {
+              const formattedGross = Number(localGross).toFixed(3);
+              setLocalGross(formattedGross);
+              updateRecipeIngredient(index, 'quantity', formattedGross);
+            }
+          }}
+          onFocus={e => e.target.select()}
+          className="w-full pl-2 pr-1 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+          placeholder="Bruto"
+          title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
+        />
+      </div>
+      <div className="relative flex-1">
+        <div className="absolute -top-3.5 left-1 text-[10px] text-stone-500 font-medium">Neto</div>
+        <input
+          ref={netInputRef}
           type="text"
           inputMode="decimal"
           required
@@ -143,43 +203,6 @@ export const RecipeIngredientInput: React.FC<Props> = ({
         >
           {ri.usePortions ? 'ud' : (selectedIng?.unit || (subRecipe?.yieldUnit || 'ud'))}
         </button>
-      </div>
-      <div className="relative flex-1">
-        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
-        <input
-          type="text"
-          inputMode="decimal"
-          required
-          value={localGross}
-          disabled={isDisabled}
-          onChange={e => {
-            const val = e.target.value.replace(',', '.');
-            setLocalGross(val);
-            if (val === '') {
-              setLocalNet('');
-              updateRecipeIngredient(index, 'quantity', '');
-              return;
-            }
-            if (/^\d*\.?\d*$/.test(val) && !val.endsWith('.')) {
-              const grossNum = Number(val);
-              const netNum = grossNum * (1 - waste / 100);
-              const formattedNet = netNum.toFixed(3);
-              setLocalNet(formattedNet);
-              updateRecipeIngredient(index, 'quantity', val);
-            }
-          }}
-          onBlur={() => {
-            if (localGross && !isNaN(Number(localGross))) {
-              const formattedGross = Number(localGross).toFixed(3);
-              setLocalGross(formattedGross);
-              updateRecipeIngredient(index, 'quantity', formattedGross);
-            }
-          }}
-          onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-1 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
-          placeholder="Bruto"
-          title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
-        />
       </div>
     </div>
   );
