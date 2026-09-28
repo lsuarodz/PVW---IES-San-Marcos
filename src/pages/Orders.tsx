@@ -1467,131 +1467,180 @@ export default function Orders() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2 mb-4 max-h-[460px] overflow-y-auto pr-1">
-                  {orderItems.map(item => {
-                    const isRecipe = item.type === 'recipe';
-                    const isMenu = item.type === 'menu';
-                    const isIngredient = item.type === 'ingredient';
-                    const isCustom = item.type === 'custom';
+                <div className="border border-stone-200 rounded-xl overflow-hidden shadow-2xs bg-white mb-4">
+                  <div className="max-h-[480px] overflow-y-auto overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead className="sticky top-0 bg-stone-50/95 backdrop-blur-xs border-b border-stone-200 z-10 text-stone-600 font-semibold text-[10px] uppercase tracking-wider">
+                        <tr>
+                          <th className="py-2 px-2.5 w-8 text-center text-stone-400 font-mono">#</th>
+                          <th className="py-2 px-3 min-w-[180px]">Artículo / Producto</th>
+                          <th className="py-2 px-3 text-center w-28">Tipo</th>
+                          <th className="py-2 px-3 text-center w-36">Cantidad</th>
+                          <th className="py-2 px-2 text-center w-16">Notas</th>
+                          <th className="py-2 px-2 text-center w-12">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {orderItems.map((item, idx) => {
+                          const isRecipe = item.type === 'recipe';
+                          const isMenu = item.type === 'menu';
+                          const isIngredient = item.type === 'ingredient';
+                          const isCustom = item.type === 'custom';
 
-                    const data = isRecipe 
-                      ? recipes.find(r => r.id === item.id) 
-                      : isMenu 
-                        ? menus.find(m => m.id === item.id)
-                        : isIngredient
-                          ? ingredients.find(i => i.id === item.id)
-                          : null;
+                          const data = isRecipe 
+                            ? recipes.find(r => r.id === item.id) 
+                            : isMenu 
+                              ? menus.find(m => m.id === item.id)
+                              : isIngredient
+                                ? ingredients.find(i => i.id === item.id)
+                                : null;
 
-                    if (!isCustom && !data) return null;
+                          if (!isCustom && !data) return null;
 
-                    const itemName = isCustom
-                      ? item.customName || 'Producto no catalogado'
-                      : isIngredient
-                        ? (data as Ingredient).nameES
-                        : (data as Recipe).nameES;
+                          const itemName = isCustom
+                            ? item.customName || 'Producto no catalogado'
+                            : isIngredient
+                              ? (data as Ingredient).nameES
+                              : (data as Recipe).nameES;
 
-                    const itemKey = `${item.type}-${item.id}`;
-                    const isNoteOpen = expandedNotes[itemKey] || Boolean(item.notes && item.notes.trim() !== '');
+                          const itemKey = `${item.type}-${item.id}`;
+                          const isNoteOpen = expandedNotes[itemKey] || Boolean(item.notes && item.notes.trim() !== '');
 
-                    return (
-                      <div key={itemKey} className="bg-stone-50 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors p-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 min-w-0 text-sm flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-stone-900 truncate">
-                              {itemName}
-                            </span>
-                            {isCustom ? (
-                              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-1 flex-shrink-0">
-                                Fuera de catálogo ({item.customUnit || 'ud'})
-                              </span>
-                            ) : isIngredient ? (
-                              <span className="text-xs text-stone-500 font-mono flex-shrink-0">
-                                ({ (data as Ingredient).unit })
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-medium text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded flex-shrink-0">
-                                {isRecipe ? 'Receta' : 'Menú'}
-                              </span>
-                            )}
-                          </div>
+                          const unitLabel = isRecipe ? 'rac.' : isMenu ? 'pax' : (isCustom ? item.customUnit || 'ud' : (data as Ingredient).unit);
 
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <span className="text-xs text-stone-500 font-medium">
-                              {isRecipe ? 'Cant:' : isMenu ? 'Pax:' : 'Cant:'}
-                            </span>
-                            <input
-                              type="number"
-                              min="0.001"
-                              step="any"
-                              value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
-                              onChange={(e) => {
-                                const rawValue = e.target.value;
-                                const numValue = parseFloat(rawValue) || 0;
-                                updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
-                              }}
-                              onFocus={e => e.target.select()}
-                              className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500"
-                            />
-                          </div>
+                          return (
+                            <React.Fragment key={itemKey}>
+                              <tr className="hover:bg-stone-50/80 transition-colors group">
+                                <td className="py-2.5 px-2.5 text-center text-stone-400 font-mono text-[11px]">
+                                  {idx + 1}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <div className="font-semibold text-stone-900 text-sm leading-tight">
+                                    {itemName}
+                                  </div>
+                                  {isCustom && item.customProvider && (
+                                    <div className="text-[10px] text-stone-500 mt-0.5">
+                                      Proveedor: <span className="font-medium text-stone-700">{item.customProvider}</span>
+                                    </div>
+                                  )}
+                                  {/* Nota colapsada en formato de píldora clickable */}
+                                  {!isNoteOpen && item.notes && (
+                                    <div 
+                                      onClick={() => setExpandedNotes(prev => ({ ...prev, [itemKey]: true }))}
+                                      className="mt-1 text-[11px] text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded px-1.5 py-0.5 inline-flex items-center gap-1 font-medium cursor-pointer transition-colors max-w-full"
+                                      title="Clic para editar anotación"
+                                    >
+                                      <MessageSquare size={11} className="text-amber-600 shrink-0" />
+                                      <span className="truncate max-w-[220px]">{item.notes}</span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                  {isCustom ? (
+                                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full inline-block">
+                                      Fuera cat. ({item.customUnit || 'ud'})
+                                    </span>
+                                  ) : isIngredient ? (
+                                    <span className="text-[11px] text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full font-mono inline-block">
+                                      {(data as Ingredient).unit}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full inline-block">
+                                      {isRecipe ? 'Receta' : 'Menú'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                  <div className="inline-flex items-center justify-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="0.001"
+                                      step="any"
+                                      value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
+                                      onChange={(e) => {
+                                        const rawValue = e.target.value;
+                                        const numValue = parseFloat(rawValue) || 0;
+                                        updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
+                                      }}
+                                      onFocus={e => e.target.select()}
+                                      className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500 shadow-2xs"
+                                    />
+                                    <span className="text-xs text-stone-500 font-medium">
+                                      {unitLabel}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedNotes(prev => ({ ...prev, [itemKey]: !prev[itemKey] }))}
+                                    className={`p-1.5 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                                      item.notes && item.notes.trim() !== ''
+                                        ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                                        : 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/60'
+                                    }`}
+                                    title={item.notes ? `Nota para compras: "${item.notes}"` : 'Añadir anotación o especificación'}
+                                  >
+                                    <MessageSquare size={13} className={item.notes ? 'text-amber-700' : 'text-stone-400'} />
+                                    <span className="text-[10px] hidden sm:inline">{item.notes ? 'Nota' : '+ Nota'}</span>
+                                  </button>
+                                </td>
+                                <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeOrderItem(item.id, item.type)}
+                                    className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center"
+                                    title="Eliminar del pedido"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
 
-                          {/* Botón para añadir/editar anotación para compras */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExpandedNotes(prev => ({ ...prev, [itemKey]: !prev[itemKey] }));
-                            }}
-                            className={`p-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 flex-shrink-0 ${
-                              item.notes && item.notes.trim() !== ''
-                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
-                                : 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/60'
-                            }`}
-                            title={item.notes ? `Nota para compras: "${item.notes}"` : 'Añadir anotación o especificación para el jefe de compras'}
-                          >
-                            <MessageSquare size={14} className={item.notes ? 'text-amber-700' : 'text-stone-400'} />
-                            <span className="text-[10px] hidden sm:inline">
-                              {item.notes ? 'Nota' : '+ Nota'}
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() => removeOrderItem(item.id, item.type)}
-                            className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            title="Eliminar del pedido"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-
-                        {/* Campo de anotación para el jefe de compras */}
-                        {isNoteOpen && (
-                          <div className="mt-2 pt-2 border-t border-stone-200/70 flex items-center gap-2">
-                            <div className="relative flex-1">
-                              <input
-                                type="text"
-                                placeholder="Anotación para compras (ej. marca, calibre, madurez, formato específico...)"
-                                value={item.notes || ''}
-                                onChange={(e) => updateOrderItemNotes(item.id, item.type, e.target.value)}
-                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-400 rounded-md text-stone-900 placeholder:text-stone-400"
-                              />
-                            </div>
-                            {item.notes && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateOrderItemNotes(item.id, item.type, '');
-                                  setExpandedNotes(prev => ({ ...prev, [itemKey]: false }));
-                                }}
-                                className="text-[11px] text-stone-400 hover:text-red-600 px-1 py-1 rounded transition-colors whitespace-nowrap"
-                                title="Borrar anotación"
-                              >
-                                Borrar nota
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                              {/* Fila expandible para redactar la nota para compras */}
+                              {isNoteOpen && (
+                                <tr className="bg-amber-50/50 border-b border-stone-200/80">
+                                  <td colSpan={6} className="px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <MessageSquare size={13} className="text-amber-600 shrink-0 ml-1" />
+                                      <input
+                                        type="text"
+                                        placeholder="Anotación para compras (ej. marca, calibre, madurez, formato específico...)"
+                                        value={item.notes || ''}
+                                        onChange={(e) => updateOrderItemNotes(item.id, item.type, e.target.value)}
+                                        className="flex-1 text-xs px-2.5 py-1 bg-white border border-amber-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-400 rounded-md text-stone-900 placeholder:text-stone-400"
+                                        autoFocus={!item.notes}
+                                      />
+                                      {item.notes && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            updateOrderItemNotes(item.id, item.type, '');
+                                            setExpandedNotes(prev => ({ ...prev, [itemKey]: false }));
+                                          }}
+                                          className="text-[11px] text-stone-400 hover:text-red-600 px-1 py-1 rounded transition-colors whitespace-nowrap cursor-pointer"
+                                          title="Borrar anotación"
+                                        >
+                                          Borrar nota
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedNotes(prev => ({ ...prev, [itemKey]: false }))}
+                                        className="text-[11px] text-stone-600 hover:text-stone-900 px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 transition-colors whitespace-nowrap cursor-pointer font-medium"
+                                      >
+                                        Listo
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -2687,90 +2736,105 @@ export default function Orders() {
               </button>
             </div>
 
-            {/* Listado de artículos y notas */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 mb-4">
+            {/* Listado de artículos y notas en formato de tabla */}
+            <div className="flex-1 overflow-y-auto mb-4">
               <div className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
                 Productos solicitados ({viewingOrderDetail.items.length})
               </div>
 
-              {viewingOrderDetail.items.map((item, idx) => {
-                const isRecipe = item.type === 'recipe';
-                const isMenu = item.type === 'menu';
-                const isIngredient = item.type === 'ingredient';
-                const isCustom = item.type === 'custom';
+              <div className="border border-stone-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                <div className="overflow-x-auto max-h-[460px]">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-stone-50/95 backdrop-blur-xs border-b border-stone-200 text-stone-600 font-semibold text-[10px] uppercase tracking-wider z-10">
+                      <tr>
+                        <th className="py-2.5 px-3 w-8 text-center text-stone-400 font-mono">#</th>
+                        <th className="py-2.5 px-3 min-w-[180px]">Artículo / Producto</th>
+                        <th className="py-2.5 px-3 text-center w-32">Tipo</th>
+                        <th className="py-2.5 px-3 text-right w-28">Cantidad Solicitada</th>
+                        <th className="py-2.5 px-3 min-w-[180px]">Anotaciones para Compras</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {viewingOrderDetail.items.map((item, idx) => {
+                        const isRecipe = item.type === 'recipe';
+                        const isMenu = item.type === 'menu';
+                        const isIngredient = item.type === 'ingredient';
+                        const isCustom = item.type === 'custom';
 
-                const data = isRecipe 
-                  ? recipes.find(r => r.id === item.id) 
-                  : isMenu 
-                    ? menus.find(m => m.id === item.id)
-                    : isIngredient
-                      ? ingredients.find(i => i.id === item.id)
-                      : null;
+                        const data = isRecipe 
+                          ? recipes.find(r => r.id === item.id) 
+                          : isMenu 
+                            ? menus.find(m => m.id === item.id)
+                            : isIngredient
+                              ? ingredients.find(i => i.id === item.id)
+                              : null;
 
-                const name = isCustom 
-                  ? item.customName || 'Producto no catalogado' 
-                  : isIngredient 
-                    ? (data as Ingredient)?.nameES || 'Ingrediente'
-                    : isRecipe
-                      ? (data as Recipe)?.nameES || 'Receta'
-                      : (data as any)?.nameES || 'Menú';
+                        const name = isCustom 
+                          ? item.customName || 'Producto no catalogado' 
+                          : isIngredient 
+                            ? (data as Ingredient)?.nameES || 'Ingrediente'
+                            : isRecipe
+                              ? (data as Recipe)?.nameES || 'Receta'
+                              : (data as any)?.nameES || 'Menú';
 
-                const unit = isCustom
-                  ? item.customUnit || 'ud'
-                  : isIngredient
-                    ? (data as Ingredient)?.unit || 'ud'
-                    : isRecipe
-                      ? 'raciones'
-                      : 'comensales';
+                        const unit = isCustom
+                          ? item.customUnit || 'ud'
+                          : isIngredient
+                            ? (data as Ingredient)?.unit || 'ud'
+                            : isRecipe
+                              ? 'raciones'
+                              : 'comensales';
 
-                return (
-                  <div key={idx} className="bg-stone-50 rounded-xl p-3 border border-stone-200">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-sm text-stone-900">{name}</span>
-                          {isCustom ? (
-                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
-                              Fuera de catálogo
-                            </span>
-                          ) : isIngredient ? (
-                            <span className="text-[10px] font-medium text-stone-600 bg-stone-200/80 px-1.5 py-0.5 rounded">
-                              Ingrediente directo
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
-                              {isRecipe ? 'Receta' : 'Menú'}
-                            </span>
-                          )}
-                        </div>
-
-                        {item.customProvider && (
-                          <div className="text-xs text-stone-500 mt-0.5">
-                            Proveedor sugerido: <span className="text-stone-700 font-medium">{item.customProvider}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-sm font-black text-stone-900">
-                          {item.quantity} {unit}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Anotaciones del docente para el jefe de compras */}
-                    {item.notes && item.notes.trim() !== '' && (
-                      <div className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start gap-2">
-                        <MessageSquare size={14} className="text-amber-700 shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="block text-amber-950 font-semibold mb-0.5">Anotación para compras:</strong>
-                          <p className="italic text-stone-800 leading-relaxed font-sans">{item.notes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        return (
+                          <tr key={idx} className="hover:bg-stone-50/70 transition-colors">
+                            <td className="py-2.5 px-3 text-center font-medium font-mono text-stone-400 text-[11px]">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="font-bold text-stone-900 text-sm block">{name}</span>
+                              {item.customProvider && (
+                                <span className="text-[11px] text-stone-500 block mt-0.5">
+                                  Proveedor sugerido: <strong className="text-stone-700 font-medium">{item.customProvider}</strong>
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                              {isCustom ? (
+                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full inline-block">
+                                  Fuera de catálogo
+                                </span>
+                              ) : isIngredient ? (
+                                <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full inline-block">
+                                  Ingrediente directo
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full inline-block">
+                                  {isRecipe ? 'Receta' : 'Menú'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                              <span className="font-mono font-bold text-stone-900 text-sm">
+                                {item.quantity} {unit}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {item.notes && item.notes.trim() !== '' ? (
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-xs text-amber-900 flex items-start gap-1.5">
+                                  <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
+                                  <span className="leading-snug">{item.notes}</span>
+                                </div>
+                              ) : (
+                                <span className="text-stone-400 text-xs italic">Sin anotaciones</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end pt-3 border-t border-stone-100">
