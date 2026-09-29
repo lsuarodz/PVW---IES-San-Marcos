@@ -26,6 +26,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
 
   const [formData, setFormData] = useState({
     nameES: '',
+    descriptionES: '',
     portions: null as number | null,
     steps: [] as string[],
     equipment: [] as string[],
@@ -69,7 +70,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
       portions: formData.portions || null,
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: '',
-      descriptionES: '',
+      descriptionES: formData.descriptionES ? formData.descriptionES.trim() : '',
       descriptionEN: '',
       stepsEN: [],
       totalCost,
@@ -138,6 +139,20 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
                   placeholder="Opcional"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-orange-900 mb-1 flex items-center justify-between">
+                <span>Descripción para la minuta (opcional)</span>
+                <span className="text-xs text-stone-500 font-normal">Saldrá bajo el plato en la minuta con letra más clarita</span>
+              </label>
+              <textarea
+                rows={2}
+                value={formData.descriptionES}
+                onChange={e => setFormData({...formData, descriptionES: e.target.value})}
+                className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                placeholder="Ej: Acompañado de emulsión de hierbas frescas y crujiente de parmesano..."
+              />
             </div>
 
             <div>

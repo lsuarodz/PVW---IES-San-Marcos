@@ -24,8 +24,8 @@ export default function Home() {
         {/* Center: Logo */}
         <div className="bg-white p-4 rounded-[24px] md:rounded-[28px] shadow-md border border-stone-100 flex items-center justify-center w-32 h-32 md:w-40 md:h-40"> 
           <img 
-            src="/logoSolo.png" 
-            alt="Logotipo IES San Marcos" 
+            src="/logo.png" 
+            alt="Logotipo CIFP" 
             className="w-full h-full object-contain"
             referrerPolicy="no-referrer"
           />

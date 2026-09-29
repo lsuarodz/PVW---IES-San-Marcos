@@ -274,6 +274,14 @@ export default function Orders() {
     }
   }, [submittedOrders]);
 
+  // Preload logo image to ensure it is cached in memory for PDF printing
+  useEffect(() => {
+    const logoToPreload = settings?.logoUrl || '/logo.png';
+    const preloadImg = new Image();
+    preloadImg.crossOrigin = 'anonymous';
+    preloadImg.src = logoToPreload;
+  }, [settings?.logoUrl]);
+
   // Clean up selection if any selected order is no longer in submittedOrders
   useEffect(() => {
     const validIds = new Set(submittedOrders.map(o => o.id));
@@ -780,46 +788,96 @@ export default function Orders() {
     }
   }, [activeTab, orderItems, selectedOrderIds, submittedOrders, recipes, menus, ingredients, appUser]);
 
-  const exportPDF = () => {
-    if (aggregatedList.length === 0) return;
+  const exportPDF = async () => {
+    if (isPrinting || aggregatedList.length === 0) return;
     setIsPrinting(true);
-    setTimeout(() => {
-      if (printRef.current) {
-        const opt = {
-          margin: 0,
-          filename: `Pedido_Consolidado_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            scrollX: 0, 
-            scrollY: 0, 
-            windowWidth: 794,
-            width: 794,
-            backgroundColor: '#ffffff'
-          },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-          pagebreak: { 
-            mode: ['avoid-all', 'css', 'legacy'],
-            avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.provider-section', '.teacher-section']
-          }
-        };
-        
-        generatePDF(printRef.current, opt)
-          .then(() => {
-            setIsPrinting(false);
-            showToast('PDF generado correctamente', 'success');
-          })
-          .catch((err: any) => {
-            console.error('Error generating PDF:', err);
-            setIsPrinting(false);
-            showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
-          });
-      } else {
+    showToast('Preparando documento PDF...', 'info');
+
+    // Safety timeout to avoid UI blocking if generation takes too long
+    const safetyTimeout = setTimeout(() => {
+      if (isPrinting) {
         setIsPrinting(false);
+        showToast('La generación del PDF tardó más de lo esperado.', 'info');
       }
-    }, 450);
+    }, 20000);
+
+    try {
+      // 1. Give React time to mount the print layout in DOM
+      await new Promise(r => setTimeout(r, 80));
+
+      if (!printRef.current) {
+        throw new Error('Contenedor de impresión no disponible');
+      }
+
+      // 2. Wait for web fonts to be completely loaded and ready
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (fontErr) {
+          console.warn('Font loading check:', fontErr);
+        }
+      }
+
+      // 3. Ensure all images inside printRef (like the school logo) are fully loaded AND decoded
+      const imgs = Array.from(printRef.current.querySelectorAll('img'));
+      await Promise.all(
+        imgs.map(async (img) => {
+          try {
+            if (!img.complete) {
+              await new Promise<void>((resolve) => {
+                const onFinish = () => {
+                  img.removeEventListener('load', onFinish);
+                  img.removeEventListener('error', onFinish);
+                  resolve();
+                };
+                img.addEventListener('load', onFinish);
+                img.addEventListener('error', onFinish);
+                setTimeout(resolve, 3000); // 3s fallback
+              });
+            }
+            if (img.decode) {
+              await img.decode().catch(() => {});
+            }
+          } catch (imgErr) {
+            console.warn('Image loading/decode error:', imgErr);
+          }
+        })
+      );
+
+      // 4. Force browser paint and layout calculation passes
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 120));
+
+      const opt = {
+        margin: 0,
+        filename: `Pedido_Consolidado_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          logging: false,
+          scrollX: 0, 
+          scrollY: 0, 
+          windowWidth: 794,
+          width: 794,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+        pagebreak: { 
+          mode: ['avoid-all', 'css', 'legacy'],
+          avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.provider-section', '.teacher-section']
+        }
+      };
+
+      await generatePDF(printRef.current, opt);
+      showToast('PDF generado correctamente', 'success');
+    } catch (err: any) {
+      console.error('Error generating PDF:', err);
+      showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
+    } finally {
+      clearTimeout(safetyTimeout);
+      setIsPrinting(false);
+    }
   };
 
   // User's saved orders (sorted newest first)
@@ -2212,10 +2270,11 @@ export default function Orders() {
 
       {/* ==================== PRINT LAYOUT (PDF & PRINT) ==================== */}
       {isPrinting && (
-        <div style={{ position: 'fixed', left: '-9999px', top: '0px', width: '794px', zIndex: -9999, background: '#ffffff' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000, width: '794px' }}>
           <div ref={printRef} className="print-orders-container bg-white text-stone-900 font-sans w-[794px] min-h-[1123px] px-10 py-9 flex flex-col justify-between relative">
             <style>{`
               .print-orders-container {
+                opacity: 1 !important;
                 background-color: #ffffff !important;
                 color: #1c1917 !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
@@ -2256,23 +2315,12 @@ export default function Orders() {
               {/* Header Principal: Logo + Departamento + Cuadro de Coste */}
               <div className="flex justify-between items-center pb-2">
                 <div className="flex items-center gap-3">
-                  {settings?.logoUrl ? (
-                    <img
-                      src={settings.logoUrl}
-                      alt="Logo"
-                      className="print-logo"
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs">
-                        SM
-                      </div>
-                      <div className="font-bold text-xs tracking-wider uppercase text-stone-900 leading-tight">
-                        IES<br/>SAN MARCOS
-                      </div>
-                    </div>
-                  )}
+                  <img
+                    src={settings?.logoUrl || '/logo.png'}
+                    alt="Logo"
+                    className="print-logo"
+                    crossOrigin="anonymous"
+                  />
                   <div className="h-9 w-px bg-stone-300"></div>
                   <div>
                     <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 block leading-tight">

@@ -127,6 +127,8 @@ export default function Admin() {
   useEffect(() => {
     if (settings?.logoUrl) {
       setLogoUrl(settings.logoUrl);
+    } else {
+      setLogoUrl('/logo.png');
     }
   }, [settings]);
 
@@ -625,18 +627,40 @@ export default function Admin() {
             />
             <p className="text-xs text-stone-500 mt-1">Esta imagen aparecerá en la cabecera de los presupuestos y menús impresos.</p>
           </div>
-          <button
-            type="submit"
-            disabled={savingLogo}
-            className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px]"
-          >
-            {savingLogo ? 'Guardando...' : 'Guardar Logo'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={savingLogo}
+              className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px] cursor-pointer"
+            >
+              {savingLogo ? 'Guardando...' : 'Guardar Logo'}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setLogoUrl('/logo.png');
+                setSavingLogo(true);
+                try {
+                  await setDoc(doc(db, 'settings', 'global'), { logoUrl: '/logo.png' }, { merge: true });
+                  showToast('Logo oficial (/logo.png) guardado correctamente', 'success');
+                } catch (error) {
+                  console.error('Error saving logo:', error);
+                  showToast('Error al guardar el logo oficial', 'error');
+                } finally {
+                  setSavingLogo(false);
+                }
+              }}
+              disabled={savingLogo}
+              className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-4 py-2 rounded-xl font-medium transition-colors h-[42px] text-xs cursor-pointer"
+            >
+              Usar /logo.png Oficial
+            </button>
+          </div>
         </form>
-        {logoUrl && (
+        {(logoUrl || '/logo.png') && (
           <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200 inline-block">
             <p className="text-xs font-medium text-stone-500 mb-2 uppercase tracking-wider">Vista previa</p>
-            <img src={logoUrl} alt="Logo preview" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+            <img src={logoUrl || '/logo.png'} alt="Logo preview" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
           </div>
         )}
       </div>

@@ -523,7 +523,7 @@ export default function Quotes() {
         return `
           <div class="text-center w-full">
             <h3 class="text-[11px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
-            ${recipe.descriptionES ? `<p class="text-stone-600 text-[8px] italic mb-0.5 leading-tight px-10 max-w-sm mx-auto">${recipe.descriptionES}</p>` : ''}
+            ${recipe.descriptionES ? `<p class="text-stone-500 text-[8.5px] font-serif italic mt-0.5 mb-1 leading-relaxed px-4 max-w-md mx-auto">${recipe.descriptionES}</p>` : ''}
             ${allergensHtml}
             ${separatorHtml}
           </div>
@@ -565,7 +565,7 @@ export default function Quotes() {
           <div class="z-10 w-full flex flex-col items-center justify-between h-full py-4 px-6">
             <div class="text-center w-full">
               <div class="flex justify-center mb-1.5">
-                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" class="h-9 object-contain" crossorigin="anonymous" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-stone-800"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`}
+                <img src="${settings?.logoUrl || '/logo.png'}" alt="Logo" class="h-10 w-auto object-contain mx-auto" crossorigin="anonymous" />
               </div>
               <div class="text-stone-500 text-[8.5px] tracking-[0.35em] uppercase mb-1 font-sans font-medium">Propuesta Gastronómica</div>
               ${roleBadge}
@@ -718,7 +718,7 @@ export default function Quotes() {
             <!-- Encabezado Principal -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e7e5e4; padding-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" style="height: 40px; max-width: 140px; object-fit: contain;" crossorigin="anonymous" />` : ''}
+                <img src="${settings?.logoUrl || '/logo.png'}" alt="Logo" style="height: 44px; max-width: 140px; object-fit: contain;" crossorigin="anonymous" />
                 <div>
                   <h1 style="font-size: 19px; font-weight: 800; color: #0f766e; margin: 0; line-height: 1.1; letter-spacing: 0.02em;">PRESUPUESTO</h1>
                   <p style="margin: 0; font-size: 10.5px; color: #78716c; font-weight: 500;">Ref: ${quote.reference || `PR-${quote.id.slice(0, 6).toUpperCase()}`}</p>

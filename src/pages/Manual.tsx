@@ -93,13 +93,12 @@ export default function Manual() {
           /* ========================================================================= */
           <div className="max-w-none text-stone-700">
             <div className="flex items-center gap-3 mb-6 border-b border-stone-200 pb-4">
-              {settings?.logoUrl ? (
-                <img src={settings.logoUrl} alt="Logo" className="h-12 object-contain" crossOrigin="anonymous" />
-              ) : (
-                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                  <BookOpen size={24} />
-                </div>
-              )}
+              <img 
+                src={settings?.logoUrl || '/logo.png'} 
+                alt="Logo" 
+                className="h-12 w-auto object-contain" 
+                crossOrigin="anonymous" 
+              />
               <div>
                 <h2 className="text-2xl font-bold text-stone-900">Manual de Usuario: Proyecto Intermodular</h2>
                 <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Entorno de Producción Gastronómica</p>

@@ -124,6 +124,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [formData, setFormData] = useState({
     type: type as 'plato' | 'elaborado' | 'bebida',
     nameES: '',
+    descriptionES: '',
     portions: null as string | number | null,
     yieldQuantity: null as string | number | null,
     yieldUnit: 'kg' as 'kg' | 'L' | 'ud',
@@ -217,7 +218,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       yieldUnit: formData.yieldUnit || 'kg',
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: existing?.nameEN || '',
-      descriptionES: existing?.descriptionES || '',
+      descriptionES: formData.descriptionES !== undefined ? formData.descriptionES.trim() : (existing?.descriptionES || ''),
       descriptionEN: existing?.descriptionEN || '',
       stepsEN: existing?.stepsEN || [],
       totalCost: isNaN(totalCost) || !isFinite(totalCost) ? 0 : totalCost,
@@ -390,10 +391,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setFormData({
       type: recipe.type || 'plato',
       nameES: recipe.nameES,
+      descriptionES: recipe.descriptionES || '',
       portions: recipe.portions,
       yieldQuantity: recipe.yieldQuantity || null,
       yieldUnit: recipe.yieldUnit as 'kg' | 'L' | 'ud' || 'kg',
-      steps: recipe.steps || (recipe.descriptionES ? [recipe.descriptionES] : []),
+      steps: recipe.steps || [],
       equipment: recipe.equipment || [],
       miseEnPlace: recipe.miseEnPlace || '',
       sustainabilityTips: recipe.sustainabilityTips || [],
@@ -407,7 +409,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ type: type as 'plato' | 'elaborado' | 'bebida', nameES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
+    setFormData({ type: type as 'plato' | 'elaborado' | 'bebida', nameES: '', descriptionES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
     setEditingId(null);
     setNewlyAddedIndex(null);
     setFocusedNetIndex(null);
@@ -793,18 +795,25 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             
             <div className="flex-1 flex flex-col min-w-0 py-1">
                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-                 <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <h3 className="text-[14px] font-bold text-stone-900 leading-tight truncate" title={recipe.nameES}>{recipe.nameES}</h3>
-                    {recipeAllergens.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {Array.from(new Set(recipeAllergens)).map((a, idx) => {
-                          const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
-                          return allergen ? (
-                            <span key={`${a}-${idx}`} title={allergen.name} className="text-[10px] leading-none">{allergen.icon}</span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
+                 <div className="flex-1 min-w-0">
+                   <div className="flex items-center gap-2">
+                     <h3 className="text-[14px] font-bold text-stone-900 leading-tight truncate" title={recipe.nameES}>{recipe.nameES}</h3>
+                     {recipeAllergens.length > 0 && (
+                       <div className="flex flex-wrap gap-1">
+                         {Array.from(new Set(recipeAllergens)).map((a, idx) => {
+                           const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
+                           return allergen ? (
+                             <span key={`${a}-${idx}`} title={allergen.name} className="text-[10px] leading-none">{allergen.icon}</span>
+                           ) : null;
+                         })}
+                       </div>
+                     )}
+                   </div>
+                   {recipe.descriptionES && (
+                     <p className="text-[11px] text-stone-500 italic truncate max-w-xl mt-0.5" title={recipe.descriptionES}>
+                       {recipe.descriptionES}
+                     </p>
+                   )}
                  </div>
                  
                  <div className="flex items-center gap-3 shrink-0 text-xs mt-1 sm:mt-0">
@@ -1071,6 +1080,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         value={1}
                         disabled
                         className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-orange-200 rounded-xl cursor-not-allowed"
+                      />
+                    </div>
+                  )}
+
+                  {/* Descripción para la minuta (solo en platos y bebidas) */}
+                  {formData.type !== 'elaborado' && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-orange-900 mb-1 flex items-center justify-between">
+                        <span>Descripción para la minuta (opcional)</span>
+                        <span className="text-xs text-stone-500 font-normal">Saldrá bajo el nombre del plato en la minuta con letra más clarita</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.descriptionES}
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onChange={e => setFormData({...formData, descriptionES: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        placeholder="Ej: Acompañado de reducción de frutos rojos y cremoso de patata trufada..."
                       />
                     </div>
                   )}
@@ -1585,11 +1612,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
-                  {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-2">{printingRecipe.nameEN}</h2>}
+                  {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
+                  {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-2 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
                 </div>
-                {settings?.logoUrl && (
-                  <img src={settings.logoUrl} alt="Logo" className="logo-print" crossOrigin="anonymous" />
-                )}
+                <img 
+                  src={settings?.logoUrl || '/logo.png'} 
+                  alt="Logo" 
+                  className="logo-print max-h-14 max-w-[120px] object-contain" 
+                  crossOrigin="anonymous" 
+                />
               </div>
               
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4">

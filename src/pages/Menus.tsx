@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, Utensils, Download, CookingPot, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Copy, Search, Utensils, Download, CookingPot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import { canViewItem } from '../utils/visibility';
@@ -13,6 +13,7 @@ import CreateRecipeModal from '../components/CreateRecipeModal';
 import { generatePDF } from '../utils/pdf';
 import { calculateMenuTotalCost, getMenuAllergens } from '../utils/calculations';
 import { Menu, Recipe, Ingredient } from '../types';
+import { LOGO_BASE64 } from '../constants/logoBase64';
 
 export default function Menus() {
   // Obtenemos el usuario actual para verificar sus permisos
@@ -369,6 +370,27 @@ export default function Menus() {
     setIsModalOpen(true);
   };
 
+  const handleDuplicate = (menu: Menu) => {
+    setFormData({
+      nameES: `${menu.nameES} (Copia)`,
+      eventDate: menu.eventDate || '',
+      eventTime: menu.eventTime || '',
+      eventPlace: menu.eventPlace || '',
+      type: menu.type,
+      clientId: menu.clientId || '',
+      location: menu.location || 'centro',
+      occasion: menu.occasion || '',
+      diners: menu.diners,
+      recipes: [...menu.recipes],
+      extraConcepts: menu.extraConcepts ? JSON.parse(JSON.stringify(menu.extraConcepts)) : [],
+      price: menu.price,
+      isPublic: false
+    });
+    setEditingId(null); // Null indica que se creará como un nuevo menú
+    setIsModalOpen(true);
+    showToast('Menú duplicado como borrador. Revisa y guarda cuando estés listo.', 'success');
+  };
+
   const resetForm = () => {
     setFormData({ 
       nameES: '', 
@@ -416,6 +438,34 @@ export default function Menus() {
     setTimeout(async () => {
       if (printRef.current) {
         try {
+          // Asegurar que las imágenes (como el logo) estén completamente cargadas y decodificadas
+          const imgs = Array.from(printRef.current.querySelectorAll('img'));
+          await Promise.all(
+            imgs.map(async (img) => {
+              try {
+                if (!img.complete) {
+                  await new Promise<void>((resolve) => {
+                    const onFinish = () => {
+                      img.removeEventListener('load', onFinish);
+                      img.removeEventListener('error', onFinish);
+                      resolve();
+                    };
+                    img.addEventListener('load', onFinish);
+                    img.addEventListener('error', onFinish);
+                    setTimeout(resolve, 3000);
+                  });
+                }
+                if (img.decode) {
+                  await img.decode().catch(() => {});
+                }
+              } catch (e) {
+                console.warn('Image decode error:', e);
+              }
+            })
+          );
+
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
           const opt = {
             margin: 0,
             filename: `Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,
@@ -644,6 +694,13 @@ export default function Menus() {
                   >
                     <Download size={18} />
                   </button>
+                  <button 
+                    onClick={() => handleDuplicate(menu)} 
+                    className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" 
+                    title="Duplicar menú"
+                  >
+                    <Copy size={18} />
+                  </button>
                   {canEditAnyPartOfMenu(menu) && (
                     <button onClick={() => openEdit(menu)} className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
@@ -703,6 +760,11 @@ export default function Menus() {
                           <a href={recipe.type === 'elaborado' ? `/elaborados?edit=${recipe.id}` : `/recipes?edit=${recipe.id}`} className="hover:text-teal-600 hover:underline">
                             {recipe.nameES}
                           </a>
+                          {recipe.descriptionES && (
+                            <p className="text-xs text-stone-500 italic font-normal mt-0.5 pl-2 border-l-2 border-stone-200">
+                              {recipe.descriptionES}
+                            </p>
+                          )}
                         </li>
                       ) : null;
                     })}
@@ -834,11 +896,11 @@ export default function Menus() {
             <div className="z-10 w-full flex flex-col items-center h-full">
               <div className="text-center mb-6 w-full pt-6">
                 <div className="flex justify-center mb-4">
-                  {settings?.logoUrl ? (
-                    <img src={settings.logoUrl} alt="Logo" className="h-10 object-contain" crossOrigin="anonymous" />
-                  ) : (
-                    <Utensils className="text-stone-800" size={24} strokeWidth={1.5} />
-                  )}
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo CIFP San Marcos" 
+                    className="h-20 w-auto max-w-[240px] object-contain mx-auto" 
+                  />
                 </div>
                 <div className="text-stone-500 text-[10px] tracking-[0.4em] uppercase mb-3 font-sans font-medium">Propuesta Gastronómica</div>
                 <h1 className="text-2xl font-serif font-bold mb-3 text-stone-900 tracking-tight leading-tight px-12 uppercase">{printingMenu.nameES}</h1>
@@ -868,7 +930,7 @@ export default function Menus() {
                     <div key={recipe.id} className="text-center w-full">
                       <h3 className="text-[12px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">{recipe.nameES}</h3>
                       {recipe.descriptionES && (
-                        <p className="text-stone-600 text-[8px] italic mb-1 leading-relaxed px-20 max-w-sm ">{recipe.descriptionES}</p>
+                        <p className="text-stone-500 text-[8.5px] font-serif italic mt-0.5 mb-1 leading-relaxed max-w-md mx-auto px-4">{recipe.descriptionES}</p>
                       )}
                       {recipeAllergens.length > 0 && (
                         <div className="flex justify-center gap-2 mt-2 opacity-60">
@@ -948,20 +1010,27 @@ export default function Menus() {
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
             `}</style>
             <div className="z-10 w-full">
-              <div className="border-b border-stone-200 pb-8 mb-12">
-                <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
-                <h1 className="text-2xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
-                <div className="flex items-center gap-4 text-stone-500 text-sm font-sans flex-wrap">
-                  <span className="uppercase tracking-widest">{printingEquipmentMenu.type}</span>
-                  <span className="text-stone-300">|</span>
-                  <span>{printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}</span>
-                  {printingEquipmentMenu.eventDate && (
-                    <>
-                      <span className="text-stone-300">|</span>
-                      <span>{printingEquipmentMenu.eventDate}{printingEquipmentMenu.eventTime ? ` a las ${printingEquipmentMenu.eventTime}` : ''}</span>
-                    </>
-                  )}
+              <div className="border-b border-stone-200 pb-8 mb-12 flex justify-between items-start">
+                <div>
+                  <div className="text-stone-400 text-[10px] tracking-[0.4em] uppercase mb-4 font-sans font-medium">Listado de Producción</div>
+                  <h1 className="text-2xl font-display font-medium text-stone-800 tracking-tight mb-2">{printingEquipmentMenu.nameES}</h1>
+                  <div className="flex items-center gap-4 text-stone-500 text-sm font-sans flex-wrap">
+                    <span className="uppercase tracking-widest">{printingEquipmentMenu.type}</span>
+                    <span className="text-stone-300">|</span>
+                    <span>{printingEquipmentMenu.location === 'centro' ? 'En el centro' : 'Fuera del centro'}</span>
+                    {printingEquipmentMenu.eventDate && (
+                      <>
+                        <span className="text-stone-300">|</span>
+                        <span>{printingEquipmentMenu.eventDate}{printingEquipmentMenu.eventTime ? ` a las ${printingEquipmentMenu.eventTime}` : ''}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
+                <img 
+                  src="/logo.png" 
+                  alt="Logo CIFP San Marcos" 
+                  className="h-14 w-auto max-w-[160px] object-contain" 
+                />
               </div>
 
               <div className="space-y-12">

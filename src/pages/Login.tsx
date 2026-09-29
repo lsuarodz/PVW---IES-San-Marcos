@@ -19,9 +19,12 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-stone-100 text-center">
-        {settings?.logoUrl ? (
-          <img src={settings.logoUrl} alt="Logo" className="h-24 object-contain mx-auto mb-6" crossOrigin="anonymous" />
-        ) : null}
+        <img 
+          src={settings?.logoUrl || '/logo.png'} 
+          alt="Logo CIFP" 
+          className="h-24 w-auto object-contain mx-auto mb-6" 
+          crossOrigin="anonymous" 
+        />
         <p className="text-stone-500 mb-8">
           Plataforma colaborativa para la gestión de escandallos y menús.
         </p>

@@ -207,6 +207,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           globalSettings = { id: doc.id, ...doc.data() } as AppSettings;
         }
       });
+      // Aseguramos que siempre haya un logoUrl por defecto apuntando a /logo.png
+      if (!globalSettings) {
+        globalSettings = { id: 'global', logoUrl: '/logo.png' };
+      } else if (!globalSettings.logoUrl) {
+        globalSettings = { ...globalSettings, logoUrl: '/logo.png' };
+      }
       setSettings(globalSettings);
       checkLoading();
     }, (error) => {

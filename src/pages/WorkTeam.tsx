@@ -246,11 +246,14 @@ export default function WorkTeam() {
         />
         
         {/* Print Header Logo */}
-        {settings?.logoUrl && (
-          <div className="hidden print:block mb-8 text-center">
-            <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain mx-auto" crossOrigin="anonymous" />
-          </div>
-        )}
+        <div className="hidden print:block mb-8 text-center">
+          <img 
+            src={settings?.logoUrl || '/logo.png'} 
+            alt="Logo" 
+            className="h-16 w-auto object-contain mx-auto" 
+            crossOrigin="anonymous" 
+          />
+        </div>
 
         <div className="flex justify-between items-center mb-8 print:hidden">
           <div className="flex items-center gap-4">

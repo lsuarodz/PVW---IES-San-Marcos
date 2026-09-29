@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 
 import { PWAInstallButton } from './PWAInstallButton';
+import { LOGO_BASE64 } from '../constants/logoBase64';
 import { collection, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
@@ -194,11 +195,11 @@ export default function Layout() {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="flex items-center gap-3 text-teal-700 text-left focus:outline-none"
         >
-          {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className="h-8 object-contain" crossOrigin="anonymous" />
-          ) : (
-            <h1 className="text-lg font-bold tracking-tight">GastroEdu</h1>
-          )}
+          <img 
+            src="/logo.png" 
+            alt="Logo CIFP San Marcos" 
+            className="h-10 w-auto max-w-[160px] object-contain rounded" 
+          />
         </button>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -223,13 +224,12 @@ export default function Layout() {
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 lg:h-auto p-4 border-b border-stone-200 flex items-center justify-center gap-3 text-teal-700" style={{ backgroundColor: 'white' }}>
-          {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className="object-contain hidden lg:block rounded-[5px] pt-0 w-[139.438px] h-[55px]" crossOrigin="anonymous" />
-          ) : (
-            <h1 className="text-xl font-bold tracking-tight hidden lg:block">GastroEdu</h1>
-          )}
-          <h1 className="text-xl font-bold tracking-tight lg:hidden">Menú</h1>
+        <div className="h-18 p-4 border-b border-stone-200 flex items-center justify-center text-teal-700 bg-white">
+          <img 
+            src="/logo.png" 
+            alt="Logo CIFP San Marcos" 
+            className="object-contain block rounded max-h-[55px] max-w-[190px] w-auto h-auto" 
+          />
         </div>
         
         <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
