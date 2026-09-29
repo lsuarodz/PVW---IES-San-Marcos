@@ -482,6 +482,23 @@ export default function Quotes() {
     showToast('Presupuesto duplicado. Revisa y guarda los cambios.', 'success');
   };
 
+  const ALLERGEN_ICONS_SVG: Record<string, string> = {
+    gluten: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 10-10"/><path d="m16 8-1.5-1.5"/><path d="M17.5 9.5 19 8"/><path d="m20 10 1.5-1.5"/><path d="m14 14-1.5-1.5"/><path d="M15.5 15.5 17 14"/><path d="m18 16 1.5-1.5"/><path d="m10 18-1.5-1.5"/><path d="M11.5 19.5 13 18"/><path d="m14 20 1.5-1.5"/></svg>`,
+    crustaceans: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44"/></svg>`,
+    eggs: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/></svg>`,
+    fish: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 4c-1 1.5-1 3.5 0 5l1.27 1.67L2.73 12.33c-1 1.5-1 3.5 0 5 2.85-1.97 4.27-4 4.27-6.66Z"/></svg>`,
+    peanuts: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5C8 4 4.5 4 2.5 6s-2 5.5.5 7.5l9 9c2 2 5.5 2 7.5-.5s2-5.5-.5-7.5l-9-9Z"/></svg>`,
+    soy: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>`,
+    dairy: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8"/><path d="M9 2v2.78a4 4 0 0 1-.72 2.3l-.56.84A4 4 0 0 0 7 10.22V20a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9.78a4 4 0 0 0-.72-2.3l-.56-.84A4 4 0 0 1 15 4.78V2"/><path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/></svg>`,
+    nuts: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><path d="M18 7c1.66 0 3 1.34 3 3 0 4.5-3 8-9 10-6-2-9-5.5-9-10 0-1.66 1.34-3 3-3 2 0 3 1 6 1s4-1 6-1Z"/></svg>`,
+    celery: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>`,
+    mustard: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>`,
+    sesame: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>`,
+    sulphites: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8"/><path d="M7 10h10"/><path d="M12 15v7"/><path d="M12 15a5 5 0 0 0 5-5c0-2-.5-4-2-8H9c-1.5 4-2 6-2 8a5 5 0 0 0 5 5Z"/></svg>`,
+    lupins: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>`,
+    molluscs: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44"/></svg>`
+  };
+
   const handlePrint = (quote: Quote) => {
     const client = clients.find(c => c.id === quote.clientId);
     const printWindow = window.open('', '_blank');
@@ -505,14 +522,24 @@ export default function Quotes() {
         const recipe = recipes.find(r => r.id === recipeId);
         if (!recipe) return '';
         const recipeAllergens = getMenuAllergens([recipe.id], ingredients, recipes);
-        const allergensHtml = recipeAllergens.length > 0 ? `
-          <div class="flex justify-center gap-1.5 mt-1 opacity-70">
-            ${recipeAllergens.map(a => {
-              const allergen = ALLERGENS.find(al => al.id === a);
-              return allergen ? `<span title="${allergen.name}" class="text-[10px]">${allergen.icon}</span>` : '';
+        const uniqueAllergens = Array.from(new Set(recipeAllergens));
+        const allergensHtml = uniqueAllergens.length > 0 ? `
+          <div class="flex justify-center items-center gap-2 mt-1 opacity-70">
+            ${uniqueAllergens.map(a => {
+              const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
+              if (!allergen) return '';
+              const iconSvg = ALLERGEN_ICONS_SVG[allergen.id] || `<span style="font-size:9px;">⚠️</span>`;
+              return `<span title="${allergen.name}" class="inline-flex items-center text-stone-600">${iconSvg}</span>`;
             }).join('')}
           </div>
         ` : '';
+
+        const descText = typeof recipe.descriptionES === 'string'
+          ? recipe.descriptionES.trim()
+          : (recipe.descriptionES && typeof recipe.descriptionES === 'object' && 'text' in (recipe.descriptionES as any))
+            ? String((recipe.descriptionES as any).text).trim()
+            : '';
+        const safeDesc = descText && descText !== '[object Object]' ? descText : '';
 
         const separatorHtml = index < menu.recipes.length - 1 ? `
           <div class="mt-1 flex justify-center">
@@ -523,7 +550,7 @@ export default function Quotes() {
         return `
           <div class="text-center w-full">
             <h3 class="text-[11px] font-serif font-bold mb-0.5 text-stone-900 tracking-wide uppercase">${recipe.nameES}</h3>
-            ${recipe.descriptionES ? `<p class="text-stone-500 text-[8.5px] font-serif italic mt-0.5 mb-1 leading-relaxed px-4 max-w-md mx-auto">${recipe.descriptionES}</p>` : ''}
+            ${safeDesc ? `<p class="text-stone-500 text-[8.5px] font-serif italic mt-0.5 mb-1 leading-relaxed px-4 max-w-md mx-auto">${safeDesc}</p>` : ''}
             ${allergensHtml}
             ${separatorHtml}
           </div>

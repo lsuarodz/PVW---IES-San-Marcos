@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
@@ -19,6 +19,224 @@ function formatTeacherName(fullName: string): string {
     return fullName;
   }
   return parts.slice(0, -1).join(' ');
+}
+
+interface DetailedIngredient {
+  id: string;
+  name: string;
+  quantity: number;
+  formattedQuantity: string;
+  unit: string;
+  provider?: string;
+  isSubRecipe?: boolean;
+  subIngredients?: DetailedIngredient[];
+}
+
+function getDetailedRecipeIngredients(
+  recipeId: string,
+  quantity: number,
+  allRecipes: Recipe[],
+  allIngredients: Ingredient[],
+  visited = new Set<string>()
+): DetailedIngredient[] {
+  if (visited.has(recipeId)) return [];
+  visited.add(recipeId);
+
+  const recipe = allRecipes.find(r => r.id === recipeId);
+  if (!recipe || !recipe.ingredients) return [];
+
+  const basePortions = (recipe.portions && recipe.portions > 0) 
+    ? recipe.portions 
+    : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1);
+  const multiplier = quantity / basePortions;
+
+  return recipe.ingredients.map(ri => {
+    const ing = allIngredients.find(i => i.id === ri.ingredientId);
+    if (ing) {
+      const totalQty = ri.quantity * multiplier;
+      const rounded = Number(totalQty.toFixed(3));
+      const formattedQuantity = rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(rounded < 0.01 ? 3 : 2);
+      return {
+        id: ing.id,
+        name: ing.nameES,
+        quantity: totalQty,
+        formattedQuantity,
+        unit: ing.unit || 'ud',
+        provider: ing.provider || '',
+        isSubRecipe: false
+      };
+    } else {
+      const subRecipe = allRecipes.find(r => r.id === ri.ingredientId);
+      if (subRecipe) {
+        const subBasePortions = (subRecipe.portions && subRecipe.portions > 0) 
+          ? subRecipe.portions 
+          : (subRecipe.yieldQuantity && subRecipe.yieldQuantity > 0 ? subRecipe.yieldQuantity : 1);
+        const subQty = ri.quantity * multiplier;
+        const rounded = Number(subQty.toFixed(3));
+        const formattedQuantity = rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(rounded < 0.01 ? 3 : 2);
+        const children = getDetailedRecipeIngredients(subRecipe.id, subQty, allRecipes, allIngredients, new Set(visited));
+        return {
+          id: subRecipe.id,
+          name: subRecipe.nameES,
+          quantity: subQty,
+          formattedQuantity,
+          unit: subRecipe.yieldUnit || (subRecipe.portions ? 'rac.' : 'kg'),
+          provider: 'Elaboración interna',
+          isSubRecipe: true,
+          subIngredients: children
+        };
+      } else {
+        const totalQty = ri.quantity * multiplier;
+        const rounded = Number(totalQty.toFixed(3));
+        return {
+          id: ri.ingredientId,
+          name: 'Ingrediente no encontrado',
+          quantity: totalQty,
+          formattedQuantity: rounded.toString(),
+          unit: 'ud',
+          isSubRecipe: false
+        };
+      }
+    }
+  });
+}
+
+function DetailedIngredientsBreakdown({
+  detailedIngredients,
+  recipeTypeLabel,
+  quantity,
+  unitLabel,
+  isCollapsed,
+  onToggleCollapse
+}: {
+  detailedIngredients: DetailedIngredient[];
+  recipeTypeLabel: string;
+  quantity: number | string;
+  unitLabel: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
+  if (isCollapsed && onToggleCollapse) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="text-[11px] text-teal-700 hover:text-teal-800 font-semibold inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-teal-50/70 hover:bg-teal-100 border border-teal-200/60 transition-colors cursor-pointer"
+        title="Desplegar ingredientes pormenorizados"
+      >
+        <ChefHat size={13} className="text-teal-600" />
+        <span>Ver {detailedIngredients.length} ingredientes pormenorizados</span>
+        <ChevronDown size={13} className="text-teal-600" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-teal-200/90 rounded-xl p-3 shadow-2xs">
+      <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-teal-100">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
+            <ChefHat size={14} className="text-teal-600 shrink-0" />
+            Ingredientes Pormenorizados ({recipeTypeLabel})
+          </span>
+          <span className="text-[10px] text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full font-semibold">
+            Para {quantity || 0} {unitLabel}
+          </span>
+          <span className="text-[10px] text-stone-500 font-medium">
+            ({detailedIngredients.length} {detailedIngredients.length === 1 ? 'materia prima' : 'materias primas'})
+          </span>
+        </div>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="text-[11px] font-medium text-stone-400 hover:text-stone-700 transition-colors inline-flex items-center gap-1 cursor-pointer px-2 py-0.5 rounded hover:bg-stone-100 shrink-0"
+            title="Ocultar ingredientes pormenorizados"
+          >
+            <span>Ocultar desglose</span>
+            <ChevronUp size={13} />
+          </button>
+        )}
+      </div>
+
+      {detailedIngredients.length === 0 ? (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+          <AlertCircle size={14} className="text-amber-600 shrink-0" />
+          <span>Este {recipeTypeLabel.toLowerCase()} no tiene ingredientes dados de alta en su escandallo técnico.</span>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="text-[10px] text-stone-500 uppercase tracking-wider border-b border-stone-100">
+                <th className="pb-1.5 font-semibold">Ingrediente / Materia Prima</th>
+                <th className="pb-1.5 font-semibold text-right w-24">Cantidad</th>
+                <th className="pb-1.5 font-semibold text-right w-16">Unidad</th>
+                <th className="pb-1.5 font-semibold pl-3 w-40">Proveedor habitual</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {detailedIngredients.map((ing, ingIdx) => (
+                <React.Fragment key={`${ing.id}-${ingIdx}`}>
+                  <tr className="hover:bg-teal-50/30 transition-colors">
+                    <td className="py-1.5 font-medium text-stone-800">
+                      <div className="flex items-center gap-1.5">
+                        {ing.isSubRecipe ? (
+                          <span className="text-[9px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
+                            Elaborado
+                          </span>
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span>
+                        )}
+                        <span className="text-stone-900">{ing.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-1.5 text-right font-mono font-bold text-stone-900">
+                      {ing.formattedQuantity}
+                    </td>
+                    <td className="py-1.5 text-right font-mono text-stone-600">
+                      {ing.unit}
+                    </td>
+                    <td className="py-1.5 pl-3 text-stone-500 text-[11px] truncate max-w-[160px]">
+                      {ing.provider ? (
+                        <span className="bg-stone-50 border border-stone-200/80 px-1.5 py-0.5 rounded text-stone-700">
+                          {ing.provider}
+                        </span>
+                      ) : (
+                        <span className="text-stone-400 italic">-</span>
+                      )}
+                    </td>
+                  </tr>
+                  {/* Sub-ingredientes de elaborados anidados */}
+                  {ing.subIngredients && ing.subIngredients.length > 0 && (
+                    ing.subIngredients.map((sub, subIdx) => (
+                      <tr key={`${sub.id}-${subIdx}`} className="bg-orange-50/20 text-stone-600 text-[11px]">
+                        <td className="py-1 pl-6">
+                          <div className="flex items-center gap-1">
+                            <span className="text-stone-300 font-mono">↳</span>
+                            <span>{sub.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-1 text-right font-mono text-stone-700">
+                          {sub.formattedQuantity}
+                        </td>
+                        <td className="py-1 text-right font-mono text-stone-500">
+                          {sub.unit}
+                        </td>
+                        <td className="py-1 pl-3 text-stone-400 text-[10px] truncate max-w-[160px]">
+                          {sub.provider || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface AggregatedIngredient {
@@ -152,6 +370,9 @@ export default function Orders() {
 
   // Anotaciones expandidas por item (key: `${type}-${id}`)
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+
+  // Desglose de ingredientes colapsados por item (key: `${type}-${id}`)
+  const [collapsedIngredients, setCollapsedIngredients] = useState<Record<string, boolean>>({});
 
   // Modal para pedir producto fuera de catálogo
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -717,7 +938,11 @@ export default function Orders() {
 
   const filteredRecipes = search.trim() === '' ? [] : recipes.filter(r => {
     if (!canViewItem(r, appUser, users, { commissionMode })) return false;
-    return r.nameES.toLowerCase().includes(search.toLowerCase()) &&
+    const term = search.toLowerCase();
+    const typeStr = (r.type || 'plato').toLowerCase();
+    const matchesName = r.nameES.toLowerCase().includes(term);
+    const matchesType = typeStr.includes(term);
+    return (matchesName || matchesType) &&
            !orderItems.find(item => item.id === r.id && item.type === 'recipe');
   });
 
@@ -1357,23 +1582,39 @@ export default function Orders() {
                   {filteredRecipes.length > 0 && (
                     <div>
                       <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 px-1">
-                        Recetas ({filteredRecipes.length})
+                        Platos y Elaborados ({filteredRecipes.length})
                       </div>
                       <div className="space-y-1">
-                        {filteredRecipes.map(recipe => (
-                          <div key={recipe.id} className="flex justify-between items-center py-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
-                            <span className="font-semibold text-stone-800 truncate mr-2">{recipe.nameES}</span>
-                            <button
-                              type="button"
-                              onClick={() => addOrderItem(recipe.id, 'recipe')}
-                              className="text-teal-700 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 font-bold text-xs shrink-0"
-                              title="Añadir receta al pedido"
-                            >
-                              <Plus size={13} />
-                              Añadir
-                            </button>
-                          </div>
-                        ))}
+                        {filteredRecipes.map(recipe => {
+                          const isElaborado = recipe.type === 'elaborado';
+                          const isBebida = recipe.type === 'bebida';
+                          const typeLabel = isElaborado ? 'Elaborado' : isBebida ? 'Bebida' : 'Plato';
+                          const badgeStyle = isElaborado
+                            ? 'text-orange-800 bg-orange-100 border border-orange-200'
+                            : isBebida
+                              ? 'text-blue-800 bg-blue-100 border border-blue-200'
+                              : 'text-teal-800 bg-teal-100 border border-teal-200';
+
+                          return (
+                            <div key={recipe.id} className="flex justify-between items-center py-1.5 px-2 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100 text-xs">
+                              <div className="flex items-center gap-2 min-w-0 mr-2">
+                                <span className="font-semibold text-stone-800 truncate">{recipe.nameES}</span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${badgeStyle}`}>
+                                  {typeLabel}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addOrderItem(recipe.id, 'recipe')}
+                                className="text-teal-700 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 font-bold text-xs shrink-0"
+                                title={`Añadir ${typeLabel.toLowerCase()} al pedido`}
+                              >
+                                <Plus size={13} />
+                                Añadir
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1562,6 +1803,9 @@ export default function Orders() {
                               ? (data as Ingredient).nameES
                               : (data as Recipe).nameES;
 
+                          const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                          const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
+
                           const itemKey = `${item.type}-${item.id}`;
                           const isNoteOpen = expandedNotes[itemKey] || Boolean(item.notes && item.notes.trim() !== '');
 
@@ -1604,8 +1848,16 @@ export default function Orders() {
                                       {(data as Ingredient).unit}
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full inline-block">
-                                      {isRecipe ? 'Receta' : 'Menú'}
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block ${
+                                      isRecipe 
+                                        ? (data as Recipe)?.type === 'elaborado'
+                                          ? 'text-orange-800 bg-orange-50 border border-orange-200'
+                                          : 'text-teal-800 bg-teal-50 border border-teal-200'
+                                        : 'text-stone-700 bg-stone-100 border border-stone-200'
+                                    }`}>
+                                      {isRecipe 
+                                        ? ((data as Recipe)?.type === 'elaborado' ? 'Elaborado' : (data as Recipe)?.type === 'plato' ? 'Plato' : 'Receta') 
+                                        : 'Menú'}
                                     </span>
                                   )}
                                 </td>
@@ -1691,6 +1943,23 @@ export default function Orders() {
                                         Listo
                                       </button>
                                     </div>
+                                  </td>
+                                </tr>
+                              )}
+
+                              {/* Fila de ingredientes pormenorizados para recetas (platos y elaborados) */}
+                              {isRecipe && (
+                                <tr className="bg-stone-50/40 border-b border-stone-200">
+                                  <td className="py-1"></td>
+                                  <td colSpan={5} className="pt-0.5 pb-3 px-3">
+                                    <DetailedIngredientsBreakdown
+                                      detailedIngredients={detailedIngredients}
+                                      recipeTypeLabel={recipeTypeLabel}
+                                      quantity={item.quantity}
+                                      unitLabel={unitLabel}
+                                      isCollapsed={Boolean(collapsedIngredients[itemKey])}
+                                      onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [itemKey]: !prev[itemKey] }))}
+                                    />
                                   </td>
                                 </tr>
                               )}
@@ -2833,6 +3102,9 @@ export default function Orders() {
                               ? (data as Recipe)?.nameES || 'Receta'
                               : (data as any)?.nameES || 'Menú';
 
+                        const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                        const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
+
                         const unit = isCustom
                           ? item.customUnit || 'ud'
                           : isIngredient
@@ -2842,49 +3114,74 @@ export default function Orders() {
                               : 'comensales';
 
                         return (
-                          <tr key={idx} className="hover:bg-stone-50/70 transition-colors">
-                            <td className="py-2.5 px-3 text-center font-medium font-mono text-stone-400 text-[11px]">
-                              {idx + 1}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span className="font-bold text-stone-900 text-sm block">{name}</span>
-                              {item.customProvider && (
-                                <span className="text-[11px] text-stone-500 block mt-0.5">
-                                  Proveedor sugerido: <strong className="text-stone-700 font-medium">{item.customProvider}</strong>
+                          <React.Fragment key={idx}>
+                            <tr className="hover:bg-stone-50/70 transition-colors">
+                              <td className="py-2.5 px-3 text-center font-medium font-mono text-stone-400 text-[11px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="font-bold text-stone-900 text-sm block">{name}</span>
+                                {item.customProvider && (
+                                  <span className="text-[11px] text-stone-500 block mt-0.5">
+                                    Proveedor sugerido: <strong className="text-stone-700 font-medium">{item.customProvider}</strong>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                {isCustom ? (
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full inline-block">
+                                    Fuera de catálogo
+                                  </span>
+                                ) : isIngredient ? (
+                                  <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full inline-block">
+                                    Ingrediente directo
+                                  </span>
+                                ) : (
+                                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block ${
+                                    isRecipe 
+                                      ? (data as Recipe)?.type === 'elaborado'
+                                        ? 'text-orange-800 bg-orange-50 border border-orange-200'
+                                        : 'text-teal-800 bg-teal-50 border border-teal-200'
+                                      : 'text-stone-700 bg-stone-100 border border-stone-200'
+                                  }`}>
+                                    {isRecipe 
+                                      ? ((data as Recipe)?.type === 'elaborado' ? 'Elaborado' : (data as Recipe)?.type === 'plato' ? 'Plato' : 'Receta') 
+                                      : 'Menú'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                <span className="font-mono font-bold text-stone-900 text-sm">
+                                  {item.quantity} {unit}
                                 </span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                              {isCustom ? (
-                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full inline-block">
-                                  Fuera de catálogo
-                                </span>
-                              ) : isIngredient ? (
-                                <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full inline-block">
-                                  Ingrediente directo
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full inline-block">
-                                  {isRecipe ? 'Receta' : 'Menú'}
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                              <span className="font-mono font-bold text-stone-900 text-sm">
-                                {item.quantity} {unit}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {item.notes && item.notes.trim() !== '' ? (
-                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-xs text-amber-900 flex items-start gap-1.5">
-                                  <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
-                                  <span className="leading-snug">{item.notes}</span>
-                                </div>
-                              ) : (
-                                <span className="text-stone-400 text-xs italic">Sin anotaciones</span>
-                              )}
-                            </td>
-                          </tr>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {item.notes && item.notes.trim() !== '' ? (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-xs text-amber-900 flex items-start gap-1.5">
+                                    <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
+                                    <span className="leading-snug">{item.notes}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-stone-400 text-xs italic">Sin anotaciones</span>
+                                )}
+                              </td>
+                            </tr>
+                            {isRecipe && (
+                              <tr className="bg-stone-50/40 border-b border-stone-100">
+                                <td></td>
+                                <td colSpan={4} className="pt-0.5 pb-3 px-3">
+                                  <DetailedIngredientsBreakdown
+                                    detailedIngredients={detailedIngredients}
+                                    recipeTypeLabel={recipeTypeLabel}
+                                    quantity={item.quantity}
+                                    unitLabel={unit}
+                                    isCollapsed={Boolean(collapsedIngredients[`detail-${item.id}`])}
+                                    onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [`detail-${item.id}`]: !prev[`detail-${item.id}`] }))}
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -3027,52 +3324,79 @@ export default function Orders() {
 
                             const hasNotes = Boolean(item.notes && item.notes.trim() !== '');
 
+                            const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                            const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
+
                             return (
-                              <tr 
-                                key={idx} 
-                                className="hover:bg-stone-50/70 transition-colors"
-                              >
-                                <td className="py-2.5 px-3 text-center font-medium text-stone-400">
-                                  {idx + 1}
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  <div className="font-semibold text-stone-900 text-sm">
-                                    {name}
-                                  </div>
-                                </td>
-                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                  {isCustom ? (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                                      <PackagePlus size={12} className="text-amber-700" />
-                                      Fuera de catálogo
-                                    </span>
-                                  ) : isIngredient ? (
-                                    <span className="inline-flex items-center text-[11px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md">
-                                      Ingrediente directo
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
-                                      {isRecipe ? 'Receta' : 'Menú'}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                  <span className="inline-flex items-baseline gap-1 bg-stone-50 border border-stone-200 px-2.5 py-1 rounded-lg">
-                                    <span className="font-bold text-stone-900 text-sm">{item.quantity}</span>
-                                    <span className="text-stone-500 font-normal text-xs">{unit}</span>
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  {hasNotes ? (
-                                    <div className="flex items-start gap-1.5 text-xs text-amber-900 bg-amber-50/80 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium max-w-md">
-                                      <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
-                                      <span>{item.notes}</span>
+                              <React.Fragment key={idx}>
+                                <tr 
+                                  className="hover:bg-stone-50/70 transition-colors"
+                                >
+                                  <td className="py-2.5 px-3 text-center font-medium text-stone-400">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <div className="font-semibold text-stone-900 text-sm">
+                                      {name}
                                     </div>
-                                  ) : (
-                                    <span className="text-stone-300 italic text-[11px]">—</span>
-                                  )}
-                                </td>
-                              </tr>
+                                  </td>
+                                  <td className="py-2.5 px-3 whitespace-nowrap">
+                                    {isCustom ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                        <PackagePlus size={12} className="text-amber-700" />
+                                        Fuera de catálogo
+                                      </span>
+                                    ) : isIngredient ? (
+                                      <span className="inline-flex items-center text-[11px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md">
+                                        Ingrediente directo
+                                      </span>
+                                    ) : (
+                                      <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                                        isRecipe 
+                                          ? (data as Recipe)?.type === 'elaborado'
+                                            ? 'text-orange-800 bg-orange-50 border border-orange-200'
+                                            : 'text-teal-800 bg-teal-50 border border-teal-200'
+                                          : 'text-stone-700 bg-stone-100 border border-stone-200'
+                                      }`}>
+                                        {isRecipe 
+                                          ? ((data as Recipe)?.type === 'elaborado' ? 'Elaborado' : (data as Recipe)?.type === 'plato' ? 'Plato' : 'Receta') 
+                                          : 'Menú'}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <span className="inline-flex items-baseline gap-1 bg-stone-50 border border-stone-200 px-2.5 py-1 rounded-lg">
+                                      <span className="font-bold text-stone-900 text-sm">{item.quantity}</span>
+                                      <span className="text-stone-500 font-normal text-xs">{unit}</span>
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    {hasNotes ? (
+                                      <div className="flex items-start gap-1.5 text-xs text-amber-900 bg-amber-50/80 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium max-w-md">
+                                        <MessageSquare size={13} className="text-amber-700 shrink-0 mt-0.5" />
+                                        <span>{item.notes}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-stone-300 italic text-[11px]">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                                {isRecipe && (
+                                  <tr className="bg-stone-50/40 border-b border-stone-100">
+                                    <td></td>
+                                    <td colSpan={4} className="pt-0.5 pb-3 px-3">
+                                      <DetailedIngredientsBreakdown
+                                        detailedIngredients={detailedIngredients}
+                                        recipeTypeLabel={recipeTypeLabel}
+                                        quantity={item.quantity}
+                                        unitLabel={unit}
+                                        isCollapsed={Boolean(collapsedIngredients[`preview-${item.id}`])}
+                                        onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [`preview-${item.id}`]: !prev[`preview-${item.id}`] }))}
+                                      />
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                             );
                           })}
                         </tbody>
