@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
-import { checkOrderCutoffStatus, DAYS_OF_WEEK } from '../utils/orderCutoff';
+import { checkOrderCutoffStatus, DAYS_OF_WEEK, CutoffStatus } from '../utils/orderCutoff';
 import { Recipe, Ingredient, Order, OrderItem } from '../types';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
@@ -19,6 +19,40 @@ function formatTeacherName(fullName: string): string {
     return fullName;
   }
   return parts.slice(0, -1).join(' ');
+}
+
+function extractFirstName(fullName?: string): string {
+  if (!fullName) return 'Docente';
+  const clean = fullName.trim();
+  if (clean === 'Profesor' || clean === 'Docente' || clean === 'Mi Pedido') return clean;
+  
+  const parts = clean.split(/\s+/);
+  if (parts.length <= 1) return parts[0];
+
+  const lowerTwo = (parts[0] + ' ' + parts[1]).toLowerCase();
+  const compoundFirstNames = [
+    'juan carlos', 'juan manuel', 'juan antonio', 'juan jose', 'juan ramon',
+    'jose antonio', 'jose manuel', 'jose luis', 'jose maria', 'jose miguel', 'jose carlos', 'jose angel',
+    'maria jose', 'maria teresa', 'maria carmen', 'maria jesus', 'maria dolores', 'maria pilar', 'maria elena', 'maria angeles', 'maria luisa', 'maria isabel',
+    'ana maria', 'ana belen', 'ana isabel',
+    'francisco javier', 'francisco jose', 'francisco manuel',
+    'miguel angel', 'carlos alberto', 'luis miguel', 'victor manuel'
+  ];
+
+  if (compoundFirstNames.includes(lowerTwo) && parts.length > 2) {
+    return `${parts[0]} ${parts[1]}`;
+  }
+
+  if (parts.length > 3 && parts[0].toLowerCase() === 'maria' && parts[1].toLowerCase() === 'del') {
+    return `${parts[0]} ${parts[1]} ${parts[2]}`;
+  }
+
+  return parts[0];
+}
+
+function generateAutoOrderTitle(userName?: string): string {
+  const firstName = extractFirstName(userName);
+  return `Pedido de ${firstName}`;
 }
 
 interface DetailedIngredient {
@@ -402,6 +436,16 @@ export default function Orders() {
   const cutoffStatus = useMemo(() => checkOrderCutoffStatus(settings?.orderCutoff), [settings?.orderCutoff]);
   const isLockedForCurrentUser = cutoffStatus.isLocked && !canConsolidate;
 
+  const editingOrder = useMemo(() => {
+    if (!editingOrderId) return null;
+    return orders.find(o => o.id === editingOrderId) || null;
+  }, [editingOrderId, orders]);
+
+  // Título generado automáticamente: "Pedido de {solo nombre del docente}"
+  const autoOrderTitle = useMemo(() => {
+    return generateAutoOrderTitle(appUser?.name);
+  }, [appUser?.name]);
+
   const [cutoffEnabled, setCutoffEnabled] = useState(false);
   const [cutoffDay, setCutoffDay] = useState(1); // 1 = Lunes
   const [cutoffTime, setCutoffTime] = useState('11:00');
@@ -605,7 +649,7 @@ export default function Orders() {
       }
 
       const existingOrder = orders.find(o => o.id === targetOrderId);
-      const titleStr = orderTitle.trim() || `Pedido de ${appUser?.name || 'Profesor'} - ${new Date().toLocaleDateString('es-ES')}`;
+      const titleStr = generateAutoOrderTitle(appUser?.name);
       
       let newStatus: 'draft' | 'pending' | 'completed' = 'draft';
       if (!isDraft) newStatus = 'pending';
@@ -645,6 +689,56 @@ export default function Orders() {
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
       showToast('Error al guardar el pedido.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Deshacer el envío del pedido: pasa el estado a 'draft' para que desaparezca de la consolidación
+  const handleUnsendOrder = async () => {
+    const userOrders = orders.filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name));
+    const targetOrderId = editingOrderId || (userOrders.length > 0 ? userOrders[0].id : null);
+    if (!targetOrderId) return;
+
+    if (isLockedForCurrentUser) {
+      showToast('No es posible deshacer el envío porque la hora límite semanal de pedidos ha expirado.', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const existingOrder = orders.find(o => o.id === targetOrderId);
+      const titleStr = generateAutoOrderTitle(appUser?.name);
+
+      // Conservar los artículos actuales del espacio de trabajo
+      const cleanedItems: OrderItem[] = orderItems.length > 0 ? orderItems.map(item => {
+        const clean: OrderItem = {
+          id: item.id,
+          type: item.type,
+          quantity: item.quantity
+        };
+        if (item.customName) clean.customName = item.customName;
+        if (item.customUnit) clean.customUnit = item.customUnit;
+        if (item.customProvider) clean.customProvider = item.customProvider;
+        if (item.notes && item.notes.trim() !== '') clean.notes = item.notes.trim();
+        return clean;
+      }) : (existingOrder?.items || []);
+
+      await setDoc(doc(db, 'orders', targetOrderId), {
+        id: targetOrderId,
+        title: titleStr,
+        userId: appUser?.uid || (existingOrder ? existingOrder.userId : 'unknown'),
+        userName: appUser?.name || (existingOrder ? existingOrder.userName : 'Profesor'),
+        items: cleanedItems,
+        createdAt: existingOrder?.createdAt || new Date().toISOString(),
+        status: 'draft'
+      });
+
+      setEditingOrderId(targetOrderId);
+      showToast('Envío deshecho: tu pedido vuelve a ser un borrador y se ha retirado de la consolidación de compras.', 'success');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'orders');
+      showToast('Error al deshacer el envío del pedido.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -1269,6 +1363,12 @@ export default function Orders() {
                 }`}>
                   {userSavedOrder.status === 'draft' ? 'Aún no enviado' : 'Enviado'}
                 </span>
+                {userSavedOrder.status !== 'draft' && (
+                  <span className="text-[10px] text-amber-700 font-semibold mt-0.5 flex items-center gap-1">
+                    <Undo2 size={10} />
+                    Clic para editar o deshacer
+                  </span>
+                )}
               </div>
             ) : (
               <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-stone-100 text-stone-400 border border-stone-200">
@@ -1715,13 +1815,25 @@ export default function Orders() {
                       Pedido aún no enviado
                     </span>
                   ) : (
-                    <span
-                      className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
-                      title="Este pedido ya ha sido formalmente enviado a la consolidación de compras."
-                    >
-                      <CheckCircle size={11} className="text-emerald-600 shrink-0" />
-                      Pedido enviado
-                    </span>
+                    <div className="inline-flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className="inline-flex items-center justify-center text-center gap-1.5 text-[10px] font-bold leading-none bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0 shadow-2xs"
+                        title="Este pedido ya ha sido formalmente enviado a la consolidación de compras."
+                      >
+                        <CheckCircle size={11} className="text-emerald-600 shrink-0" />
+                        Pedido enviado
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleUnsendOrder}
+                        disabled={isSaving || isLockedForCurrentUser}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-full transition-colors cursor-pointer shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Deshacer el envío para volver a poner el pedido en borrador y poder añadir o modificar productos. Desaparecerá de la lista de consolidación."
+                      >
+                        <Undo2 size={11} />
+                        Deshacer envío
+                      </button>
+                    </div>
                   )}
 
                   {/* Cuenta atrás según la hora límite definida por compras o administración */}
@@ -1735,7 +1847,7 @@ export default function Orders() {
                 {editingOrderId && (
                   <button
                     type="button"
-                    onClick={() => setOrderToDelete({ id: editingOrderId, title: orderTitle.trim() || 'este pedido guardado' })}
+                    onClick={() => setOrderToDelete({ id: editingOrderId, title: autoOrderTitle })}
                     className="text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer shrink-0"
                     title="Eliminar este pedido guardado"
                   >
@@ -1745,17 +1857,58 @@ export default function Orders() {
                 )}
               </div>
 
-              <div className="mb-3.5">
-                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">
-                  Título o Identificador del Pedido
-                </label>
-                <input
-                  type="text"
-                  placeholder="PTU RA1..."
-                  value={orderTitle}
-                  onChange={(e) => setOrderTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium"
-                />
+              {/* Banner informativo si el pedido está actualmente enviado */}
+              {isCurrentOrderSent && (
+                <div className="mb-3.5 bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-start sm:items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 shrink-0 mt-0.5 sm:mt-0">
+                      <CheckCircle size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-emerald-950 leading-tight">
+                        Este pedido está actualmente enviado a consolidación
+                      </p>
+                      <p className="text-[11px] text-emerald-800 leading-tight mt-0.5">
+                        Si por equivocación necesitas añadir más cosas o corregir cantidades, pulsa en <strong>"Deshacer Envío"</strong>. Tu pedido volverá a ser un borrador y se retirará automáticamente de la lista de compras hasta que vuelvas a enviarlo.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUnsendOrder}
+                    disabled={isSaving || isLockedForCurrentUser}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition-colors shrink-0 cursor-pointer shadow-2xs disabled:opacity-40"
+                    title="Deshacer el envío para volver a poner el pedido en borrador"
+                  >
+                    <Undo2 size={13} className="text-amber-800" />
+                    <span>Deshacer Envío</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Identificador automático del pedido */}
+              <div className="mb-3.5 bg-gradient-to-r from-stone-50 to-teal-50/30 border border-stone-200/90 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block">
+                    Identificador Automático del Pedido
+                  </span>
+                  <div className="text-sm font-bold text-stone-900 flex items-center gap-2 mt-0.5 truncate">
+                    <FileText size={15} className="text-teal-600 shrink-0" />
+                    <span className="truncate">{autoOrderTitle}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 text-[11px] font-medium text-stone-600">
+                  <span className="inline-flex items-center gap-1 bg-white border border-stone-200/80 px-2 py-0.5 rounded-lg shadow-2xs">
+                    <User size={12} className="text-teal-600" />
+                    <span className="truncate max-w-[130px]">{appUser?.name || 'Docente'}</span>
+                  </span>
+                  {cutoffStatus.nextCutoffText && (
+                    <span className="inline-flex items-center gap-1 bg-white border border-stone-200/80 px-2 py-0.5 rounded-lg shadow-2xs text-teal-800" title="Fecha límite semanal del pedido">
+                      <Clock size={12} className="text-teal-600" />
+                      <span>{cutoffStatus.nextCutoffText}</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {orderItems.length === 0 ? (
@@ -1992,6 +2145,18 @@ export default function Orders() {
                   )}
                   {orderItems.length > 0 && (
                     <>
+                      {isCurrentOrderSent && (
+                        <button
+                          type="button"
+                          onClick={handleUnsendOrder}
+                          disabled={isSaving || isLockedForCurrentUser}
+                          className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold py-1.5 px-3 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-40"
+                          title="Deshacer el envío para volver a poner el pedido en borrador y que no aparezca en consolidación"
+                        >
+                          <Undo2 size={13} className="text-amber-700" />
+                          <span>Deshacer Envío</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleSaveOrder(true)}
                         disabled={isSaving}
@@ -1999,15 +2164,22 @@ export default function Orders() {
                       >
                         {isSaving ? '...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar Borrador')}
                       </button>
-                      <button
-                        onClick={() => handleSaveOrder(false)}
-                        disabled={isSaving || isLockedForCurrentUser}
-                        className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                        title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado por compras' : undefined}
-                      >
-                        {isLockedForCurrentUser && <Lock size={12} />}
-                        {isSaving ? 'Enviando...' : 'Enviar Pedido'}
-                      </button>
+                      {!isCurrentOrderSent ? (
+                        <button
+                          onClick={() => handleSaveOrder(false)}
+                          disabled={isSaving || isLockedForCurrentUser}
+                          className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado por compras' : undefined}
+                        >
+                          {isLockedForCurrentUser && <Lock size={12} />}
+                          {isSaving ? 'Enviando...' : 'Enviar Pedido'}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
+                          <CheckCircle size={13} className="text-emerald-600" />
+                          Enviado a consolidación
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
@@ -3220,7 +3392,7 @@ export default function Orders() {
                   </span>
                 </div>
                 <p className="text-xs text-stone-500 mt-1">
-                  <strong>{orderTitle.trim() || 'Pedido semanal'}</strong> · Solicitante: {appUser?.name || 'Profesor'} · Fecha: {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  <strong>{autoOrderTitle}</strong> · Solicitante: {appUser?.name || 'Profesor'} · Fecha: {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
               <button
