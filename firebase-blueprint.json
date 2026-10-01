@@ -11,7 +11,10 @@
         "course": { "type": "string" },
         "group": { "type": "string" },
         "commission": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" },
+        "lastActiveAt": { "type": "string", "format": "date-time" },
+        "lastDevice": { "type": "string" }
       },
       "required": ["email", "role", "name", "createdAt"]
     },
@@ -392,9 +395,33 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["description", "createdAt", "status"]
+    },
+    "AccessLog": {
+      "title": "AccessLog",
+      "description": "Log entry tracking user access and login sessions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "userCourse": { "type": "string" },
+        "userGroup": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "device": { "type": "string" },
+        "platform": { "type": "string" },
+        "browser": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "unauthorized"] },
+        "action": { "type": "string", "enum": ["login", "session_start"] }
+      },
+      "required": ["userEmail", "timestamp", "status"]
     }
   },
   "firestore": {
+    "access_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AccessLog" },
+      "description": "User access and login history logs"
+    },
     "error_reports/{reportId}": {
       "schema": { "$ref": "#/entities/ErrorReport" },
       "description": "Bug and error reports submitted by users"

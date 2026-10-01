@@ -116,7 +116,7 @@ service cloud.firestore {
     // ===============================================================
     function isValidUser() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'commission', 'createdAt', 'uid', 'id', 'updatedAt', 'photoURL', 'displayName', 'active', 'disabled', 'lastLogin']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'name', 'course', 'group', 'commission', 'createdAt', 'uid', 'id', 'updatedAt', 'photoURL', 'displayName', 'active', 'disabled', 'lastLogin', 'lastLoginAt', 'lastActiveAt', 'lastDevice']) &&
              isValidString(data.email, 3, 150) &&
              data.role in ['admin', 'student', 'docente', 'compras'] &&
              isValidString(data.name, 1, 150) &&
@@ -342,12 +342,22 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidAccessLog() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['id', 'userId', 'userEmail', 'userName', 'userRole', 'userCourse', 'userGroup', 'timestamp', 'device', 'platform', 'browser', 'status', 'action']) &&
+             (!('id' in data) || isValidString(data.id, 1, 100)) &&
+             (!('userId' in data) || isValidString(data.userId, 1, 100)) &&
+             isValidString(data.userEmail, 3, 150) &&
+             isValidString(data.timestamp, 5, 60);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
     match /users/{userId} {
       allow read: if isStudentOrAdmin() || getUserEmail() == userId.lower() || request.auth.uid == userId;
-      allow create, update: if isAdmin() && isValidUser();
+      allow create: if isAdmin() && isValidUser();
+      allow update: if (isAdmin() || getUserEmail() == userId.lower() || request.auth.uid == userId) && isValidUser();
       allow delete: if isAdmin();
     }
 
@@ -488,6 +498,12 @@ service cloud.firestore {
     match /error_reports/{reportId} {
       allow read: if isAdmin() || isSuperAdmin();
       allow create: if isAuthenticated() && isValidErrorReport();
+      allow update, delete: if isAdmin() || isSuperAdmin();
+    }
+
+    match /access_logs/{logId} {
+      allow read: if isAdmin() || isSuperAdmin();
+      allow create: if isAuthenticated() && isValidAccessLog();
       allow update, delete: if isAdmin() || isSuperAdmin();
     }
   }

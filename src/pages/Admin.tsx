@@ -4,13 +4,14 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
   Trash2, UserPlus, Settings as SettingsIcon, Image as ImageIcon, 
   Bug, CheckCircle2, Clock, MessageSquare, AlertTriangle,
-  Share2, Copy, Check, ExternalLink, Link as LinkIcon
+  Share2, Copy, Check, ExternalLink, Link as LinkIcon, History, Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/ConfirmModal';
 import BackupRestore from '../components/BackupRestore';
+import AccessHistory from '../components/AccessHistory';
 
 const getAvailableGroups = (course?: string): number[] => {
   switch (course) {
@@ -31,6 +32,9 @@ interface User {
   group?: string;
   commission?: string;
   createdAt: string;
+  lastLoginAt?: string;
+  lastActiveAt?: string;
+  lastDevice?: string;
 }
 
 interface ErrorReport {
@@ -60,8 +64,11 @@ export default function Admin() {
   const [newCommission, setNewCommission] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Pestaña activa en Administración
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'access_history' | 'reports' | 'settings'>('users');
+
   // Estados de ordenación
-  const [sortBy, setSortBy] = useState<'course' | 'name' | 'role'>('course');
+  const [sortBy, setSortBy] = useState<'course' | 'name' | 'role' | 'lastLogin'>('course');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Estado para el logo
@@ -194,6 +201,10 @@ export default function Admin() {
       if (roleA < roleB) return sortOrder === 'asc' ? -1 : 1;
       if (roleA > roleB) return sortOrder === 'asc' ? 1 : -1;
       return (a.name || '').localeCompare(b.name || '');
+    } else if (sortBy === 'lastLogin') {
+      const timeA = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+      const timeB = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
     } else {
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
@@ -203,7 +214,7 @@ export default function Admin() {
     }
   });
 
-  const handleSort = (field: 'course' | 'name' | 'role') => {
+  const handleSort = (field: 'course' | 'name' | 'role' | 'lastLogin') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -515,97 +526,394 @@ export default function Admin() {
       />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Administración</h1>
-        <p className="text-stone-500 mt-2">Gestiona los usuarios y la configuración global de la plataforma.</p>
+        <p className="text-stone-500 mt-2">Gestiona los usuarios, controla los accesos y la configuración global de la plataforma.</p>
       </div>
 
-      {/* Tarjeta de Enlace de Acceso para Docentes */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-teal-600">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl">
-              <Share2 size={22} />
+      {/* Pestañas de Navegación de Administración */}
+      <div className="flex items-center gap-2 border-b border-stone-200 mb-8 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('users')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeAdminTab === 'users'
+              ? 'bg-stone-900 text-white shadow-sm'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <Users size={16} />
+          <span>Usuarios y Permisos</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeAdminTab === 'users' ? 'bg-stone-800 text-stone-200' : 'bg-stone-100 text-stone-600'
+          }`}>
+            {users.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('access_history')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeAdminTab === 'access_history'
+              ? 'bg-teal-700 text-white shadow-sm'
+              : 'text-stone-600 hover:text-teal-900 hover:bg-teal-50'
+          }`}
+        >
+          <History size={16} />
+          <span>Historial de Accesos</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+            activeAdminTab === 'access_history' ? 'bg-teal-800 text-teal-100' : 'bg-teal-100 text-teal-800'
+          }`}>
+            Auditoría
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('reports')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeAdminTab === 'reports'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <Bug size={16} />
+          <span>Incidencias</span>
+          {errorReports.filter(r => r.status === 'pending').length > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {errorReports.filter(r => r.status === 'pending').length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('settings')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeAdminTab === 'settings'
+              ? 'bg-stone-900 text-white shadow-sm'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <SettingsIcon size={16} />
+          <span>Configuración y Mantenimiento</span>
+        </button>
+      </div>
+
+      {/* PESTAÑA: HISTORIAL DE ACCESOS */}
+      {activeAdminTab === 'access_history' && (
+        <AccessHistory currentAdminEmail={appUser?.email} />
+      )}
+
+      {/* PESTAÑA: REPORTES DE ERROR E INCIDENCIAS */}
+      {activeAdminTab === 'reports' && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-amber-500">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                <Bug size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+                  Reportes de Error e Incidencias
+                  {errorReports.filter(r => r.status === 'pending').length > 0 && (
+                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                      {errorReports.filter(r => r.status === 'pending').length} pendientes
+                    </span>
+                  )}
+                </h2>
+                <p className="text-sm text-stone-500">
+                  Incidencias y errores reportados por los usuarios desde la aplicación.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
-                Enlace de Acceso al Programa
-                <span className="bg-teal-100 text-teal-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                  Para Docentes
-                </span>
-              </h2>
-              <p className="text-sm text-stone-500">
-                Comparte este enlace directo con los profesores y el equipo educativo para que puedan acceder e iniciar sesión en la plataforma.
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setReportFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  reportFilter === 'pending'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                Pendientes ({errorReports.filter(r => r.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setReportFilter('resolved')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  reportFilter === 'resolved'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                Resueltos ({errorReports.filter(r => r.status === 'resolved').length})
+              </button>
+              <button
+                onClick={() => setReportFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  reportFilter === 'all'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                Todos ({errorReports.length})
+              </button>
+            </div>
+          </div>
+
+          {errorReports.filter(r => reportFilter === 'all' ? true : r.status === reportFilter).length === 0 ? (
+            <div className="p-8 text-center bg-stone-50 rounded-xl border border-stone-100 text-stone-500 text-sm">
+              No hay reportes de error {reportFilter === 'pending' ? 'pendientes' : reportFilter === 'resolved' ? 'resueltos' : 'registrados'}.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {errorReports
+                .filter(r => reportFilter === 'all' ? true : r.status === reportFilter)
+                .map((report) => (
+                  <div
+                    key={report.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      report.status === 'resolved'
+                        ? 'bg-stone-50 border-stone-200 opacity-75'
+                        : 'bg-red-50/40 border-red-200'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          report.status === 'resolved'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {report.status === 'resolved' ? 'Resuelto' : 'Pendiente'}
+                        </span>
+                        <span className="text-xs text-stone-500 flex items-center gap-1">
+                          <Clock size={13} />
+                          {report.createdAt ? new Date(report.createdAt).toLocaleString('es-ES') : 'Fecha desconocida'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleReportStatus(report.id, report.status)}
+                          className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                            report.status === 'resolved'
+                              ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          }`}
+                        >
+                          <CheckCircle2 size={14} />
+                          {report.status === 'resolved' ? 'Marcar Pendiente' : 'Marcar Resuelto'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteReport(report.id)}
+                          className="text-stone-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Eliminar reporte"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-stone-600 mb-2 font-medium">
+                      Reportado por: <span className="text-stone-900 font-semibold">{report.userName || 'Desconocido'}</span> ({report.userEmail || 'Sin email'}) &bull; Rol: <span className="capitalize">{report.userRole || 'Sin rol'}</span>
+                    </div>
+
+                    <p className="text-sm text-stone-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-stone-200/80 font-mono text-xs leading-relaxed">
+                      {report.description}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PESTAÑA: CONFIGURACIÓN Y MANTENIMIENTO */}
+      {activeAdminTab === 'settings' && (
+        <div className="space-y-8">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+            <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
+              <SettingsIcon size={20} className="text-amber-600" />
+              Configuración Global
+            </h2>
+            <form onSubmit={handleSaveLogo} className="flex flex-wrap gap-4 items-end max-w-2xl">
+              <div className="flex-1 min-w-[300px]">
+                <label className="block text-sm font-medium text-stone-700 mb-1 flex items-center gap-2">
+                  <ImageIcon size={16} />
+                  URL del Logo del Centro
+                </label>
+                <input
+                  type="text"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="https://ejemplo.com/logo.png o /logo.png"
+                />
+                <p className="text-xs text-stone-500 mt-1">Esta imagen aparecerá en la cabecera de los presupuestos y menús impresos.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={savingLogo}
+                  className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-2 rounded-xl font-medium transition-colors h-[42px] cursor-pointer"
+                >
+                  {savingLogo ? 'Guardando...' : 'Guardar Logo'}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLogoUrl('/logo.png');
+                    setSavingLogo(true);
+                    try {
+                      await setDoc(doc(db, 'settings', 'global'), { logoUrl: '/logo.png' }, { merge: true });
+                      showToast('Logo oficial (/logo.png) guardado correctamente', 'success');
+                    } catch (error) {
+                      console.error('Error saving logo:', error);
+                      showToast('Error al guardar el logo oficial', 'error');
+                    } finally {
+                      setSavingLogo(false);
+                    }
+                  }}
+                  disabled={savingLogo}
+                  className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-4 py-2 rounded-xl font-medium transition-colors h-[42px] text-xs cursor-pointer"
+                >
+                  Usar /logo.png Oficial
+                </button>
+              </div>
+            </form>
+            {(logoUrl || '/logo.png') && (
+              <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200 inline-block">
+                <p className="text-xs font-medium text-stone-500 mb-2 uppercase tracking-wider">Vista previa</p>
+                <img src={logoUrl || '/logo.png'} alt="Logo preview" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+              </div>
+            )}
+          </div>
+
+          <BackupRestore />
+
+          {/* Sección de Mantenimiento de Datos */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 border-l-4 border-l-red-500">
+            <h2 className="text-lg font-semibold text-stone-900 mb-2 flex items-center gap-2">
+              <Trash2 size={20} className="text-red-600" />
+              Mantenimiento de Base de Datos
+            </h2>
+            <p className="text-sm text-stone-600 mb-4 max-w-3xl">
+              Esta herramienta permite limpiar el catálogo eliminando de forma definitiva todas las recetas (tanto los elaborados como los platos), ingredientes y menús que hayan sido creados por usuarios con rol de <strong>Alumno</strong>.
+            </p>
+            <div className="p-4 bg-red-50 border border-red-100 rounded-xl max-w-2xl mb-4 flex items-start gap-3">
+              <div className="text-red-600 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <p className="text-xs text-red-800 font-medium leading-relaxed">
+                <strong>ADVERTENCIA:</strong> Esta acción es irreversible. Se eliminarán permanentemente todas las recetas, ingredientes y menús creados por alumnos. No afectará a los datos de docentes o administradores.
+              </p>
+            </div>
+            <button
+              onClick={handleCleanStudentData}
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={16} />
+              {loading ? 'Procesando eliminación...' : 'Eliminar Recetas, Ingredientes y Menús de Alumnos'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PESTAÑA: USUARIOS Y PERMISOS */}
+      {activeAdminTab === 'users' && (
+        <>
+          {/* Tarjeta de Enlace de Acceso para Docentes */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8 border-l-4 border-l-teal-600">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl">
+                  <Share2 size={22} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+                    Enlace de Acceso al Programa
+                    <span className="bg-teal-100 text-teal-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                      Para Docentes
+                    </span>
+                  </h2>
+                  <p className="text-sm text-stone-500">
+                    Comparte este enlace directo con los profesores y el equipo educativo para que puedan acceder e iniciar sesión en la plataforma.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 sm:p-4 mb-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1 flex items-center bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-800 font-mono select-all overflow-x-auto shadow-inner">
+                  <LinkIcon size={16} className="text-stone-400 mr-2 shrink-0" />
+                  <span className="truncate">{accessUrl}</span>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+                    title="Copiar enlace directo al portapapeles"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check size={16} className="text-teal-200" />
+                        <span>¡Enlace copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} />
+                        <span>Copiar Enlace</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyMessage}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+                    title="Copiar mensaje de invitación redactado"
+                  >
+                    {copiedMessage ? (
+                      <>
+                        <Check size={16} className="text-teal-600" />
+                        <span>¡Mensaje copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare size={16} className="text-stone-500" />
+                        <span className="hidden sm:inline">Copiar Mensaje</span>
+                        <span className="sm:hidden">Mensaje</span>
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={accessUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center p-2.5 bg-white hover:bg-stone-100 text-stone-600 border border-stone-300 rounded-lg transition-colors shadow-sm"
+                    title="Abrir programa en una nueva pestaña"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5 text-xs text-stone-600 bg-teal-50/60 p-3 rounded-lg border border-teal-100">
+              <CheckCircle2 size={16} className="text-teal-700 mt-0.5 shrink-0" />
+              <p>
+                <strong>¿Cómo acceden los docentes?</strong> Los profesores solo necesitan abrir el enlace e identificarse con su cuenta de Google. Si aún no tienen el rol de docente asignado, puedes crearlos con antelación o cambiar su rol a <span className="font-semibold text-teal-800">docente</span> en la sección de <em>Gestión de Usuarios</em> que encontrarás más abajo.
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 sm:p-4 mb-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="relative flex-1 flex items-center bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-800 font-mono select-all overflow-x-auto shadow-inner">
-              <LinkIcon size={16} className="text-stone-400 mr-2 shrink-0" />
-              <span className="truncate">{accessUrl}</span>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
-                title="Copiar enlace directo al portapapeles"
-              >
-                {copiedLink ? (
-                  <>
-                    <Check size={16} className="text-teal-200" />
-                    <span>¡Enlace copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={16} />
-                    <span>Copiar Enlace</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCopyMessage}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-lg font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95"
-                title="Copiar mensaje de invitación redactado"
-              >
-                {copiedMessage ? (
-                  <>
-                    <Check size={16} className="text-teal-600" />
-                    <span>¡Mensaje copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare size={16} className="text-stone-500" />
-                    <span className="hidden sm:inline">Copiar Mensaje</span>
-                    <span className="sm:hidden">Mensaje</span>
-                  </>
-                )}
-              </button>
-
-              <a
-                href={accessUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center p-2.5 bg-white hover:bg-stone-100 text-stone-600 border border-stone-300 rounded-lg transition-colors shadow-sm"
-                title="Abrir programa en una nueva pestaña"
-              >
-                <ExternalLink size={16} />
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2.5 text-xs text-stone-600 bg-teal-50/60 p-3 rounded-lg border border-teal-100">
-          <CheckCircle2 size={16} className="text-teal-700 mt-0.5 shrink-0" />
-          <p>
-            <strong>¿Cómo acceden los docentes?</strong> Los profesores solo necesitan abrir el enlace e identificarse con su cuenta de Google. Si aún no tienen el rol de docente asignado, puedes crearlos con antelación o cambiar su rol a <span className="font-semibold text-teal-800">docente</span> en la sección de <em>Gestión de Usuarios</em> que encontrarás más abajo.
-          </p>
-        </div>
-      </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mb-8">
         <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
@@ -949,6 +1257,17 @@ export default function Admin() {
               </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Grupo</th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900">Comisión</th>
+              <th 
+                className="px-6 py-4 text-sm font-semibold text-stone-900 cursor-pointer hover:bg-stone-100 transition-colors"
+                onClick={() => handleSort('lastLogin')}
+              >
+                <div className="flex items-center gap-2">
+                  Último Acceso
+                  {sortBy === 'lastLogin' && (
+                    <span className="text-stone-400 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-4 text-sm font-semibold text-stone-900 text-right">Acciones</th>
             </tr>
           </thead>
@@ -1041,6 +1360,28 @@ export default function Admin() {
                     '-'
                   )}
                 </td>
+                <td className="px-6 py-4 text-xs text-stone-600 whitespace-nowrap">
+                  {user.lastLoginAt ? (
+                    <div>
+                      <div className="font-semibold text-stone-900 font-mono text-[11px]">
+                        {new Date(user.lastLoginAt).toLocaleString('es-ES', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
+                      {user.lastDevice && (
+                        <div className="text-[10px] text-stone-400 truncate max-w-[130px]" title={user.lastDevice}>
+                          {user.lastDevice}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-stone-400 italic text-[11px]">Sin accesos</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-sm text-right">
                   {(appUser?.role === 'admin' || appUser?.role === 'docente') && user.email !== appUser?.email && (
                     <button
@@ -1056,7 +1397,7 @@ export default function Admin() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center">
+                <td colSpan={8} className="px-6 py-8 text-center">
                   {quotaExceeded ? (
                     <div className="max-w-lg mx-auto p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left text-amber-900">
                       <p className="font-bold flex items-center gap-2 text-sm text-amber-950 mb-1">
@@ -1088,6 +1429,8 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   );
 }

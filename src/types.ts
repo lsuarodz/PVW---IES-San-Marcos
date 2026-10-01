@@ -118,6 +118,26 @@ export interface AppUser {
   group?: string;
   commission?: string;
   course?: '1ºCOCINA' | '1ºPANADERÍA' | '2ºPANADERÍA' | '2ºCOCINA' | '2ºSUPERIOR COCINA' | '1ºFPBásica' | '2ºFPBásica' | '1ºSemiCocina' | '3ºSemiCocina' | '2ºServicios';
+  createdAt?: string;
+  lastLoginAt?: string;
+  lastActiveAt?: string;
+  lastDevice?: string;
+}
+
+export interface AccessLog {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  userName: string;
+  userRole: 'admin' | 'student' | 'docente' | 'compras' | 'unregistered';
+  userCourse?: string;
+  userGroup?: string;
+  timestamp: string;
+  device: string;
+  platform: string;
+  browser: string;
+  status: 'success' | 'unauthorized';
+  action: 'login' | 'session_start';
 }
 
 export interface OrderItem {

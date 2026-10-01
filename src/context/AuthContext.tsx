@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
+import { logUserAccess } from '../utils/accessLogger';
 
 // Definición de la estructura de datos de nuestro usuario en la aplicación
 import { AppUser } from '../types';
@@ -61,7 +62,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (userDoc.exists()) {
             // Si el usuario existe en nuestra base de datos, guardamos sus datos en el estado
-            setRealAppUser({ uid: firebaseUser.uid, ...userDoc.data() } as AppUser);
+            const userData = userDoc.data() as AppUser;
+            setRealAppUser({ uid: firebaseUser.uid, ...userData } as AppUser);
+
+            // Registrar acceso en auditoría (máximo 1 log cada 30 min por sesión)
+            try {
+              const sessionKey = `access_logged_${userEmail}`;
+              const lastLogged = sessionStorage.getItem(sessionKey);
+              const now = Date.now();
+              if (!lastLogged || (now - Number(lastLogged) > 30 * 60 * 1000)) {
+                sessionStorage.setItem(sessionKey, String(now));
+                logUserAccess({
+                  userId: firebaseUser.uid,
+                  userEmail,
+                  userName: userData.name || firebaseUser.displayName || 'Usuario',
+                  userRole: userData.role || 'student',
+                  userCourse: userData.course,
+                  userGroup: userData.group,
+                  status: 'success',
+                  action: 'session_start'
+                });
+              }
+            } catch (e) {
+              console.debug('Notice recording session access:', e);
+            }
           } else if (userEmail === 'lsuarodzmail.com@gmail.com') {
             // Caso especial: Si es el email del administrador principal y no existe, lo creamos automáticamente
             const newAdmin: Omit<AppUser, 'uid'> = {
@@ -71,9 +95,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
             await setDoc(userDocRef, { ...newAdmin, createdAt: new Date().toISOString() });
             setRealAppUser({ uid: firebaseUser.uid, ...newAdmin } as AppUser);
+
+            try {
+              logUserAccess({
+                userId: firebaseUser.uid,
+                userEmail,
+                userName: firebaseUser.displayName || 'Admin',
+                userRole: 'admin',
+                status: 'success',
+                action: 'session_start'
+              });
+            } catch (e) {
+              console.debug('Notice recording admin access:', e);
+            }
           } else {
             // Si el usuario se loguea con Google pero no está registrado en nuestra base de datos por un admin, no le damos acceso
             setRealAppUser(null);
+
+            // Registrar intento no autorizado en el historial para control del administrador
+            try {
+              const rejectKey = `unauthorized_logged_${userEmail}`;
+              const lastReject = sessionStorage.getItem(rejectKey);
+              const now = Date.now();
+              if (!lastReject || (now - Number(lastReject) > 10 * 60 * 1000)) {
+                sessionStorage.setItem(rejectKey, String(now));
+                logUserAccess({
+                  userId: firebaseUser.uid,
+                  userEmail,
+                  userName: firebaseUser.displayName || 'Usuario no registrado',
+                  userRole: 'unregistered',
+                  status: 'unauthorized',
+                  action: 'login'
+                });
+              }
+            } catch (e) {
+              console.debug('Notice recording unauthorized access:', e);
+            }
           }
         } catch (error: any) {
           console.error('Error fetching user data:', error);
@@ -141,7 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loginInProgress) return;
     setLoginInProgress(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const cred = await signInWithPopup(auth, googleProvider);
+      if (cred?.user?.email) {
+        sessionStorage.removeItem(`access_logged_${cred.user.email.toLowerCase()}`);
+      }
     } catch (error: any) {
       if (error.code !== 'auth/cancelled-popup-request') {
         console.error('Login error:', error);
