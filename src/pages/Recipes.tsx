@@ -70,7 +70,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOtherGroups, setViewOtherGroups] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
-  const itemsPerPage = 12;
+  const itemsPerPage = 20;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -746,10 +746,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 w-full justify-center lg:justify-start border-t border-orange-200 pt-3 mt-1 items-center">
+        <div className="flex sm:flex-wrap gap-1.5 sm:gap-2 w-full justify-start overflow-x-auto pb-1.5 pt-2 sm:pt-3 border-t border-orange-200 mt-1 items-center">
           <button
             onClick={() => setSelectedLetter('todas')}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm ${
+            className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm shrink-0 ${
               selectedLetter === 'todas'
                 ? 'bg-teal-600 text-white'
                 : 'bg-stone-100 text-stone-500 hover:bg-teal-50 hover:text-teal-600'
@@ -761,7 +761,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             <button
               key={letter}
               onClick={() => setSelectedLetter(letter)}
-              className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all shadow-sm ${
+              className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all shadow-sm shrink-0 ${
                 selectedLetter === letter
                   ? 'bg-teal-600 text-white shadow-md'
                   : 'bg-white text-stone-500 border border-orange-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
@@ -773,7 +773,140 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
+      {/* VISTA MÓVIL: Lista compacta y sencilla para ver máxima cantidad en pantalla vertical */}
+      <div className="sm:hidden">
+        {paginatedRecipes.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-orange-200 p-8 text-center text-stone-500 text-xs">
+            No se encontraron {type === 'elaborado' ? 'elaborados' : type === 'bebida' ? 'bebidas' : 'platos'}.
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-orange-200/90 shadow-2xs overflow-hidden divide-y divide-orange-100/70">
+            {paginatedRecipes.map((recipe) => {
+              const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
+              const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
+              const course = members.length > 0 ? (members.find(m => m.course)?.course || members[0].course) : null;
+              const uniqueAllergens = Array.from(new Set(recipeAllergens));
+              const hasElaborados = recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId));
+
+              return (
+                <div
+                  key={recipe.id}
+                  className="flex items-center justify-between px-3 py-2 hover:bg-orange-50/50 active:bg-orange-100/60 transition-colors gap-2 cursor-pointer"
+                  onClick={() => openEdit(recipe)}
+                >
+                  {isAdmin && !viewAsStudent && (
+                    <div className="shrink-0 flex items-center pr-0.5" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(recipe.id)}
+                        onChange={() => toggleSelection(recipe.id)}
+                        className="w-3.5 h-3.5 text-teal-600 border-stone-300 rounded focus:ring-teal-500 cursor-pointer"
+                      />
+                    </div>
+                  )}
+
+                  {/* Columna con Título e Info compacta */}
+                  <div className="flex-1 min-w-0 pr-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] font-bold text-stone-900 leading-snug truncate">
+                        {recipe.nameES}
+                      </span>
+                      {uniqueAllergens.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px]" title={`${uniqueAllergens.length} alérgenos`}>
+                          {uniqueAllergens.slice(0, 2).map((a, idx) => {
+                            const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
+                            return allergen ? (
+                              <span key={`${a}-${idx}`}>{allergen.icon}</span>
+                            ) : null;
+                          })}
+                          {uniqueAllergens.length > 2 && (
+                            <span className="text-[9px] font-bold text-amber-700">+{uniqueAllergens.length - 2}</span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-0.5">
+                      {recipe.group ? (
+                        <span className={`font-semibold px-1 py-0.2 rounded text-[9px] shrink-0 ${getGroupColor(recipe.createdBy)}`}>
+                          G{recipe.group}
+                        </span>
+                      ) : recipe.createdBy ? (
+                        <span className="text-[9px] text-stone-400 font-medium truncate max-w-[75px]">
+                          {recipe.createdBy}
+                        </span>
+                      ) : null}
+
+                      <span className="text-stone-300">·</span>
+                      <span className="whitespace-nowrap">{recipe.ingredients.length} ing.</span>
+
+                      {hasElaborados && (
+                        <>
+                          <span className="text-stone-300">·</span>
+                          <span className="text-teal-700 font-semibold whitespace-nowrap">con elab.</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Coste y acciones compactas a la derecha */}
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-xs font-bold font-mono text-teal-700 whitespace-nowrap mr-0.5">
+                      {recipe.totalCost.toFixed(2)} €
+                    </span>
+
+                    {isAdmin && !viewAsStudent && recipe.group && (
+                      <button 
+                        type="button"
+                        onClick={() => openEvaluation(recipe)} 
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                        title="Evaluar"
+                      >
+                        {recipe.score !== undefined && recipe.score !== null ? `${recipe.score}` : 'Nota'}
+                      </button>
+                    )}
+
+                    <button 
+                      type="button"
+                      onClick={() => exportPDF(recipe)} 
+                      disabled={isPrinting}
+                      className="p-1 text-stone-400 hover:text-teal-600 active:text-teal-700 rounded transition-colors" 
+                      title="Imprimir"
+                    >
+                      <Printer size={13} />
+                    </button>
+
+                    {canEditAnyPartOfRecipe(recipe) && (
+                      <button 
+                        type="button"
+                        onClick={() => openEdit(recipe)} 
+                        className="p-1 text-stone-400 hover:text-teal-600 active:text-teal-700 rounded transition-colors" 
+                        title="Editar"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    )}
+
+                    {(isSuperAdmin || (actualAppUser && (actualAppUser.role === 'admin' || actualAppUser.role === 'docente') && recipe.group === appUser?.group)) && (
+                      <button 
+                        type="button"
+                        onClick={() => handleDelete(recipe.id)} 
+                        className="p-1 text-stone-400 hover:text-red-600 active:text-red-700 rounded transition-colors" 
+                        title="Eliminar"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* VISTA ESCRITORIO / TABLET: Tarjetas ricas con espaciado original */}
+      <div className="hidden sm:flex sm:flex-col sm:gap-3">
         {paginatedRecipes.map((recipe) => {
           const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
           const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
