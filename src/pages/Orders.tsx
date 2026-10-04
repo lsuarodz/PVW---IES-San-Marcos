@@ -75,6 +75,7 @@ function getDetailedRecipeIngredients(
   allIngredients: Ingredient[],
   excludedIngredientIds: string[] = [],
   ingredientNotes: Record<string, string> = {},
+  basePortionsOverride?: number,
   visited = new Set<string>()
 ): DetailedIngredient[] {
   if (visited.has(recipeId)) return [];
@@ -83,9 +84,11 @@ function getDetailedRecipeIngredients(
   const recipe = allRecipes.find(r => r.id === recipeId);
   if (!recipe || !recipe.ingredients) return [];
 
-  const basePortions = (recipe.portions && recipe.portions > 0) 
-    ? recipe.portions 
-    : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1);
+  const basePortions = (basePortionsOverride && basePortionsOverride > 0)
+    ? basePortionsOverride
+    : ((recipe.portions && recipe.portions > 0) 
+        ? recipe.portions 
+        : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1));
   const multiplier = quantity / basePortions;
 
   return recipe.ingredients.map(ri => {
@@ -123,6 +126,7 @@ function getDetailedRecipeIngredients(
           allIngredients,
           excludedIngredientIds,
           ingredientNotes,
+          undefined,
           new Set(visited)
         );
         return {
@@ -160,6 +164,7 @@ function DetailedIngredientsBreakdown({
   recipeTypeLabel,
   quantity,
   unitLabel,
+  basePortions,
   isCollapsed,
   onToggleCollapse,
   isEditable = false,
@@ -170,6 +175,7 @@ function DetailedIngredientsBreakdown({
   recipeTypeLabel: string;
   quantity: number | string;
   unitLabel: string;
+  basePortions?: number;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   isEditable?: boolean;
@@ -201,6 +207,10 @@ function DetailedIngredientsBreakdown({
     );
   }
 
+  const effectiveMultiplier = basePortions && basePortions > 0 
+    ? (Number(quantity) || 0) / basePortions 
+    : 1;
+
   return (
     <div className="bg-white border border-teal-200/90 rounded-xl p-3 shadow-2xs">
       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-teal-100">
@@ -211,6 +221,11 @@ function DetailedIngredientsBreakdown({
           </span>
           <span className="text-[10px] text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full font-semibold">
             Para {quantity || 0} {unitLabel}
+            {basePortions && basePortions > 0 ? (
+              <span className="text-teal-700 font-bold ml-1.5 font-mono">
+                (Escandallo base: {basePortions} rac. • Factor: ×{effectiveMultiplier.toFixed(2)})
+              </span>
+            ) : null}
           </span>
           <span className="text-[10px] text-stone-500 font-medium">
             ({activeIngredients.length} {activeIngredients.length === 1 ? 'materia prima en pedido' : 'materias primas en pedido'})
@@ -806,11 +821,27 @@ export default function Orders() {
   // Add item to local workspace and close the dropdown
   const addOrderItem = (id: string, type: 'recipe' | 'menu' | 'ingredient') => {
     if (!orderItems.find(item => item.id === id && item.type === type)) {
-      setOrderItems([...orderItems, { id, type, quantity: 1 }]);
+      const rec = type === 'recipe' ? recipes.find(r => r.id === id) : null;
+      const basePortions = rec 
+        ? (rec.portions && rec.portions > 0 ? rec.portions : (rec.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1)) 
+        : undefined;
+      setOrderItems([...orderItems, { 
+        id, 
+        type, 
+        quantity: 1,
+        ...(basePortions ? { basePortions } : {})
+      }]);
     }
     // Cierra el desplegable y reinicia la búsqueda tras añadir
     setSearch('');
     setIsSearchOpen(false);
+  };
+
+  // Update base portions for an order item (recipe)
+  const updateOrderItemBasePortions = (id: string, type: 'recipe' | 'menu' | 'ingredient' | 'custom', basePortions: number) => {
+    setOrderItems(orderItems.map(item => 
+      item.id === id && item.type === type ? { ...item, basePortions: Math.max(1, basePortions) } : item
+    ));
   };
 
   // Open modal to order a custom product (outside of database)
@@ -958,6 +989,9 @@ export default function Orders() {
         if (item.customEstimatedPrice !== undefined && item.customEstimatedPrice !== null) {
           clean.customEstimatedPrice = item.customEstimatedPrice;
         }
+        if (item.basePortions && item.basePortions > 0) {
+          clean.basePortions = item.basePortions;
+        }
         return clean;
       });
 
@@ -1021,6 +1055,9 @@ export default function Orders() {
           if (Object.keys(validNotes).length > 0) {
             clean.ingredientNotes = validNotes;
           }
+        }
+        if (item.basePortions && item.basePortions > 0) {
+          clean.basePortions = item.basePortions;
         }
         return clean;
       }) : (existingOrder?.items || []);
@@ -1144,6 +1181,7 @@ export default function Orders() {
       userName: string,
       excludedIngredientIds: string[] = [],
       ingredientNotes: Record<string, string> = {},
+      basePortionsOverride?: number,
       visited = new Set<string>()
     ) => {
       if (visited.has(recipeId)) {
@@ -1154,9 +1192,11 @@ export default function Orders() {
 
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe) {
-        const basePortions = (recipe.portions && recipe.portions > 0) 
-          ? recipe.portions 
-          : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1);
+        const basePortions = (basePortionsOverride && basePortionsOverride > 0)
+          ? basePortionsOverride
+          : ((recipe.portions && recipe.portions > 0) 
+              ? recipe.portions 
+              : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1));
         const multiplier = targetQuantity / basePortions;
 
         recipe.ingredients.forEach(ri => {
@@ -1198,7 +1238,7 @@ export default function Orders() {
             const subRecipe = recipes.find(r => r.id === ri.ingredientId);
             if (subRecipe) {
               const subQty = ri.quantity * multiplier;
-              processRecipe(subRecipe.id, subQty, userName, excludedIngredientIds, ingredientNotes, new Set(visited));
+              processRecipe(subRecipe.id, subQty, userName, excludedIngredientIds, ingredientNotes, undefined, new Set(visited));
             }
           }
         });
@@ -1214,7 +1254,8 @@ export default function Orders() {
               item.quantity,
               source.userName,
               item.excludedIngredientIds || [],
-              item.ingredientNotes || {}
+              item.ingredientNotes || {},
+              item.basePortions
             );
           } else if (item.type === 'menu') {
             const menu = menus.find(m => m.id === item.id);
@@ -1554,7 +1595,15 @@ export default function Orders() {
     }
     setEditingOrderId(userSavedOrder.id);
     setOrderTitle(userSavedOrder.title);
-    setOrderItems(userSavedOrder.items);
+    const hydratedItems = userSavedOrder.items.map(item => {
+      if (item.type === 'recipe' && !item.basePortions) {
+        const rec = recipes.find(r => r.id === item.id);
+        const base = rec ? (rec.portions && rec.portions > 0 ? rec.portions : (rec.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1)) : 1;
+        return { ...item, basePortions: base };
+      }
+      return item;
+    });
+    setOrderItems(hydratedItems);
     setActiveTab('create');
     setEntryChoice('continue');
     showToast(`Pedido "${userSavedOrder.title}" cargado para editar.`, 'info');
@@ -2291,7 +2340,8 @@ export default function Orders() {
                                 recipes, 
                                 ingredients, 
                                 item.excludedIngredientIds || [], 
-                                item.ingredientNotes || {}
+                                item.ingredientNotes || {},
+                                item.basePortions
                               ) 
                             : [];
                           const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
@@ -2352,23 +2402,53 @@ export default function Orders() {
                                   )}
                                 </td>
                                 <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                  <div className="inline-flex items-center justify-center gap-1.5">
-                                    <input
-                                      type="number"
-                                      min="0.001"
-                                      step="any"
-                                      value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
-                                      onChange={(e) => {
-                                        const rawValue = e.target.value;
-                                        const numValue = parseFloat(rawValue) || 0;
-                                        updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
-                                      }}
-                                      onFocus={e => e.target.select()}
-                                      className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500 shadow-2xs"
-                                    />
-                                    <span className="text-xs text-stone-500 font-medium">
-                                      {unitLabel}
-                                    </span>
+                                  <div className="flex flex-col items-center justify-center gap-1">
+                                    <div className="inline-flex items-center justify-center gap-1.5">
+                                      <input
+                                        type="number"
+                                        min="0.001"
+                                        step="any"
+                                        value={item.inputValue !== undefined ? item.inputValue : item.quantity || ''}
+                                        onChange={(e) => {
+                                          const rawValue = e.target.value;
+                                          const numValue = parseFloat(rawValue) || 0;
+                                          updateOrderItemQuantity(item.id, item.type, numValue, rawValue);
+                                        }}
+                                        onFocus={e => e.target.select()}
+                                        className="w-16 px-2 py-1 bg-white border border-stone-200 rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-teal-500 shadow-2xs"
+                                      />
+                                      <span className="text-xs text-stone-500 font-medium">
+                                        {unitLabel}
+                                      </span>
+                                    </div>
+                                    {isRecipe && (() => {
+                                      const rec = data as Recipe;
+                                      const effectiveBase = item.basePortions && item.basePortions > 0 
+                                        ? item.basePortions 
+                                        : (rec?.portions && rec.portions > 0 ? rec.portions : (rec?.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1));
+                                      const multiplier = (Number(item.quantity) || 0) / effectiveBase;
+                                      return (
+                                        <div className="inline-flex items-center gap-1 text-[10px] text-stone-500 bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded-md" title="Raciones base para las que se calculó el escandallo original y factor multiplicador">
+                                          <span>Base:</span>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={effectiveBase}
+                                            onChange={(e) => {
+                                              const val = parseInt(e.target.value) || 1;
+                                              updateOrderItemBasePortions(item.id, item.type, val);
+                                            }}
+                                            className="w-9 px-1 py-0 bg-white border border-stone-300 rounded text-center text-[10px] font-bold text-stone-800 focus:ring-1 focus:ring-teal-500"
+                                            title="Modificar raciones base de la receta para este pedido"
+                                          />
+                                          <span className="text-[9px] text-stone-400">rac.</span>
+                                          <span className="font-mono font-bold text-[9px] text-teal-700 bg-teal-50 px-1 rounded">
+                                            ×{multiplier.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </td>
                                 <td className="py-2.5 px-2 text-center whitespace-nowrap">
@@ -2447,6 +2527,7 @@ export default function Orders() {
                                       recipeTypeLabel={recipeTypeLabel}
                                       quantity={item.quantity}
                                       unitLabel={unitLabel}
+                                      basePortions={item.basePortions || (data as Recipe)?.portions || ((data as Recipe)?.yieldQuantity || 1)}
                                       isCollapsed={Boolean(collapsedIngredients[itemKey])}
                                       onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [itemKey]: !prev[itemKey] }))}
                                       isEditable={true}
@@ -3621,7 +3702,8 @@ export default function Orders() {
                               recipes, 
                               ingredients, 
                               item.excludedIngredientIds || [], 
-                              item.ingredientNotes || {}
+                              item.ingredientNotes || {},
+                              item.basePortions
                             ) 
                           : [];
                         const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
@@ -3696,6 +3778,7 @@ export default function Orders() {
                                     recipeTypeLabel={recipeTypeLabel}
                                     quantity={item.quantity}
                                     unitLabel={unit}
+                                    basePortions={item.basePortions || (data as Recipe)?.portions || ((data as Recipe)?.yieldQuantity || 1)}
                                     isCollapsed={Boolean(collapsedIngredients[`detail-${item.id}`])}
                                     onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [`detail-${item.id}`]: !prev[`detail-${item.id}`] }))}
                                   />
@@ -3852,7 +3935,8 @@ export default function Orders() {
                                   recipes, 
                                   ingredients, 
                                   item.excludedIngredientIds || [], 
-                                  item.ingredientNotes || {}
+                                  item.ingredientNotes || {},
+                                  item.basePortions
                                 ) 
                               : [];
                             const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
@@ -3920,6 +4004,7 @@ export default function Orders() {
                                         recipeTypeLabel={recipeTypeLabel}
                                         quantity={item.quantity}
                                         unitLabel={unit}
+                                        basePortions={item.basePortions || (data as Recipe)?.portions || ((data as Recipe)?.yieldQuantity || 1)}
                                         isCollapsed={Boolean(collapsedIngredients[`preview-${item.id}`])}
                                         onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [`preview-${item.id}`]: !prev[`preview-${item.id}`] }))}
                                       />

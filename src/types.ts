@@ -150,10 +150,12 @@ export interface OrderItem {
   notes?: string; // Anotaciones específicas para el jefe de compras a nivel de artículo
   excludedIngredientIds?: string[]; // IDs de ingredientes eliminados/excluidos de la receta solo para este pedido
   ingredientNotes?: Record<string, string>; // Anotaciones para el jefe de compras por cada ingrediente individual
+  basePortions?: number; // Raciones base del escandallo para el cálculo del pedido (por si difiere de la receta guardada)
   customName?: string; // Nombre para productos no catalogados
   customUnit?: string; // Unidad de medida (kg, l, ud, etc.)
   customProvider?: string; // Proveedor sugerido opcional
   customEstimatedPrice?: number; // Precio estimado por unidad opcional
+  inputValue?: string;
 }
 
 export interface Order {

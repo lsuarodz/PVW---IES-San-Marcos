@@ -377,6 +377,7 @@
               "notes": { "type": "string" },
               "excludedIngredientIds": { "type": "array", "items": { "type": "string" } },
               "ingredientNotes": { "type": "object" },
+              "basePortions": { "type": "number" },
               "customName": { "type": "string" },
               "customUnit": { "type": "string" },
               "customProvider": { "type": "string" },

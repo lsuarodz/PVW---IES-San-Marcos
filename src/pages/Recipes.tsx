@@ -216,10 +216,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     const isElab = formData.type === 'elaborado';
     const isElabUd = isElab && formData.yieldUnit === 'ud';
     const parsedUnitWeight = isElabUd && formData.unitWeight && Number(formData.unitWeight) > 0 ? Number(formData.unitWeight) : null;
+    const parsedPortions = !isElab && formData.portions && Number(formData.portions) > 0
+      ? Math.round(Number(formData.portions))
+      : (!isElab ? 1 : null);
 
     const recipeData: Record<string, any> = {
       ...formData,
-      portions: isElab ? null : 1,
+      portions: parsedPortions,
       yieldQuantity: Number(formData.yieldQuantity) || null,
       yieldUnit: formData.yieldUnit || 'kg',
       unitWeight: parsedUnitWeight,
@@ -404,7 +407,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       type: recipe.type || 'plato',
       nameES: recipe.nameES,
       descriptionES: recipe.descriptionES || '',
-      portions: recipe.type === 'elaborado' ? null : recipe.portions,
+      portions: recipe.type === 'elaborado' ? null : (recipe.portions || 1),
       yieldQuantity: recipe.yieldQuantity || null,
       yieldUnit: recipe.yieldUnit as 'kg' | 'L' | 'ud' || 'kg',
       unitWeight: recipe.unitWeight ?? null,
@@ -427,7 +430,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       type: type as 'plato' | 'elaborado' | 'bebida',
       nameES: '',
       descriptionES: '',
-      portions: null,
+      portions: type === 'elaborado' ? null : 1,
       yieldQuantity: null,
       yieldUnit: 'kg',
       unitWeight: null,
@@ -608,20 +611,36 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setTimeout(async () => {
       if (printRef.current) {
         try {
+          // Preload any images within printRef to ensure clean rendering
+          const images = Array.from(printRef.current.querySelectorAll('img'));
+          await Promise.all(
+            images.map(img => {
+              if (img.complete) return Promise.resolve();
+              return new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+              });
+            })
+          );
+
           const opt = {
-            margin: 0,
+            margin: [14, 12, 14, 12], // mm: Top, Left, Bottom, Right on EVERY page
             filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.95 },
+            image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { 
               scale: 2, 
               useCORS: true, 
               logging: false,
-              scrollX: 0, scrollY: 0, 
+              scrollX: 0, 
+              scrollY: 0, 
               windowWidth: 794,
-              y: 0
+              backgroundColor: '#ffffff'
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-            pagebreak: { mode: 'css', avoid: ['tr', '.print-avoid-break'] }
+            pagebreak: { 
+              mode: ['avoid-all', 'css', 'legacy'], 
+              avoid: ['tr', '.print-avoid-break', 'h1', 'h2', 'h3', 'thead', 'tfoot', '.avoid-break'] 
+            }
           };
           
           await generatePDF(printRef.current, opt);
@@ -888,6 +907,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         </>
                       ) : (
                         <>
+                          {recipe.portions && recipe.portions > 1 && (
+                            <>
+                              <span className="font-bold text-orange-950 bg-orange-100/70 border border-orange-200 px-1.5 py-0.2 rounded text-[9px]">
+                                {recipe.portions} rac.
+                              </span>
+                              <span className="text-stone-300">·</span>
+                            </>
+                          )}
                           <span>{recipe.ingredients.length} ing.</span>
                           {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
                             <>
@@ -984,6 +1011,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       <div className="flex items-center gap-1">
                          <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Rendimiento:</span>
                          <span className="font-bold text-stone-700">{recipe.yieldQuantity} {recipe.yieldUnit || 'kg'}</span>
+                      </div>
+                    )}
+                    {recipe.type !== 'elaborado' && recipe.portions && recipe.portions > 1 && (
+                      <div className="flex items-center gap-1">
+                         <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Raciones:</span>
+                         <span className="font-bold text-orange-900 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded text-[10px]">{recipe.portions} rac.</span>
                       </div>
                     )}
                     {desktopUnitWeight && (
@@ -1277,13 +1310,27 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
+                      <label className="block text-sm font-medium text-orange-900 mb-1">
+                        Raciones base del escandallo
+                      </label>
                       <input
                         type="number"
-                        value={1}
-                        disabled
-                        className="w-full px-4 py-2 bg-stone-100/50 text-stone-500 border border-orange-200 rounded-xl cursor-not-allowed"
+                        min="1"
+                        step="1"
+                        required
+                        value={formData.portions ?? 1}
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onChange={e => {
+                          const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                          setFormData({ ...formData, portions: val });
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-stone-800"
+                        placeholder="Ej: 10"
                       />
+                      <span className="text-[11px] text-stone-500 mt-1 block">
+                        Raciones para las que están calculados los ingredientes en esta ficha
+                      </span>
                     </div>
                   )}
 
@@ -1780,10 +1827,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Hidden Print Layout */}
       {printingRecipe && (
-        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000 }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000, width: '794px' }}>
           <div ref={printRef} className="print-container w-[794px] flex flex-col relative bg-white">
             <style>{`
-              .print-container { background-color: #ffffff !important; color: #1c1917 !important; min-height: 1122px; }
+              .print-container { 
+                background-color: #ffffff !important; 
+                color: #1c1917 !important; 
+                width: 794px !important; 
+                box-sizing: border-box !important;
+              }
               .print-container .text-stone-900 { color: #1c1917 !important; }
               .print-container .text-stone-800 { color: #292524 !important; }
               .print-container .text-orange-900 { color: #44403c !important; }
@@ -1798,20 +1850,23 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .bg-teal-50 { background-color: #f0fdfa !important; }
               .print-container .bg-teal-50\\/50 { background-color: rgba(240, 253, 250, 0.5) !important; }
               .print-container .border-orange-200 { border-color: #e7e5e4 !important; }
-              .print-container .border-orange-200 { border-color: #f5f5f4 !important; }
               .print-container .border-stone-50 { border-color: #fafaf9 !important; }
               .print-container .border-teal-100 { border-color: #ccfbf1 !important; }
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
               .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
             
-              .page-break { page-break-before: always; }
+              .page-break { page-break-before: always !important; break-before: page !important; }
+              .print-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+              tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+              thead { display: table-header-group !important; }
+              tfoot { display: table-footer-group !important; }
             `}</style>
             {getPrintableRecipes(printingRecipe).map((pRecipe, index) => {
               const printingRecipe = pRecipe;
               return (
-                <div key={printingRecipe.id + index} className={`px-12 py-12 flex flex-col relative overflow-hidden text-stone-900 font-serif w-[794px] min-h-[1122px] bg-white ${index > 0 ? 'page-break' : ''}`}>
+                <div key={printingRecipe.id + index} className={`px-2 py-1 flex flex-col relative overflow-hidden text-stone-900 font-serif w-[794px] bg-white ${index > 0 ? 'page-break' : ''}`}>
                   <div className="z-10 w-full">
-              <div className="border-b border-orange-200 pb-3 mb-4 flex justify-between items-start">
+              <div className="border-b border-orange-200 pb-3 mb-4 flex justify-between items-start print-avoid-break">
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
@@ -1826,7 +1881,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 />
               </div>
               
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4 print-avoid-break">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
                     <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
@@ -1900,7 +1955,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const itemTotalCost = realCostPerUnit * gross;
 
                         return (
-                          <tr key={idx} className="hover:bg-stone-50">
+                          <tr key={idx} className="hover:bg-stone-50 print-avoid-break">
                             <td className="py-2.5 px-2 font-medium text-stone-800 break-words">{name}</td>
                             <td className="py-2.5 px-2 text-stone-600 break-words">{ri.preparation || '-'}</td>
                             <td className="py-2.5 px-2 text-right text-stone-700 whitespace-nowrap font-mono">{formattedGross} {unit}</td>
@@ -1914,7 +1969,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         );
                       })}
                     </tbody>
-                    <tfoot>
+                    <tfoot className="print-avoid-break">
                       <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
                         <td colSpan={5} className="py-2.5 px-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
                         <td className="py-2.5 px-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
@@ -1924,10 +1979,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
 
                 {printingRecipe.type !== 'elaborado' ? (
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-2 gap-8 print-avoid-break">
                     <div>
                       {printingRecipe.miseEnPlace && (
-                        <div>
+                        <div className="print-avoid-break">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
                           <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
@@ -1936,7 +1991,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
                     <div className="space-y-6">
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                        <div>
+                        <div className="print-avoid-break">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-orange-200 pb-1 font-sans">Material</h3>
                           <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans">
                             {printingRecipe.equipment.map((eq, idx) => (
@@ -1947,7 +2002,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       )}
 
                       {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-break">
                           <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                             <span>🌱</span> Sostenibilidad
                           </h3>
@@ -1961,7 +2016,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-2 gap-8 print-avoid-break">
                     <div>
                       <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                         Elaboración
@@ -1972,7 +2027,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             const parsed = parseStepStr(step);
                             const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
                             return (
-                              <li key={idx} className="leading-relaxed pl-1 font-sans">
+                              <li key={idx} className="leading-relaxed pl-1 font-sans print-avoid-break">
                                 <span className="font-semibold text-stone-800">{parsed.text}</span>
                                 {hasDuration && (
                                   <span className="ml-1.5 inline-block text-[8px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded font-mono font-bold leading-none select-none">
