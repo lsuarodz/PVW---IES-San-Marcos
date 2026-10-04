@@ -1140,7 +1140,7 @@ export default function Orders() {
 
     const processRecipe = (
       recipeId: string,
-      multiplier: number,
+      targetQuantity: number,
       userName: string,
       excludedIngredientIds: string[] = [],
       ingredientNotes: Record<string, string> = {},
@@ -1154,6 +1154,11 @@ export default function Orders() {
 
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe) {
+        const basePortions = (recipe.portions && recipe.portions > 0) 
+          ? recipe.portions 
+          : (recipe.yieldQuantity && recipe.yieldQuantity > 0 ? recipe.yieldQuantity : 1);
+        const multiplier = targetQuantity / basePortions;
+
         recipe.ingredients.forEach(ri => {
           // Omitir ingredientes excluidos manualmente de la receta solo para este pedido
           if (excludedIngredientIds.includes(ri.ingredientId)) {
@@ -1192,7 +1197,8 @@ export default function Orders() {
           } else {
             const subRecipe = recipes.find(r => r.id === ri.ingredientId);
             if (subRecipe) {
-              processRecipe(subRecipe.id, ri.quantity * multiplier, userName, excludedIngredientIds, ingredientNotes, new Set(visited));
+              const subQty = ri.quantity * multiplier;
+              processRecipe(subRecipe.id, subQty, userName, excludedIngredientIds, ingredientNotes, new Set(visited));
             }
           }
         });
@@ -1214,12 +1220,7 @@ export default function Orders() {
             const menu = menus.find(m => m.id === item.id);
             if (menu) {
               menu.recipes.forEach(recipeId => {
-                const recipe = recipes.find(r => r.id === recipeId);
-                if (recipe) {
-                  const portions = recipe.portions || 1;
-                  const multiplier = item.quantity / portions;
-                  processRecipe(recipeId, multiplier, source.userName);
-                }
+                processRecipe(recipeId, item.quantity, source.userName);
               });
             }
           } else if (item.type === 'ingredient') {
