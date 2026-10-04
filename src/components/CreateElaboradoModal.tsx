@@ -4,7 +4,9 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
+import { Sparkles } from 'lucide-react';
 import { Recipe } from '../types';
+import ImportRecipeModal from './ImportRecipeModal';
 
 interface CreateElaboradoModalProps {
   isOpen: boolean;
@@ -17,16 +19,41 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   const { recipes } = useData();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [nameES, setNameES] = useState('');
   const [yieldUnit, setYieldUnit] = useState<'kg' | 'L' | 'ud'>('kg');
   const [yieldQuantity, setYieldQuantity] = useState<number>(1);
   const [unitWeight, setUnitWeight] = useState<string>('');
   const [unitWeightUnit, setUnitWeightUnit] = useState<'g' | 'kg'>('g');
+  const [importedExtras, setImportedExtras] = useState<{
+    steps?: string[];
+    equipment?: string[];
+    miseEnPlace?: string;
+    sustainabilityTips?: string[];
+    ingredients?: any[];
+    descriptionES?: string;
+  }>({});
 
   if (!isOpen) return null;
 
   const existingElaborados = recipes.filter(r => r.type === 'elaborado');
   const exactMatchExists = existingElaborados.some(r => r.nameES.toLowerCase().trim() === nameES.toLowerCase().trim());
+
+  const handleApplyImportedRecipe = (imported: any) => {
+    if (imported.nameES) setNameES(imported.nameES);
+    if (imported.yieldUnit) setYieldUnit(imported.yieldUnit);
+    if (imported.yieldQuantity) setYieldQuantity(Number(imported.yieldQuantity));
+    if (imported.unitWeight) setUnitWeight(String(imported.unitWeight));
+    if (imported.unitWeightUnit) setUnitWeightUnit(imported.unitWeightUnit);
+    setImportedExtras({
+      steps: imported.steps || [],
+      equipment: imported.equipment || [],
+      miseEnPlace: imported.miseEnPlace || '',
+      sustainabilityTips: imported.sustainabilityTips || [],
+      ingredients: imported.ingredients || [],
+      descriptionES: imported.descriptionES || ''
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,25 +62,23 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
     setLoading(true);
     const id = doc(collection(db, 'recipes')).id;
     
-    // We explicitly cast creation to any to avoid strict typescript missing fields
-    // Because we just want a skeleton recipe
     const recipeData: Record<string, any> = {
       type: 'elaborado',
       nameES: nameES.trim(),
       nameEN: '',
-      descriptionES: '',
+      descriptionES: importedExtras.descriptionES || '',
       descriptionEN: '',
       yieldUnit,
       yieldQuantity,
       portions: null,
       unitWeight: yieldUnit === 'ud' && unitWeight ? Number(unitWeight) : null,
       unitWeightUnit: yieldUnit === 'ud' ? unitWeightUnit : null,
-      steps: [],
+      steps: importedExtras.steps || [],
       stepsEN: [],
-      equipment: [],
-      miseEnPlace: '',
-      sustainabilityTips: [],
-      ingredients: [],
+      equipment: importedExtras.equipment || [],
+      miseEnPlace: importedExtras.miseEnPlace || '',
+      sustainabilityTips: importedExtras.sustainabilityTips || [],
+      ingredients: importedExtras.ingredients || [],
       totalCost: 0,
       createdBy: appUser.name || appUser.email || 'Usuario',
       group: appUser.group || '',
@@ -66,12 +91,13 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
     try {
       await setDoc(doc(db, 'recipes', id), recipeData);
       if (onSuccess) onSuccess(id);
-      showToast('Elaborado creado. Puedes ir a añadirle detalle luego.', 'success');
+      showToast('Elaborado creado correctamente.', 'success');
       setNameES('');
       setYieldUnit('kg');
       setYieldQuantity(1);
       setUnitWeight('');
       setUnitWeightUnit('g');
+      setImportedExtras({});
       onClose();
     } catch (error) {
       console.error('Error saving elaborado:', error);
@@ -84,11 +110,22 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
       <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-md flex flex-col ring-1 ring-orange-200">
-        <div className="p-6 border-b border-orange-200 bg-orange-100 rounded-t-2xl">
-          <h2 className="text-xl font-bold text-orange-950">
-            Nuevo Elaborado Rápido
-          </h2>
-          <p className="text-sm text-stone-500 mt-1">Crea un elaborado básico ahora para añadirlo a la receta, y detállalo más tarde.</p>
+        <div className="p-6 border-b border-orange-200 bg-orange-100 rounded-t-2xl flex items-start justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-bold text-orange-950">
+              Nuevo Elaborado Rápido
+            </h2>
+            <p className="text-sm text-stone-500 mt-1">Crea un elaborado básico ahora para añadirlo a la receta, o impórtalo desde un PDF.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-2.5 py-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors shrink-0 cursor-pointer"
+            title="Importar datos desde un archivo PDF"
+          >
+            <Sparkles size={14} className="text-amber-600" />
+            PDF
+          </button>
         </div>
         <div className="p-6">
           <form id="create-elaborado-form" onSubmit={handleSubmit} className="space-y-4">
@@ -182,6 +219,13 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
           </button>
         </div>
       </div>
+
+      <ImportRecipeModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onApplyRecipe={handleApplyImportedRecipe}
+        targetType="elaborado"
+      />
     </div>
   );
 }

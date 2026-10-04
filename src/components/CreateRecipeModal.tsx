@@ -5,10 +5,11 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Sparkles } from 'lucide-react';
 import { calculateRecipeTotalCost } from '../utils/calculations';
 import { RecipeIngredient } from '../types';
 import CreateIngredientModal from './CreateIngredientModal';
+import ImportRecipeModal from './ImportRecipeModal';
 
 interface CreateRecipeModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
   const { ingredients, recipes } = useData();
   
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -34,6 +36,19 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
     ingredients: [] as RecipeIngredient[],
     imageUrl: '',
   });
+
+  const handleApplyImportedRecipe = (imported: any) => {
+    setFormData(prev => ({
+      ...prev,
+      nameES: imported.nameES || prev.nameES,
+      descriptionES: imported.descriptionES || prev.descriptionES,
+      portions: imported.portions !== null && imported.portions !== undefined ? Number(imported.portions) : prev.portions,
+      steps: imported.steps && imported.steps.length > 0 ? imported.steps : prev.steps,
+      equipment: imported.equipment && imported.equipment.length > 0 ? imported.equipment : prev.equipment,
+      sustainabilityTips: imported.sustainabilityTips && imported.sustainabilityTips.length > 0 ? imported.sustainabilityTips : prev.sustainabilityTips,
+      ingredients: imported.ingredients && imported.ingredients.length > 0 ? imported.ingredients : prev.ingredients,
+    }));
+  };
 
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -110,7 +125,18 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col ring-1 ring-orange-200">
         <div className="p-6 border-b border-orange-200 flex justify-between items-center bg-orange-100 rounded-t-2xl">
-          <h2 className="text-xl font-bold text-orange-950">Nueva Receta</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-orange-950">Nueva Receta</h2>
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-3 py-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              title="Importar escandallo desde un archivo PDF"
+            >
+              <Sparkles size={14} className="text-amber-600" />
+              Importar PDF
+            </button>
+          </div>
           <div className="text-lg font-bold text-teal-800 bg-white px-3 py-1 rounded-lg shadow-sm border border-orange-200">
             Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
           </div>
@@ -342,6 +368,13 @@ export default function CreateRecipeModal({ isOpen, onClose, onSuccess }: Create
             }));
           }
         }}
+      />
+
+      <ImportRecipeModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onApplyRecipe={handleApplyImportedRecipe}
+        targetType="plato"
       />
     </div>
   );

@@ -6,11 +6,12 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera, Scale } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera, Scale, Sparkles } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
 import CreateElaboradoModal from '../components/CreateElaboradoModal';
+import ImportRecipeModal from '../components/ImportRecipeModal';
 import ConfirmModal from '../components/ConfirmModal';
 import IngredientSelect from '../components/IngredientSelect';
 import { generatePDF } from '../utils/pdf';
@@ -78,6 +79,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   
   // Estados para controlar la visibilidad de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
   const [isElaboradoModalOpen, setIsElaboradoModalOpen] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
@@ -450,6 +452,26 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setNewlyAddedStepIndex(null);
   };
 
+  const handleApplyImportedRecipe = (imported: any) => {
+    setFormData(prev => ({
+      ...prev,
+      nameES: imported.nameES || prev.nameES,
+      type: imported.type || prev.type,
+      descriptionES: imported.descriptionES || prev.descriptionES || '',
+      portions: imported.type === 'elaborado' ? null : (imported.portions !== null && imported.portions !== undefined ? Number(imported.portions) : prev.portions),
+      yieldQuantity: imported.type === 'elaborado' ? (imported.yieldQuantity !== null && imported.yieldQuantity !== undefined ? Number(imported.yieldQuantity) : prev.yieldQuantity) : null,
+      yieldUnit: imported.yieldUnit || prev.yieldUnit || 'kg',
+      unitWeight: imported.unitWeight !== undefined ? imported.unitWeight : prev.unitWeight,
+      unitWeightUnit: imported.unitWeightUnit || prev.unitWeightUnit || 'g',
+      steps: imported.steps && imported.steps.length > 0 ? imported.steps : prev.steps,
+      equipment: imported.equipment && imported.equipment.length > 0 ? imported.equipment : prev.equipment,
+      miseEnPlace: imported.miseEnPlace || prev.miseEnPlace || '',
+      sustainabilityTips: imported.sustainabilityTips && imported.sustainabilityTips.length > 0 ? imported.sustainabilityTips : prev.sustainabilityTips,
+      ingredients: imported.ingredients && imported.ingredients.length > 0 ? imported.ingredients : prev.ingredients,
+    }));
+    setIsModalOpen(true);
+  };
+
   useEffect(() => {
     const editId = searchParams.get('edit');
     if (editId && recipes.length > 0) {
@@ -745,6 +767,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               Borrar ({selectedIds.size})
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-orange-200 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+            title="Importar escandallo o receta directamente desde un archivo PDF con IA"
+          >
+            <Sparkles size={16} className="text-amber-600" />
+            <span>Importar PDF</span>
+          </button>
           <button
             onClick={() => { resetForm(); setIsModalOpen(true); }}
             className="bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm"
@@ -1160,9 +1191,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden ring-1 ring-orange-200">
             <div className="p-6 border-b border-orange-200 flex justify-between items-center bg-orange-100">
-              <h2 className="text-xl font-bold text-orange-950">
-                {editingId ? 'Editar Receta' : 'Nueva Receta'}
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-orange-950">
+                  {editingId ? 'Editar Receta' : 'Nueva Receta'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="px-3 py-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Rellenar campos importando un PDF"
+                >
+                  <Sparkles size={14} className="text-amber-600" />
+                  Importar PDF
+                </button>
+              </div>
               <div className="text-lg font-bold text-teal-700 bg-teal-50 border-teal-100 px-3 py-1 rounded-lg shadow-sm border border-orange-200">
                 Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
               </div>
@@ -1823,6 +1865,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             ingredients: [...prev.ingredients, { ingredientId: newId, quantity: 0 }]
           }));
         }}
+      />
+
+      <ImportRecipeModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onApplyRecipe={handleApplyImportedRecipe}
+        targetType={type as 'plato' | 'elaborado' | 'bebida'}
       />
 
       {/* Hidden Print Layout */}

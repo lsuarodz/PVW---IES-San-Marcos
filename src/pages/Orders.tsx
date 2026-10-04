@@ -1537,7 +1537,7 @@ export default function Orders() {
       await new Promise(r => setTimeout(r, 120));
 
       const opt = {
-        margin: [14, 12, 14, 12], // mm: [top, left, bottom, right] applied to EVERY page
+        margin: [12, 10, 12, 10], // mm: [top, left, bottom, right] applied to EVERY page
         filename: `Pedido_Consolidado_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { 
@@ -1546,7 +1546,7 @@ export default function Orders() {
           logging: false,
           scrollX: 0, 
           scrollY: 0, 
-          windowWidth: 794,
+          windowWidth: 800,
           backgroundColor: '#ffffff'
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
@@ -3131,28 +3131,42 @@ export default function Orders() {
 
       {/* ==================== PRINT LAYOUT (PDF & PRINT) ==================== */}
       {isPrinting && (
-        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000, width: '794px' }}>
-          <div ref={printRef} className="print-orders-container bg-white text-stone-900 font-sans w-[794px] px-2 py-1 flex flex-col justify-between relative">
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000, width: '190mm', maxWidth: '100%' }}>
+          <div ref={printRef} className="print-orders-container bg-white text-stone-900 font-sans w-full px-1 py-1 flex flex-col justify-between relative">
             <style>{`
               .print-orders-container {
                 opacity: 1 !important;
                 background-color: #ffffff !important;
                 color: #1c1917 !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-                font-size: 11px !important;
-                line-height: 1.4 !important;
+                font-size: 10px !important;
+                line-height: 1.35 !important;
                 box-sizing: border-box !important;
-                width: 794px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
               }
               .print-orders-container * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
                 box-sizing: border-box !important;
               }
+              .print-orders-container table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed !important;
+                border-collapse: collapse !important;
+              }
+              .print-orders-container th,
+              .print-orders-container td {
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+              }
               .print-logo {
-                max-height: 48px !important;
-                max-width: 170px !important;
-                height: 48px !important;
+                max-height: 44px !important;
+                max-width: 160px !important;
+                height: 44px !important;
                 width: auto !important;
                 object-fit: contain !important;
                 display: block !important;
@@ -3194,23 +3208,23 @@ export default function Orders() {
                   </div>
                 </div>
 
-                <div className="text-right bg-stone-50/80 border border-stone-200/90 px-4 py-2 rounded-lg shadow-2xs">
-                  <div className="text-[8.5px] text-stone-500 uppercase font-bold tracking-widest">
+                <div className="text-right bg-stone-50/80 border border-stone-200/90 px-3.5 py-1.5 rounded-lg shadow-2xs shrink-0">
+                  <div className="text-[8px] text-stone-500 uppercase font-bold tracking-widest">
                     COSTE TOTAL ESTIMADO
                   </div>
-                  <div className="text-2xl font-bold text-stone-900 tracking-tight leading-none mt-1">
+                  <div className="text-xl font-bold text-stone-900 tracking-tight leading-none mt-1">
                     {totalOrderCost.toFixed(2)} €
                   </div>
                 </div>
               </div>
 
               {/* Fila de Título y Metadatos */}
-              <div className="flex justify-between items-end mt-4 mb-3 text-xs print-avoid-break">
-                <div>
-                  <h1 className="text-sm font-bold uppercase tracking-wide text-stone-900">
+              <div className="flex justify-between items-end mt-3 mb-2.5 text-xs print-avoid-break gap-4">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-sm font-bold uppercase tracking-wide text-stone-900 truncate">
                     {activeTab === 'create' ? 'LISTA DE PEDIDO PERSONAL' : 'LISTA DE PEDIDOS CONSOLIDADOS'}
                   </h1>
-                  <p className="text-[10px] text-stone-500 mt-0.5">
+                  <p className="text-[9.5px] text-stone-500 mt-0.5 leading-snug">
                     {activeTab === 'create'
                       ? `Solicitante: ${appUser?.name || 'Usuario'} · Grupo: ${appUser?.group || '-'} · Curso: ${appUser?.course || '-'}`
                       : `Consolidación de ${selectedOrderIds.length} ${selectedOrderIds.length === 1 ? 'pedido' : 'pedidos'} · Vista: ${
@@ -3218,8 +3232,8 @@ export default function Orders() {
                         }`}
                   </p>
                 </div>
-                <div className="text-right text-[10px] text-stone-600 leading-snug">
-                  <p><span className="font-semibold text-stone-700">Fecha de emisión:</span> {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <div className="text-right text-[9.5px] text-stone-600 leading-snug shrink-0 whitespace-nowrap">
+                  <p><span className="font-semibold text-stone-700">Fecha de emisión:</span> {new Date().toLocaleDateString('es-ES', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
                   <p><span className="font-semibold text-stone-700">Total referencias:</span> {aggregatedList.length} ingredientes</p>
                 </div>
               </div>
@@ -3227,16 +3241,24 @@ export default function Orders() {
               {/* Contenido Principal de las Listas */}
               <div>
                 {groupBy === 'provider' ? (
-                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-6">
-                    <table className="w-full text-left border-collapse">
+                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-5 w-full">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <colgroup>
+                        <col style={{ width: '4%' }} />
+                        <col style={{ width: '28%' }} />
+                        <col style={{ width: '16%' }} />
+                        <col style={{ width: '11%' }} />
+                        <col style={{ width: '13%' }} />
+                        <col style={{ width: '28%' }} />
+                      </colgroup>
                       <thead>
-                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[9px]">
-                          <th className="py-2.5 px-3 w-8 text-center">✓</th>
-                          <th className="py-2.5 px-3 font-bold text-left">INGREDIENTE</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-28">CANTIDAD TOTAL</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-20">P. UNIT.</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-24">COSTE EST.</th>
-                          <th className="py-2.5 px-3 font-bold text-left min-w-[140px]">SOLICITADO POR / REPARTO</th>
+                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[8.5px]">
+                          <th className="py-2 px-1 text-center">✓</th>
+                          <th className="py-2 px-2 font-bold text-left">INGREDIENTE</th>
+                          <th className="py-2 px-2 font-bold text-right">CANTIDAD</th>
+                          <th className="py-2 px-2 font-bold text-right">P. UNIT.</th>
+                          <th className="py-2 px-2 font-bold text-right">COSTE EST.</th>
+                          <th className="py-2 px-2 font-bold text-left">SOLICITADO POR / REPARTO</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-200">
@@ -3248,16 +3270,16 @@ export default function Orders() {
                             <React.Fragment key={provider}>
                               {/* Provider Category Header Row */}
                               <tr className="bg-[#e4e2e0] text-stone-900 border-t border-b border-stone-300 print-avoid-break">
-                                <td colSpan={6} className="py-2 px-3">
-                                  <div className="flex justify-between items-center text-xs font-bold">
-                                    <div className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-stone-900 inline-block"></span>
-                                      <span className="uppercase tracking-wider">PROVEEDOR: {provider}</span>
-                                      <span className="text-[10px] text-stone-500 font-normal">
+                                <td colSpan={6} className="py-1.5 px-2">
+                                  <div className="flex justify-between items-center text-xs font-bold gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="w-2 h-2 rounded-full bg-stone-900 inline-block shrink-0"></span>
+                                      <span className="uppercase tracking-wider truncate">PROVEEDOR: {provider}</span>
+                                      <span className="text-[9.5px] text-stone-500 font-normal shrink-0">
                                         ({providerItems.length} {providerItems.length === 1 ? 'producto' : 'productos'})
                                       </span>
                                     </div>
-                                    <span className="text-[11px] font-bold text-stone-900">
+                                    <span className="text-[10.5px] font-bold text-stone-900 shrink-0 whitespace-nowrap">
                                       Subtotal: {providerTotal.toFixed(2)} €
                                     </span>
                                   </div>
@@ -3273,28 +3295,28 @@ export default function Orders() {
                                 return (
                                   <tr
                                     key={item.ingredientId || idx}
-                                    className="bg-white border-b border-stone-200 print-avoid-break text-[10px]"
+                                    className="bg-white border-b border-stone-200 print-avoid-break text-[9.5px]"
                                   >
-                                    <td className="py-2 px-3 text-center align-middle">
+                                    <td className="py-1.5 px-1 text-center align-middle">
                                       <span className="inline-block w-3.5 h-3.5 border border-stone-300 rounded-[3px] bg-white"></span>
                                     </td>
-                                    <td className="py-2 px-3 font-medium text-stone-900 align-middle">
-                                      <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[9px]">(Fuera cat.)</span> : ''}</div>
+                                    <td className="py-1.5 px-2 font-medium text-stone-900 align-middle break-words leading-tight">
+                                      <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[8.5px] font-semibold">(Fuera cat.)</span> : ''}</div>
                                     </td>
-                                    <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
+                                    <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
                                       {item.totalQuantity.toFixed(3)} {item.unit}
                                     </td>
-                                    <td className="py-2 px-3 text-right text-stone-600 whitespace-nowrap align-middle">
+                                    <td className="py-1.5 px-2 text-right text-stone-600 whitespace-nowrap align-middle text-[9px]">
                                       {item.costPerUnit > 0 ? `${item.costPerUnit.toFixed(2)} €` : '-'}
                                     </td>
-                                    <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                                    <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                                       {item.totalCost.toFixed(2)} €
                                     </td>
-                                    <td className="py-2 px-3 text-stone-600 text-[9.5px] leading-tight align-middle">
-                                      <div>{teacherBreakdown || '-'}</div>
+                                    <td className="py-1.5 px-2 text-stone-600 text-[8.5px] leading-tight align-middle break-words">
+                                      <div className="break-words">{teacherBreakdown || '-'}</div>
                                       {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
-                                        <div className="text-[9px] text-amber-800 font-medium mt-0.5">
-                                          {Object.entries(item.teacherNotes).map(([t, n]) => `[Nota ${formatTeacherName(t)}: ${n}]`).join(' · ')}
+                                        <div className="text-[8px] text-amber-800 font-medium mt-0.5 break-words">
+                                          {Object.entries(item.teacherNotes).map(([t, n]) => `[${formatTeacherName(t)}: ${n}]`).join(' · ')}
                                         </div>
                                       )}
                                     </td>
@@ -3307,10 +3329,10 @@ export default function Orders() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-stone-50 border-t-2 border-stone-300 font-bold text-stone-900">
-                          <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-[10px] text-stone-800">
+                          <td colSpan={4} className="py-2 px-2 text-right uppercase tracking-wider text-[9px] text-stone-800">
                             TOTAL ESTIMADO PROVEEDORES:
                           </td>
-                          <td className="py-2.5 px-3 text-right text-xs font-bold text-stone-950 whitespace-nowrap">
+                          <td className="py-2 px-2 text-right text-[11px] font-bold text-stone-950 whitespace-nowrap">
                             {totalOrderCost.toFixed(2)} €
                           </td>
                           <td></td>
@@ -3319,15 +3341,22 @@ export default function Orders() {
                     </table>
                   </div>
                 ) : groupBy === 'teacher' ? (
-                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-6">
-                    <table className="w-full text-left border-collapse">
+                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-5 w-full">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <colgroup>
+                        <col style={{ width: '4%' }} />
+                        <col style={{ width: '38%' }} />
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '22%' }} />
+                        <col style={{ width: '18%' }} />
+                      </colgroup>
                       <thead>
-                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[9px]">
-                          <th className="py-2.5 px-3 w-8 text-center">✓</th>
-                          <th className="py-2.5 px-3 font-bold text-left">INGREDIENTE</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-28">CANTIDAD</th>
-                          <th className="py-2.5 px-3 font-bold text-left w-36">PROVEEDOR</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-24">COSTE EST.</th>
+                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[8.5px]">
+                          <th className="py-2 px-1 text-center">✓</th>
+                          <th className="py-2 px-2 font-bold text-left">INGREDIENTE</th>
+                          <th className="py-2 px-2 font-bold text-right">CANTIDAD</th>
+                          <th className="py-2 px-2 font-bold text-left">PROVEEDOR</th>
+                          <th className="py-2 px-2 font-bold text-right">COSTE EST.</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-200">
@@ -3343,21 +3372,21 @@ export default function Orders() {
                             <React.Fragment key={teacher}>
                               {/* Teacher Category Header Row */}
                               <tr className="bg-[#e4e2e0] text-stone-900 border-t border-b border-stone-300 print-avoid-break">
-                                <td colSpan={5} className="py-2 px-3">
-                                  <div className="flex justify-between items-center text-xs font-bold">
-                                    <div className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-stone-900 inline-block"></span>
-                                      <span className="uppercase tracking-wider">DOCENTE: {formattedName}</span>
+                                <td colSpan={5} className="py-1.5 px-2">
+                                  <div className="flex justify-between items-center text-xs font-bold gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="w-2 h-2 rounded-full bg-stone-900 inline-block shrink-0"></span>
+                                      <span className="uppercase tracking-wider truncate">DOCENTE: {formattedName}</span>
                                       {justification && (
-                                        <span className="text-[10px] text-stone-600 font-normal italic">
+                                        <span className="text-[9.5px] text-stone-600 font-normal italic truncate">
                                           {justification}
                                         </span>
                                       )}
-                                      <span className="text-[10px] text-stone-500 font-normal">
+                                      <span className="text-[9.5px] text-stone-500 font-normal shrink-0">
                                         ({teacherItems.length} {teacherItems.length === 1 ? 'producto' : 'productos'})
                                       </span>
                                     </div>
-                                    <span className="text-[11px] font-bold text-stone-900">
+                                    <span className="text-[10.5px] font-bold text-stone-900 shrink-0 whitespace-nowrap">
                                       Subtotal: {teacherTotal.toFixed(2)} €
                                     </span>
                                   </div>
@@ -3368,26 +3397,26 @@ export default function Orders() {
                               {teacherItems.map((item, idx) => (
                                 <tr
                                   key={`${teacher}-${item.ingredientId}-${idx}`}
-                                  className="bg-white border-b border-stone-200 print-avoid-break text-[10px]"
+                                  className="bg-white border-b border-stone-200 print-avoid-break text-[9.5px]"
                                 >
-                                  <td className="py-2 px-3 text-center align-middle">
+                                  <td className="py-1.5 px-1 text-center align-middle">
                                     <span className="inline-block w-3.5 h-3.5 border border-stone-300 rounded-[3px] bg-white"></span>
                                   </td>
-                                  <td className="py-2 px-3 font-medium text-stone-900 align-middle">
-                                    <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[9px]">(Fuera cat.)</span> : ''}</div>
+                                  <td className="py-1.5 px-2 font-medium text-stone-900 align-middle break-words leading-tight">
+                                    <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[8.5px] font-semibold">(Fuera cat.)</span> : ''}</div>
                                     {item.notes && (
-                                      <div className="text-[9px] text-amber-800 font-medium italic mt-0.5">
+                                      <div className="text-[8px] text-amber-800 font-medium italic mt-0.5 break-words">
                                         [Nota: {item.notes}]
                                       </div>
                                     )}
                                   </td>
-                                  <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
+                                  <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
                                     {item.quantity.toFixed(3)} {item.unit}
                                   </td>
-                                  <td className="py-2 px-3 text-stone-600 text-[10px] italic align-middle">
+                                  <td className="py-1.5 px-2 text-stone-600 text-[9px] italic align-middle break-words">
                                     {item.provider || 'Sin proveedor'}
                                   </td>
-                                  <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                                  <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                                     {item.totalCost.toFixed(2)} €
                                   </td>
                                 </tr>
@@ -3398,10 +3427,10 @@ export default function Orders() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-stone-50 border-t-2 border-stone-300 font-bold text-stone-900">
-                          <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-[10px] text-stone-800">
+                          <td colSpan={4} className="py-2 px-2 text-right uppercase tracking-wider text-[9px] text-stone-800">
                             TOTAL GENERAL ESTIMADO:
                           </td>
-                          <td className="py-2.5 px-3 text-right text-xs font-bold text-stone-950 whitespace-nowrap">
+                          <td className="py-2 px-2 text-right text-[11px] font-bold text-stone-950 whitespace-nowrap">
                             {totalOrderCost.toFixed(2)} €
                           </td>
                         </tr>
@@ -3409,45 +3438,53 @@ export default function Orders() {
                     </table>
                   </div>
                 ) : (
-                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-6">
-                    <table className="w-full text-left border-collapse">
+                  <div className="border border-stone-300 rounded-lg overflow-hidden mb-5 w-full">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <colgroup>
+                        <col style={{ width: '4%' }} />
+                        <col style={{ width: '32%' }} />
+                        <col style={{ width: '16%' }} />
+                        <col style={{ width: '12%' }} />
+                        <col style={{ width: '14%' }} />
+                        <col style={{ width: '22%' }} />
+                      </colgroup>
                       <thead>
-                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[9px]">
-                          <th className="py-2.5 px-3 w-8 text-center">✓</th>
-                          <th className="py-2.5 px-3 font-bold text-left">INGREDIENTE</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-28">CANTIDAD</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-20">P. UNIT.</th>
-                          <th className="py-2.5 px-3 font-bold text-right w-24">COSTE EST.</th>
-                          <th className="py-2.5 px-3 font-bold text-left w-36">PROVEEDOR</th>
+                        <tr className="bg-stone-900 text-white uppercase tracking-wider text-[8.5px]">
+                          <th className="py-2 px-1 text-center">✓</th>
+                          <th className="py-2 px-2 font-bold text-left">INGREDIENTE</th>
+                          <th className="py-2 px-2 font-bold text-right">CANTIDAD</th>
+                          <th className="py-2 px-2 font-bold text-right">P. UNIT.</th>
+                          <th className="py-2 px-2 font-bold text-right">COSTE EST.</th>
+                          <th className="py-2 px-2 font-bold text-left">PROVEEDOR</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-200">
                         {aggregatedList.map((item, idx) => (
                           <tr
                             key={item.ingredientId || idx}
-                            className="bg-white border-b border-stone-200 print-avoid-break text-[10px]"
+                            className="bg-white border-b border-stone-200 print-avoid-break text-[9.5px]"
                           >
-                            <td className="py-2 px-3 text-center align-middle">
+                            <td className="py-1.5 px-1 text-center align-middle">
                               <span className="inline-block w-3.5 h-3.5 border border-stone-300 rounded-[3px] bg-white"></span>
                             </td>
-                            <td className="py-2 px-3 font-medium text-stone-900 align-middle">
-                              <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[9px]">(Fuera cat.)</span> : ''}</div>
+                            <td className="py-1.5 px-2 font-medium text-stone-900 align-middle break-words leading-tight">
+                              <div>{item.name} {item.isCustom ? <span className="text-amber-700 text-[8.5px] font-semibold">(Fuera cat.)</span> : ''}</div>
                               {item.teacherNotes && Object.keys(item.teacherNotes).length > 0 && (
-                                <div className="text-[9px] text-amber-800 font-medium mt-0.5">
-                                  {Object.entries(item.teacherNotes).map(([t, n]) => `[Nota ${formatTeacherName(t)}: ${n}]`).join(' · ')}
+                                <div className="text-[8px] text-amber-800 font-medium mt-0.5 break-words">
+                                  {Object.entries(item.teacherNotes).map(([t, n]) => `[${formatTeacherName(t)}: ${n}]`).join(' · ')}
                                 </div>
                               )}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
+                            <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle font-mono">
                               {item.totalQuantity.toFixed(3)} {item.unit}
                             </td>
-                            <td className="py-2 px-3 text-right text-stone-600 whitespace-nowrap align-middle">
+                            <td className="py-1.5 px-2 text-right text-stone-600 whitespace-nowrap align-middle text-[9px]">
                               {item.costPerUnit > 0 ? `${item.costPerUnit.toFixed(2)} €` : '-'}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
+                            <td className="py-1.5 px-2 text-right font-bold text-stone-900 whitespace-nowrap align-middle">
                               {item.totalCost.toFixed(2)} €
                             </td>
-                            <td className="py-2 px-3 text-stone-600 text-[10px] italic align-middle">
+                            <td className="py-1.5 px-2 text-stone-600 text-[9px] italic align-middle break-words">
                               {item.provider || 'Sin proveedor'}
                             </td>
                           </tr>
@@ -3455,10 +3492,10 @@ export default function Orders() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-stone-50 border-t-2 border-stone-300 font-bold text-stone-900">
-                          <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-[10px] text-stone-800">
+                          <td colSpan={4} className="py-2 px-2 text-right uppercase tracking-wider text-[9px] text-stone-800">
                             TOTAL GENERAL ESTIMADO:
                           </td>
-                          <td className="py-2.5 px-3 text-right text-xs font-bold text-stone-950 whitespace-nowrap">
+                          <td className="py-2 px-2 text-right text-[11px] font-bold text-stone-950 whitespace-nowrap">
                             {totalOrderCost.toFixed(2)} €
                           </td>
                           <td></td>
@@ -3471,12 +3508,12 @@ export default function Orders() {
             </div>
 
             {/* Resumen Total y Cuadros de Firma */}
-            <div className="mt-auto print-avoid-break">
+            <div className="mt-auto print-avoid-break w-full">
               {/* Barra negra horizontal */}
-              <div className="w-full h-[2px] bg-stone-900 mb-4"></div>
+              <div className="w-full h-[2px] bg-stone-900 mb-3"></div>
 
               {/* Caja de Total General */}
-              <div className="bg-stone-50/70 border border-stone-200/90 rounded-lg p-3.5 flex justify-between items-center mb-6">
+              <div className="bg-stone-50/70 border border-stone-200/90 rounded-lg p-2.5 flex justify-between items-center mb-4">
                 <span className="text-xs uppercase font-bold tracking-wider text-stone-800">
                   TOTAL GENERAL ESTIMADO DEL PEDIDO
                 </span>
@@ -3485,23 +3522,20 @@ export default function Orders() {
                 </span>
               </div>
 
-              {/* Línea punteada divisoria */}
-              <div className="border-t border-dotted border-stone-300 my-6"></div>
-
               {/* Firmas */}
-              <div className="grid grid-cols-2 gap-8 pt-2 text-[10px] text-stone-600 mb-6">
+              <div className="grid grid-cols-2 gap-6 pt-1 text-[9.5px] text-stone-600 mb-4">
                 <div className="text-center">
-                  <p className="font-bold text-stone-700 uppercase tracking-wider text-[9px]">CONFORME RESPONSABLE DE COMPRAS / COCINA</p>
-                  <p className="text-[8.5px] text-stone-400 italic mt-0.5">Firma y aprobación</p>
+                  <p className="font-bold text-stone-700 uppercase tracking-wider text-[8.5px]">CONFORME RESPONSABLE DE COMPRAS / COCINA</p>
+                  <p className="text-[8px] text-stone-400 italic mt-0.5">Firma y aprobación</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-bold text-stone-700 uppercase tracking-wider text-[9px]">RECEPCIÓN DE MERCANCÍAS / ALMACÉN</p>
-                  <p className="text-[8.5px] text-stone-400 italic mt-0.5">Fecha y firma de recepción</p>
+                  <p className="font-bold text-stone-700 uppercase tracking-wider text-[8.5px]">RECEPCIÓN DE MERCANCÍAS / ALMACÉN</p>
+                  <p className="text-[8px] text-stone-400 italic mt-0.5">Fecha y firma de recepción</p>
                 </div>
               </div>
 
               {/* Pie de página institucional */}
-              <div className="text-center text-[8.5px] text-stone-400 uppercase tracking-widest font-sans pb-2">
+              <div className="text-center text-[8px] text-stone-400 uppercase tracking-widest font-sans pb-1">
                 DOCUMENTO CONSOLIDADO GENERADO AUTOMÁTICAMENTE · CIFP HOSTELERÍA
               </div>
             </div>
