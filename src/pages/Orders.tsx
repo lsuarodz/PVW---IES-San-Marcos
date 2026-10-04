@@ -63,6 +63,8 @@ interface DetailedIngredient {
   unit: string;
   provider?: string;
   isSubRecipe?: boolean;
+  isExcluded?: boolean;
+  notes?: string;
   subIngredients?: DetailedIngredient[];
 }
 
@@ -71,6 +73,8 @@ function getDetailedRecipeIngredients(
   quantity: number,
   allRecipes: Recipe[],
   allIngredients: Ingredient[],
+  excludedIngredientIds: string[] = [],
+  ingredientNotes: Record<string, string> = {},
   visited = new Set<string>()
 ): DetailedIngredient[] {
   if (visited.has(recipeId)) return [];
@@ -85,6 +89,8 @@ function getDetailedRecipeIngredients(
   const multiplier = quantity / basePortions;
 
   return recipe.ingredients.map(ri => {
+    const isExcluded = excludedIngredientIds.includes(ri.ingredientId);
+    const notes = ingredientNotes[ri.ingredientId] || '';
     const ing = allIngredients.find(i => i.id === ri.ingredientId);
     if (ing) {
       const totalQty = ri.quantity * multiplier;
@@ -97,7 +103,9 @@ function getDetailedRecipeIngredients(
         formattedQuantity,
         unit: ing.unit || 'ud',
         provider: ing.provider || '',
-        isSubRecipe: false
+        isSubRecipe: false,
+        isExcluded,
+        notes
       };
     } else {
       const subRecipe = allRecipes.find(r => r.id === ri.ingredientId);
@@ -108,7 +116,15 @@ function getDetailedRecipeIngredients(
         const subQty = ri.quantity * multiplier;
         const rounded = Number(subQty.toFixed(3));
         const formattedQuantity = rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(rounded < 0.01 ? 3 : 2);
-        const children = getDetailedRecipeIngredients(subRecipe.id, subQty, allRecipes, allIngredients, new Set(visited));
+        const children = getDetailedRecipeIngredients(
+          subRecipe.id,
+          subQty,
+          allRecipes,
+          allIngredients,
+          excludedIngredientIds,
+          ingredientNotes,
+          new Set(visited)
+        );
         return {
           id: subRecipe.id,
           name: subRecipe.nameES,
@@ -117,6 +133,8 @@ function getDetailedRecipeIngredients(
           unit: subRecipe.yieldUnit || (subRecipe.portions ? 'rac.' : 'kg'),
           provider: 'Elaboración interna',
           isSubRecipe: true,
+          isExcluded,
+          notes,
           subIngredients: children
         };
       } else {
@@ -128,7 +146,9 @@ function getDetailedRecipeIngredients(
           quantity: totalQty,
           formattedQuantity: rounded.toString(),
           unit: 'ud',
-          isSubRecipe: false
+          isSubRecipe: false,
+          isExcluded,
+          notes
         };
       }
     }
@@ -141,7 +161,10 @@ function DetailedIngredientsBreakdown({
   quantity,
   unitLabel,
   isCollapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  isEditable = false,
+  onToggleExclude,
+  onUpdateNote
 }: {
   detailedIngredients: DetailedIngredient[];
   recipeTypeLabel: string;
@@ -149,7 +172,15 @@ function DetailedIngredientsBreakdown({
   unitLabel: string;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  isEditable?: boolean;
+  onToggleExclude?: (ingredientId: string) => void;
+  onUpdateNote?: (ingredientId: string, note: string) => void;
 }) {
+  const [openNoteFor, setOpenNoteFor] = useState<Record<string, boolean>>({});
+
+  const activeIngredients = detailedIngredients.filter(i => !i.isExcluded);
+  const excludedIngredients = detailedIngredients.filter(i => i.isExcluded);
+
   if (isCollapsed && onToggleCollapse) {
     return (
       <button
@@ -159,7 +190,12 @@ function DetailedIngredientsBreakdown({
         title="Desplegar ingredientes pormenorizados"
       >
         <ChefHat size={13} className="text-teal-600" />
-        <span>Ver {detailedIngredients.length} ingredientes pormenorizados</span>
+        <span>Ver {activeIngredients.length} ingredientes pormenorizados</span>
+        {excludedIngredients.length > 0 && (
+          <span className="text-[10px] text-red-700 bg-red-100 border border-red-200 px-1.5 py-0.2 rounded-full font-bold">
+            {excludedIngredients.length} {excludedIngredients.length === 1 ? 'omitido' : 'omitidos'}
+          </span>
+        )}
         <ChevronDown size={13} className="text-teal-600" />
       </button>
     );
@@ -177,8 +213,13 @@ function DetailedIngredientsBreakdown({
             Para {quantity || 0} {unitLabel}
           </span>
           <span className="text-[10px] text-stone-500 font-medium">
-            ({detailedIngredients.length} {detailedIngredients.length === 1 ? 'materia prima' : 'materias primas'})
+            ({activeIngredients.length} {activeIngredients.length === 1 ? 'materia prima en pedido' : 'materias primas en pedido'})
           </span>
+          {excludedIngredients.length > 0 && (
+            <span className="text-[10px] text-red-800 bg-red-100 border border-red-200 px-2 py-0.5 rounded-full font-bold">
+              {excludedIngredients.length} {excludedIngredients.length === 1 ? 'excluido solo de este pedido' : 'excluidos solo de este pedido'}
+            </span>
+          )}
         </div>
         {onToggleCollapse && (
           <button
@@ -207,64 +248,262 @@ function DetailedIngredientsBreakdown({
                 <th className="pb-1.5 font-semibold text-right w-24">Cantidad</th>
                 <th className="pb-1.5 font-semibold text-right w-16">Unidad</th>
                 <th className="pb-1.5 font-semibold pl-3 w-40">Proveedor habitual</th>
+                {isEditable && (
+                  <th className="pb-1.5 font-semibold text-center w-28">Acciones</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {detailedIngredients.map((ing, ingIdx) => (
-                <React.Fragment key={`${ing.id}-${ingIdx}`}>
-                  <tr className="hover:bg-teal-50/30 transition-colors">
-                    <td className="py-1.5 font-medium text-stone-800">
-                      <div className="flex items-center gap-1.5">
-                        {ing.isSubRecipe ? (
-                          <span className="text-[9px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
-                            Elaborado
+              {detailedIngredients.map((ing, ingIdx) => {
+                const isNoteOpen = openNoteFor[ing.id];
+                return (
+                  <React.Fragment key={`${ing.id}-${ingIdx}`}>
+                    <tr className={`transition-colors ${ing.isExcluded ? 'bg-red-50/30 text-stone-400' : 'hover:bg-teal-50/30'}`}>
+                      <td className="py-1.5 font-medium text-stone-800">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {ing.isSubRecipe ? (
+                            <span className="text-[9px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
+                              Elaborado
+                            </span>
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ing.isExcluded ? 'bg-red-300' : 'bg-teal-500'}`}></span>
+                          )}
+                          <span className={`font-semibold ${ing.isExcluded ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                            {ing.name}
+                          </span>
+                          {ing.isExcluded && (
+                            <span className="text-[9px] font-bold text-red-700 bg-red-100 border border-red-200 px-1.5 py-0.2 rounded no-underline">
+                              Omitido en pedido
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Anotación para compras visible bajo el nombre */}
+                        {ing.notes && !isNoteOpen && !ing.isExcluded && (
+                          <div
+                            onClick={() => isEditable && setOpenNoteFor(prev => ({ ...prev, [ing.id]: true }))}
+                            className={`mt-1 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 inline-flex items-center gap-1.5 font-medium max-w-full ${isEditable ? 'cursor-pointer hover:bg-amber-100' : ''}`}
+                            title={isEditable ? 'Clic para editar anotación para compras' : 'Anotación para compras'}
+                          >
+                            <MessageSquare size={11} className="text-amber-600 shrink-0" />
+                            <span className="truncate max-w-md"><strong>Nota compras:</strong> {ing.notes}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className={`py-1.5 text-right font-mono font-bold ${ing.isExcluded ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                        {ing.formattedQuantity}
+                      </td>
+                      <td className={`py-1.5 text-right font-mono ${ing.isExcluded ? 'text-stone-400' : 'text-stone-600'}`}>
+                        {ing.unit}
+                      </td>
+                      <td className="py-1.5 pl-3 text-stone-500 text-[11px] truncate max-w-[160px]">
+                        {ing.provider ? (
+                          <span className="bg-stone-50 border border-stone-200/80 px-1.5 py-0.5 rounded text-stone-700">
+                            {ing.provider}
                           </span>
                         ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span>
+                          <span className="text-stone-400 italic">-</span>
                         )}
-                        <span className="text-stone-900">{ing.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-1.5 text-right font-mono font-bold text-stone-900">
-                      {ing.formattedQuantity}
-                    </td>
-                    <td className="py-1.5 text-right font-mono text-stone-600">
-                      {ing.unit}
-                    </td>
-                    <td className="py-1.5 pl-3 text-stone-500 text-[11px] truncate max-w-[160px]">
-                      {ing.provider ? (
-                        <span className="bg-stone-50 border border-stone-200/80 px-1.5 py-0.5 rounded text-stone-700">
-                          {ing.provider}
-                        </span>
-                      ) : (
-                        <span className="text-stone-400 italic">-</span>
-                      )}
-                    </td>
-                  </tr>
-                  {/* Sub-ingredientes de elaborados anidados */}
-                  {ing.subIngredients && ing.subIngredients.length > 0 && (
-                    ing.subIngredients.map((sub, subIdx) => (
-                      <tr key={`${sub.id}-${subIdx}`} className="bg-orange-50/20 text-stone-600 text-[11px]">
-                        <td className="py-1 pl-6">
-                          <div className="flex items-center gap-1">
-                            <span className="text-stone-300 font-mono">↳</span>
-                            <span>{sub.name}</span>
+                      </td>
+                      {isEditable && (
+                        <td className="py-1.5 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-1">
+                            {ing.isExcluded ? (
+                              <button
+                                type="button"
+                                onClick={() => onToggleExclude?.(ing.id)}
+                                className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Restaurar este ingrediente en el pedido"
+                              >
+                                <Undo2 size={12} />
+                                <span>Restaurar</span>
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenNoteFor(prev => ({ ...prev, [ing.id]: !prev[ing.id] }))}
+                                  className={`p-1 rounded text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                                    ing.notes
+                                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                                      : 'text-stone-400 hover:text-stone-700 hover:bg-stone-100'
+                                  }`}
+                                  title={ing.notes ? `Nota para compras: "${ing.notes}"` : 'Añadir anotación para el jefe de compras'}
+                                >
+                                  <MessageSquare size={12} className={ing.notes ? 'text-amber-700' : 'text-stone-400'} />
+                                  <span className="text-[10px] hidden sm:inline">{ing.notes ? 'Nota' : '+ Nota'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleExclude?.(ing.id)}
+                                  className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors inline-flex items-center gap-0.5 cursor-pointer"
+                                  title="Quitar este ingrediente solo de este pedido (la receta original no se modifica)"
+                                >
+                                  <Trash2 size={12} />
+                                  <span className="text-[10px] hidden sm:inline">Quitar</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
-                        <td className="py-1 text-right font-mono text-stone-700">
-                          {sub.formattedQuantity}
-                        </td>
-                        <td className="py-1 text-right font-mono text-stone-500">
-                          {sub.unit}
-                        </td>
-                        <td className="py-1 pl-3 text-stone-400 text-[10px] truncate max-w-[160px]">
-                          {sub.provider || '-'}
+                      )}
+                    </tr>
+
+                    {/* Fila expandible para escribir o editar la anotación para el jefe de compras */}
+                    {isEditable && isNoteOpen && !ing.isExcluded && (
+                      <tr className="bg-amber-50/70 border-b border-amber-200">
+                        <td colSpan={isEditable ? 5 : 4} className="py-2 px-3">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare size={13} className="text-amber-600 shrink-0 ml-1" />
+                            <input
+                              type="text"
+                              value={ing.notes || ''}
+                              onChange={(e) => onUpdateNote?.(ing.id, e.target.value)}
+                              placeholder={`Anotación para el jefe de compras para "${ing.name}" (calibre, madurez, marca, etc.)...`}
+                              className="flex-1 text-xs px-2.5 py-1 bg-white border border-amber-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-400 rounded-md text-stone-900 placeholder:text-stone-400"
+                              autoFocus={!ing.notes}
+                            />
+                            {ing.notes && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onUpdateNote?.(ing.id, '');
+                                  setOpenNoteFor(prev => ({ ...prev, [ing.id]: false }));
+                                }}
+                                className="text-[11px] text-stone-400 hover:text-red-600 px-1 py-1 rounded transition-colors whitespace-nowrap cursor-pointer"
+                                title="Borrar nota"
+                              >
+                                Borrar nota
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setOpenNoteFor(prev => ({ ...prev, [ing.id]: false }))}
+                              className="text-[11px] text-stone-700 hover:text-stone-900 font-semibold px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 transition-colors whitespace-nowrap cursor-pointer"
+                            >
+                              Listo
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </React.Fragment>
-              ))}
+                    )}
+
+                    {/* Sub-ingredientes de elaborados anidados */}
+                    {ing.subIngredients && ing.subIngredients.length > 0 && (
+                      ing.subIngredients.map((sub, subIdx) => {
+                        const isSubNoteOpen = openNoteFor[sub.id];
+                        return (
+                          <React.Fragment key={`${sub.id}-${subIdx}`}>
+                            <tr className={`text-[11px] transition-colors ${sub.isExcluded ? 'bg-red-50/20 text-stone-400' : 'bg-orange-50/20 text-stone-600'}`}>
+                              <td className="py-1 pl-6">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-stone-300 font-mono">↳</span>
+                                  <span className={sub.isExcluded ? 'line-through text-stone-400' : ''}>{sub.name}</span>
+                                  {sub.isExcluded && (
+                                    <span className="text-[8px] font-bold text-red-700 bg-red-100 border border-red-200 px-1 rounded ml-1 no-underline">
+                                      Omitido
+                                    </span>
+                                  )}
+                                </div>
+                                {sub.notes && !isSubNoteOpen && !sub.isExcluded && (
+                                  <div
+                                    onClick={() => isEditable && setOpenNoteFor(prev => ({ ...prev, [sub.id]: true }))}
+                                    className={`text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 mt-0.5 ml-4 inline-flex items-center gap-1 font-medium ${isEditable ? 'cursor-pointer hover:bg-amber-100' : ''}`}
+                                    title={isEditable ? 'Clic para editar anotación' : undefined}
+                                  >
+                                    <MessageSquare size={10} className="text-amber-600 shrink-0" />
+                                    <span><strong>Nota:</strong> {sub.notes}</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className={`py-1 text-right font-mono ${sub.isExcluded ? 'line-through text-stone-400' : 'text-stone-700'}`}>
+                                {sub.formattedQuantity}
+                              </td>
+                              <td className={`py-1 text-right font-mono ${sub.isExcluded ? 'text-stone-400' : 'text-stone-500'}`}>
+                                {sub.unit}
+                              </td>
+                              <td className="py-1 pl-3 text-stone-400 text-[10px] truncate max-w-[160px]">
+                                {sub.provider || '-'}
+                              </td>
+                              {isEditable && (
+                                <td className="py-1 text-center whitespace-nowrap">
+                                  <div className="inline-flex items-center justify-center gap-1">
+                                    {sub.isExcluded ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleExclude?.(sub.id)}
+                                        className="text-[10px] text-teal-700 hover:text-teal-900 font-semibold"
+                                        title="Restaurar sub-ingrediente"
+                                      >
+                                        Restaurar
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => setOpenNoteFor(prev => ({ ...prev, [sub.id]: !prev[sub.id] }))}
+                                          className="p-0.5 text-stone-400 hover:text-amber-700 cursor-pointer"
+                                          title="Nota compras"
+                                        >
+                                          <MessageSquare size={11} className={sub.notes ? 'text-amber-600' : ''} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => onToggleExclude?.(sub.id)}
+                                          className="p-0.5 text-stone-400 hover:text-red-600 cursor-pointer"
+                                          title="Quitar sub-ingrediente solo de este pedido"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                            {isEditable && isSubNoteOpen && !sub.isExcluded && (
+                              <tr className="bg-amber-50/70 border-b border-amber-200 text-[11px]">
+                                <td colSpan={isEditable ? 5 : 4} className="py-1.5 px-3 pl-6">
+                                  <div className="flex items-center gap-2">
+                                    <MessageSquare size={11} className="text-amber-600 shrink-0" />
+                                    <input
+                                      type="text"
+                                      value={sub.notes || ''}
+                                      onChange={(e) => onUpdateNote?.(sub.id, e.target.value)}
+                                      placeholder={`Nota para el jefe de compras para "${sub.name}"...`}
+                                      className="flex-1 text-[11px] px-2 py-0.5 bg-white border border-amber-300 focus:border-amber-500 rounded text-stone-900"
+                                      autoFocus={!sub.notes}
+                                    />
+                                    {sub.notes && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateNote?.(sub.id, '');
+                                          setOpenNoteFor(prev => ({ ...prev, [sub.id]: false }));
+                                        }}
+                                        className="text-[10px] text-stone-400 hover:text-red-600"
+                                      >
+                                        Borrar
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setOpenNoteFor(prev => ({ ...prev, [sub.id]: false }))}
+                                      className="text-[10px] font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded"
+                                    >
+                                      Listo
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -625,6 +864,43 @@ export default function Orders() {
     setOrderItems(orderItems.filter(item => !(item.id === id && item.type === type)));
   };
 
+  // Alternar exclusión/eliminación de un ingrediente dentro de una receta solo para este pedido
+  const toggleExcludeIngredientFromRecipe = (recipeId: string, ingredientId: string) => {
+    setOrderItems(prev => prev.map(item => {
+      if (item.id === recipeId && item.type === 'recipe') {
+        const currentExcluded = item.excludedIngredientIds || [];
+        const isExcluded = currentExcluded.includes(ingredientId);
+        const nextExcluded = isExcluded
+          ? currentExcluded.filter(id => id !== ingredientId)
+          : [...currentExcluded, ingredientId];
+        return {
+          ...item,
+          excludedIngredientIds: nextExcluded
+        };
+      }
+      return item;
+    }));
+  };
+
+  // Actualizar anotación para el jefe de compras en un ingrediente específico de una receta
+  const updateRecipeIngredientNote = (recipeId: string, ingredientId: string, note: string) => {
+    setOrderItems(prev => prev.map(item => {
+      if (item.id === recipeId && item.type === 'recipe') {
+        const nextNotes = { ...(item.ingredientNotes || {}) };
+        if (!note || note.trim() === '') {
+          delete nextNotes[ingredientId];
+        } else {
+          nextNotes[ingredientId] = note;
+        }
+        return {
+          ...item,
+          ingredientNotes: nextNotes
+        };
+      }
+      return item;
+    }));
+  };
+
   // Save current workspace to Firestore (enforcing strictly 1 order per user)
   const handleSaveOrder = async (isDraft: boolean = true) => {
     if (orderItems.length === 0) {
@@ -664,6 +940,18 @@ export default function Orders() {
         };
         if (item.justification) clean.justification = item.justification;
         if (item.notes && item.notes.trim()) clean.notes = item.notes.trim();
+        if (item.excludedIngredientIds && item.excludedIngredientIds.length > 0) {
+          clean.excludedIngredientIds = item.excludedIngredientIds;
+        }
+        if (item.ingredientNotes && Object.keys(item.ingredientNotes).length > 0) {
+          const validNotes: Record<string, string> = {};
+          Object.entries(item.ingredientNotes).forEach(([k, v]) => {
+            if (v && v.trim()) validNotes[k] = v.trim();
+          });
+          if (Object.keys(validNotes).length > 0) {
+            clean.ingredientNotes = validNotes;
+          }
+        }
         if (item.customName) clean.customName = item.customName;
         if (item.customUnit) clean.customUnit = item.customUnit;
         if (item.customProvider) clean.customProvider = item.customProvider;
@@ -720,7 +1008,20 @@ export default function Orders() {
         if (item.customName) clean.customName = item.customName;
         if (item.customUnit) clean.customUnit = item.customUnit;
         if (item.customProvider) clean.customProvider = item.customProvider;
+        if (item.justification) clean.justification = item.justification;
         if (item.notes && item.notes.trim() !== '') clean.notes = item.notes.trim();
+        if (item.excludedIngredientIds && item.excludedIngredientIds.length > 0) {
+          clean.excludedIngredientIds = item.excludedIngredientIds;
+        }
+        if (item.ingredientNotes && Object.keys(item.ingredientNotes).length > 0) {
+          const validNotes: Record<string, string> = {};
+          Object.entries(item.ingredientNotes).forEach(([k, v]) => {
+            if (v && v.trim()) validNotes[k] = v.trim();
+          });
+          if (Object.keys(validNotes).length > 0) {
+            clean.ingredientNotes = validNotes;
+          }
+        }
         return clean;
       }) : (existingOrder?.items || []);
 
@@ -837,7 +1138,14 @@ export default function Orders() {
   const aggregatedList = useMemo((): AggregatedIngredient[] => {
     const aggregation: Record<string, AggregatedIngredient> = {};
 
-    const processRecipe = (recipeId: string, multiplier: number, userName: string, visited = new Set<string>()) => {
+    const processRecipe = (
+      recipeId: string,
+      multiplier: number,
+      userName: string,
+      excludedIngredientIds: string[] = [],
+      ingredientNotes: Record<string, string> = {},
+      visited = new Set<string>()
+    ) => {
       if (visited.has(recipeId)) {
         console.warn(`Circular dependency detected for recipe: ${recipeId}`);
         return;
@@ -847,13 +1155,25 @@ export default function Orders() {
       const recipe = recipes.find(r => r.id === recipeId);
       if (recipe) {
         recipe.ingredients.forEach(ri => {
+          // Omitir ingredientes excluidos manualmente de la receta solo para este pedido
+          if (excludedIngredientIds.includes(ri.ingredientId)) {
+            return;
+          }
+
           const ing = ingredients.find(i => i.id === ri.ingredientId);
           if (ing) {
             const requiredQty = ri.quantity * multiplier;
+            const ingNote = ingredientNotes[ing.id];
+
             if (aggregation[ing.id]) {
               aggregation[ing.id].totalQuantity += requiredQty;
               aggregation[ing.id].totalCost += requiredQty * ing.costPerUnit;
               aggregation[ing.id].byTeacher[userName] = (aggregation[ing.id].byTeacher[userName] || 0) + requiredQty;
+              if (ingNote) {
+                if (!aggregation[ing.id].teacherNotes) aggregation[ing.id].teacherNotes = {};
+                const prevNote = aggregation[ing.id].teacherNotes![userName];
+                aggregation[ing.id].teacherNotes![userName] = prevNote ? `${prevNote}; ${ingNote}` : ingNote;
+              }
             } else {
               aggregation[ing.id] = {
                 ingredientId: ing.id,
@@ -865,13 +1185,14 @@ export default function Orders() {
                 provider: ing.provider || '',
                 byTeacher: {
                   [userName]: requiredQty
-                }
+                },
+                teacherNotes: ingNote ? { [userName]: ingNote } : {}
               };
             }
           } else {
             const subRecipe = recipes.find(r => r.id === ri.ingredientId);
             if (subRecipe) {
-              processRecipe(subRecipe.id, ri.quantity * multiplier, userName, new Set(visited));
+              processRecipe(subRecipe.id, ri.quantity * multiplier, userName, excludedIngredientIds, ingredientNotes, new Set(visited));
             }
           }
         });
@@ -882,7 +1203,13 @@ export default function Orders() {
       source.items.forEach(item => {
         if (item.quantity > 0) {
           if (item.type === 'recipe') {
-            processRecipe(item.id, item.quantity, source.userName);
+            processRecipe(
+              item.id,
+              item.quantity,
+              source.userName,
+              item.excludedIngredientIds || [],
+              item.ingredientNotes || {}
+            );
           } else if (item.type === 'menu') {
             const menu = menus.find(m => m.id === item.id);
             if (menu) {
@@ -1956,7 +2283,16 @@ export default function Orders() {
                               ? (data as Ingredient).nameES
                               : (data as Recipe).nameES;
 
-                          const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                          const detailedIngredients = isRecipe 
+                            ? getDetailedRecipeIngredients(
+                                item.id, 
+                                Number(item.quantity) || 0, 
+                                recipes, 
+                                ingredients, 
+                                item.excludedIngredientIds || [], 
+                                item.ingredientNotes || {}
+                              ) 
+                            : [];
                           const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
 
                           const itemKey = `${item.type}-${item.id}`;
@@ -2112,6 +2448,9 @@ export default function Orders() {
                                       unitLabel={unitLabel}
                                       isCollapsed={Boolean(collapsedIngredients[itemKey])}
                                       onToggleCollapse={() => setCollapsedIngredients(prev => ({ ...prev, [itemKey]: !prev[itemKey] }))}
+                                      isEditable={true}
+                                      onToggleExclude={(ingId) => toggleExcludeIngredientFromRecipe(item.id, ingId)}
+                                      onUpdateNote={(ingId, note) => updateRecipeIngredientNote(item.id, ingId, note)}
                                     />
                                   </td>
                                 </tr>
@@ -3274,7 +3613,16 @@ export default function Orders() {
                               ? (data as Recipe)?.nameES || 'Receta'
                               : (data as any)?.nameES || 'Menú';
 
-                        const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                        const detailedIngredients = isRecipe 
+                          ? getDetailedRecipeIngredients(
+                              item.id, 
+                              Number(item.quantity) || 0, 
+                              recipes, 
+                              ingredients, 
+                              item.excludedIngredientIds || [], 
+                              item.ingredientNotes || {}
+                            ) 
+                          : [];
                         const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
 
                         const unit = isCustom
@@ -3496,7 +3844,16 @@ export default function Orders() {
 
                             const hasNotes = Boolean(item.notes && item.notes.trim() !== '');
 
-                            const detailedIngredients = isRecipe ? getDetailedRecipeIngredients(item.id, Number(item.quantity) || 0, recipes, ingredients) : [];
+                            const detailedIngredients = isRecipe 
+                              ? getDetailedRecipeIngredients(
+                                  item.id, 
+                                  Number(item.quantity) || 0, 
+                                  recipes, 
+                                  ingredients, 
+                                  item.excludedIngredientIds || [], 
+                                  item.ingredientNotes || {}
+                                ) 
+                              : [];
                             const recipeTypeLabel = isRecipe && data ? ((data as Recipe).type === 'elaborado' ? 'Elaborado' : (data as Recipe).type === 'plato' ? 'Plato' : 'Receta') : '';
 
                             return (

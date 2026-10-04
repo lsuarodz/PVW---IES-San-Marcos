@@ -371,9 +371,16 @@
             "type": "object",
             "properties": {
               "id": { "type": "string" },
-              "type": { "type": "string", "enum": ["recipe", "menu", "ingredient"] },
+              "type": { "type": "string", "enum": ["recipe", "menu", "ingredient", "custom"] },
               "quantity": { "type": "number" },
-              "justification": { "type": "string" }
+              "justification": { "type": "string" },
+              "notes": { "type": "string" },
+              "excludedIngredientIds": { "type": "array", "items": { "type": "string" } },
+              "ingredientNotes": { "type": "object" },
+              "customName": { "type": "string" },
+              "customUnit": { "type": "string" },
+              "customProvider": { "type": "string" },
+              "customEstimatedPrice": { "type": "number" }
             },
             "required": ["id", "type", "quantity"]
           }

@@ -147,7 +147,9 @@ export interface OrderItem {
   id: string;
   quantity: number; // For recipe: quantity, For menu: diners, For ingredient: quantity, For custom: quantity
   justification?: string;
-  notes?: string; // Anotaciones específicas para el jefe de compras
+  notes?: string; // Anotaciones específicas para el jefe de compras a nivel de artículo
+  excludedIngredientIds?: string[]; // IDs de ingredientes eliminados/excluidos de la receta solo para este pedido
+  ingredientNotes?: Record<string, string>; // Anotaciones para el jefe de compras por cada ingrediente individual
   customName?: string; // Nombre para productos no catalogados
   customUnit?: string; // Unidad de medida (kg, l, ud, etc.)
   customProvider?: string; // Proveedor sugerido opcional
