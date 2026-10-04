@@ -1537,7 +1537,7 @@ export default function Orders() {
       await new Promise(r => setTimeout(r, 120));
 
       const opt = {
-        margin: 0,
+        margin: [14, 12, 14, 12], // mm: [top, left, bottom, right] applied to EVERY page
         filename: `Pedido_Consolidado_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { 
@@ -1547,13 +1547,12 @@ export default function Orders() {
           scrollX: 0, 
           scrollY: 0, 
           windowWidth: 794,
-          width: 794,
           backgroundColor: '#ffffff'
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
         pagebreak: { 
           mode: ['avoid-all', 'css', 'legacy'],
-          avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.provider-section', '.teacher-section']
+          avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.provider-section', '.teacher-section', 'h1', 'h2', 'h3']
         }
       };
 
@@ -3133,7 +3132,7 @@ export default function Orders() {
       {/* ==================== PRINT LAYOUT (PDF & PRINT) ==================== */}
       {isPrinting && (
         <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000, width: '794px' }}>
-          <div ref={printRef} className="print-orders-container bg-white text-stone-900 font-sans w-[794px] min-h-[1123px] px-10 py-9 flex flex-col justify-between relative">
+          <div ref={printRef} className="print-orders-container bg-white text-stone-900 font-sans w-[794px] px-2 py-1 flex flex-col justify-between relative">
             <style>{`
               .print-orders-container {
                 opacity: 1 !important;
@@ -3143,6 +3142,7 @@ export default function Orders() {
                 font-size: 11px !important;
                 line-height: 1.4 !important;
                 box-sizing: border-box !important;
+                width: 794px !important;
               }
               .print-orders-container * {
                 -webkit-print-color-adjust: exact !important;
@@ -3175,7 +3175,7 @@ export default function Orders() {
 
             <div className="z-10 w-full flex-1 flex flex-col">
               {/* Header Principal: Logo + Departamento + Cuadro de Coste */}
-              <div className="flex justify-between items-center pb-2">
+              <div className="flex justify-between items-center pb-2 print-avoid-break">
                 <div className="flex items-center gap-3">
                   <img
                     src={settings?.logoUrl || '/logo.png'}
@@ -3205,7 +3205,7 @@ export default function Orders() {
               </div>
 
               {/* Fila de Título y Metadatos */}
-              <div className="flex justify-between items-end mt-4 mb-3 text-xs">
+              <div className="flex justify-between items-end mt-4 mb-3 text-xs print-avoid-break">
                 <div>
                   <h1 className="text-sm font-bold uppercase tracking-wide text-stone-900">
                     {activeTab === 'create' ? 'LISTA DE PEDIDO PERSONAL' : 'LISTA DE PEDIDOS CONSOLIDADOS'}
