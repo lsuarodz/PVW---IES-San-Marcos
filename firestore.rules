@@ -147,7 +147,7 @@ service cloud.firestore {
 
     function isValidRecipe() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit', 'workListTasks', 'isPublic']) &&
+      return hasOnlyAllowedFields(['nameES', 'nameEN', 'descriptionES', 'descriptionEN', 'steps', 'stepsEN', 'equipment', 'miseEnPlace', 'sustainabilityTips', 'ingredients', 'totalCost', 'createdBy', 'group', 'score', 'feedback', 'createdAt', 'portions', 'imageUrl', 'type', 'yieldQuantity', 'yieldUnit', 'workListTasks', 'isPublic', 'unitWeight', 'unitWeightUnit']) &&
              isValidString(data.nameES, 1, 100) &&
              (!('nameEN' in data) || data.nameEN == "" || isValidString(data.nameEN, 1, 100)) &&
              (!('descriptionES' in data) || data.descriptionES == "" || isValidString(data.descriptionES, 1, 2000)) &&
@@ -162,6 +162,8 @@ service cloud.firestore {
              (!('type' in data) || data.type in ['elaborado', 'plato', 'bebida']) &&
              (!('yieldUnit' in data) || data.yieldUnit in ['kg', 'L', 'ud']) &&
              (!('yieldQuantity' in data) || data.yieldQuantity == null || (data.yieldQuantity is number && data.yieldQuantity >= 0)) &&
+             (!('unitWeight' in data) || data.unitWeight == null || (data.unitWeight is number && data.unitWeight >= 0)) &&
+             (!('unitWeightUnit' in data) || data.unitWeightUnit == null || data.unitWeightUnit in ['g', 'kg']) &&
              data.ingredients is list && data.ingredients.size() <= 100 &&
              data.totalCost is number && data.totalCost >= 0 &&
              isValidString(data.createdBy, 1, 100) &&

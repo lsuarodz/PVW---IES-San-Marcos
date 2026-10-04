@@ -20,7 +20,8 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
   const [nameES, setNameES] = useState('');
   const [yieldUnit, setYieldUnit] = useState<'kg' | 'L' | 'ud'>('kg');
   const [yieldQuantity, setYieldQuantity] = useState<number>(1);
-  const [portions, setPortions] = useState<number>(1);
+  const [unitWeight, setUnitWeight] = useState<string>('');
+  const [unitWeightUnit, setUnitWeightUnit] = useState<'g' | 'kg'>('g');
 
   if (!isOpen) return null;
 
@@ -44,7 +45,9 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       descriptionEN: '',
       yieldUnit,
       yieldQuantity,
-      portions: yieldUnit === 'ud' ? portions : null,
+      portions: null,
+      unitWeight: yieldUnit === 'ud' && unitWeight ? Number(unitWeight) : null,
+      unitWeightUnit: yieldUnit === 'ud' ? unitWeightUnit : null,
       steps: [],
       stepsEN: [],
       equipment: [],
@@ -57,6 +60,9 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       createdAt: new Date().toISOString()
     };
 
+    if (recipeData.unitWeight === null) delete recipeData.unitWeight;
+    if (recipeData.unitWeightUnit === null) delete recipeData.unitWeightUnit;
+
     try {
       await setDoc(doc(db, 'recipes', id), recipeData);
       if (onSuccess) onSuccess(id);
@@ -64,7 +70,8 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
       setNameES('');
       setYieldUnit('kg');
       setYieldQuantity(1);
-      setPortions(1);
+      setUnitWeight('');
+      setUnitWeightUnit('g');
       onClose();
     } catch (error) {
       console.error('Error saving elaborado:', error);
@@ -132,15 +139,27 @@ export default function CreateElaboradoModal({ isOpen, onClose, onSuccess }: Cre
             </div>
             {yieldUnit === 'ud' && (
               <div>
-                <label className="block text-sm font-medium text-orange-900 mb-1">Raciones/Unidades finales</label>
-                <input
-                  type="number"
-                  value={portions}
-                  onChange={(e) => setPortions(Number(e.target.value))}
-                  className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Ej. 10"
-                />
-                <p className="text-[10px] text-stone-400 mt-1">¿Cuántas raciones se sirven de este total?</p>
+                <label className="block text-sm font-medium text-orange-900 mb-1">Peso por unidad (opcional)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={unitWeight}
+                    onChange={(e) => setUnitWeight(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    placeholder="Ej. 45"
+                  />
+                  <select
+                    value={unitWeightUnit}
+                    onChange={(e) => setUnitWeightUnit(e.target.value as 'g' | 'kg')}
+                    className="w-20 px-2 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium text-stone-700 text-sm"
+                  >
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1">Peso por pieza o unidad en crudo (ej: 45 g).</p>
               </div>
             )}
           </form>

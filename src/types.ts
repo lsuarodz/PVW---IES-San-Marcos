@@ -33,6 +33,8 @@ export interface Recipe {
   portions?: number | null;
   yieldQuantity?: number | null;
   yieldUnit?: string;
+  unitWeight?: number | null;
+  unitWeightUnit?: 'g' | 'kg';
   steps: string[];
   stepsEN?: string[];
   equipment?: string[];

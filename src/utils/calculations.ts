@@ -102,3 +102,74 @@ export const getMenuAllergens = (
   recipeIds.forEach(extractAllergens);
   return Array.from(allergenSet);
 };
+
+// Calcula el peso total aproximado de los ingredientes de una receta/elaborado (en kg)
+export const calculateRecipeTotalWeightKg = (
+  recipeIngredients: RecipeIngredient[],
+  allIngredients: Ingredient[],
+  allRecipes: Recipe[]
+): number => {
+  return (recipeIngredients || []).reduce((total, ri) => {
+    const qty = Number(ri.quantity) || 0;
+    if (qty <= 0) return total;
+    const ing = allIngredients.find(i => i.id === ri.ingredientId);
+    if (ing) {
+      const u = (ing.unit || '').toLowerCase().trim();
+      if (u === 'kg') return total + qty;
+      if (u === 'g' || u === 'gr') return total + (qty / 1000);
+      if (u === 'l' || u === 'litro' || u === 'litros') return total + qty;
+      if (u === 'ml') return total + (qty / 1000);
+      if (u === 'cl') return total + (qty / 100);
+      if (u === 'dl') return total + (qty / 10);
+      if ((u === 'ud' || u === 'unidad') && ing.weightPerUnit && ing.weightPerUnit > 0) {
+        return total + (ing.weightPerUnit * qty);
+      }
+      return total;
+    }
+    const subRecipe = allRecipes.find(r => r.id === ri.ingredientId);
+    if (subRecipe) {
+      const u = (subRecipe.yieldUnit || '').toLowerCase().trim();
+      if (u === 'kg') return total + qty;
+      if (u === 'g' || u === 'gr') return total + (qty / 1000);
+      if (u === 'l') return total + qty;
+      if (u === 'ud' && subRecipe.unitWeight) {
+        const subWKg = subRecipe.unitWeightUnit === 'kg' ? subRecipe.unitWeight : (subRecipe.unitWeight / 1000);
+        return total + (subWKg * qty);
+      }
+    }
+    return total;
+  }, 0);
+};
+
+// Devuelve el texto formateado del peso por unidad para un elaborado (ej. "45 g", "0.250 kg")
+export const getRecipeUnitWeightDisplay = (
+  recipe: Partial<Recipe>,
+  allIngredients: Ingredient[],
+  allRecipes: Recipe[]
+): string | null => {
+  if (recipe.type !== 'elaborado' || recipe.yieldUnit !== 'ud') return null;
+
+  // 1. Si el usuario definió explícitamente el peso por unidad
+  if (recipe.unitWeight !== undefined && recipe.unitWeight !== null && Number(recipe.unitWeight) > 0) {
+    const val = Number(recipe.unitWeight);
+    const u = recipe.unitWeightUnit || 'g';
+    return `${val} ${u}`;
+  }
+
+  // 2. Si no, calcularlo según el peso de los ingredientes y el rendimiento en unidades
+  const units = Number(recipe.yieldQuantity) || 0;
+  if (units > 0 && recipe.ingredients && recipe.ingredients.length > 0) {
+    const totalWeightKg = calculateRecipeTotalWeightKg(recipe.ingredients, allIngredients, allRecipes);
+    if (totalWeightKg > 0) {
+      const weightPerUnitKg = totalWeightKg / units;
+      if (weightPerUnitKg < 1) {
+        const grams = Math.round(weightPerUnitKg * 1000 * 10) / 10;
+        return `${grams} g`;
+      }
+      return `${weightPerUnitKg.toFixed(3)} kg`;
+    }
+  }
+
+  return null;
+};
+

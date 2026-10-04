@@ -6,7 +6,7 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera, Scale } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
@@ -14,7 +14,7 @@ import CreateElaboradoModal from '../components/CreateElaboradoModal';
 import ConfirmModal from '../components/ConfirmModal';
 import IngredientSelect from '../components/IngredientSelect';
 import { generatePDF } from '../utils/pdf';
-import { calculateRecipeTotalCost, getRecipeAllergens } from '../utils/calculations';
+import { calculateRecipeTotalCost, getRecipeAllergens, calculateRecipeTotalWeightKg, getRecipeUnitWeightDisplay } from '../utils/calculations';
 import { canViewItem } from '../utils/visibility';
 import { Recipe, RecipeIngredient, Ingredient } from '../types';
 
@@ -70,7 +70,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOtherGroups, setViewOtherGroups] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('todos');
-  const itemsPerPage = 20;
+  const itemsPerPage = 30;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -128,6 +128,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     portions: null as string | number | null,
     yieldQuantity: null as string | number | null,
     yieldUnit: 'kg' as 'kg' | 'L' | 'ud',
+    unitWeight: null as string | number | null,
+    unitWeightUnit: 'g' as 'g' | 'kg',
     steps: [] as string[],
     equipment: [] as string[],
     miseEnPlace: '',
@@ -211,11 +213,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
     const existing = editingId ? recipes.find(r => r.id === editingId) : null;
     
+    const isElab = formData.type === 'elaborado';
+    const isElabUd = isElab && formData.yieldUnit === 'ud';
+    const parsedUnitWeight = isElabUd && formData.unitWeight && Number(formData.unitWeight) > 0 ? Number(formData.unitWeight) : null;
+
     const recipeData: Record<string, any> = {
       ...formData,
-      portions: formData.type !== 'elaborado' ? 1 : (formData.yieldUnit === 'ud' ? (Number(formData.portions) || null) : null),
+      portions: isElab ? null : 1,
       yieldQuantity: Number(formData.yieldQuantity) || null,
       yieldUnit: formData.yieldUnit || 'kg',
+      unitWeight: parsedUnitWeight,
+      unitWeightUnit: parsedUnitWeight ? (formData.unitWeightUnit || 'g') : null,
       ingredients: formData.ingredients.map(ri => ({ ...ri, quantity: Number(ri.quantity) || 0 })),
       nameEN: existing?.nameEN || '',
       descriptionES: formData.descriptionES !== undefined ? formData.descriptionES.trim() : (existing?.descriptionES || ''),
@@ -233,6 +241,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     if (recipeData.feedback === null || recipeData.feedback === '') delete recipeData.feedback;
     if (recipeData.portions === null) delete recipeData.portions;
     if (recipeData.yieldQuantity === null || recipeData.yieldQuantity === '') delete recipeData.yieldQuantity;
+    if (recipeData.unitWeight === null || recipeData.unitWeight === undefined) delete recipeData.unitWeight;
+    if (recipeData.unitWeightUnit === null || recipeData.unitWeightUnit === undefined) delete recipeData.unitWeightUnit;
     if (!recipeData.imageUrl) delete recipeData.imageUrl;
 
     try {
@@ -247,7 +257,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             patch.ingredients = recipeData.ingredients;
             patch.yieldQuantity = recipeData.yieldQuantity;
             patch.yieldUnit = recipeData.yieldUnit;
-            patch.portions = recipeData.portions;
+            patch.portions = recipeData.portions ?? null;
+            patch.unitWeight = recipeData.unitWeight ?? null;
+            patch.unitWeightUnit = recipeData.unitWeightUnit ?? null;
             patch.totalCost = recipeData.totalCost;
           }
           if (commission === 'logística' && commissionMode) {
@@ -392,9 +404,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       type: recipe.type || 'plato',
       nameES: recipe.nameES,
       descriptionES: recipe.descriptionES || '',
-      portions: recipe.portions,
+      portions: recipe.type === 'elaborado' ? null : recipe.portions,
       yieldQuantity: recipe.yieldQuantity || null,
       yieldUnit: recipe.yieldUnit as 'kg' | 'L' | 'ud' || 'kg',
+      unitWeight: recipe.unitWeight ?? null,
+      unitWeightUnit: recipe.unitWeightUnit || 'g',
       steps: recipe.steps || [],
       equipment: recipe.equipment || [],
       miseEnPlace: recipe.miseEnPlace || '',
@@ -409,7 +423,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   const resetForm = () => {
-    setFormData({ type: type as 'plato' | 'elaborado' | 'bebida', nameES: '', descriptionES: '', portions: null, yieldQuantity: null, yieldUnit: 'kg', steps: [], equipment: [], miseEnPlace: '', sustainabilityTips: [], workListTasks: [], ingredients: [], imageUrl: '', isPublic: false });
+    setFormData({
+      type: type as 'plato' | 'elaborado' | 'bebida',
+      nameES: '',
+      descriptionES: '',
+      portions: null,
+      yieldQuantity: null,
+      yieldUnit: 'kg',
+      unitWeight: null,
+      unitWeightUnit: 'g',
+      steps: [],
+      equipment: [],
+      miseEnPlace: '',
+      sustainabilityTips: [],
+      workListTasks: [],
+      ingredients: [],
+      imageUrl: '',
+      isPublic: false
+    });
     setEditingId(null);
     setNewlyAddedIndex(null);
     setFocusedNetIndex(null);
@@ -662,8 +693,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   return (
-    <div className="min-h-full p-8">
-      <div className="max-w-6xl ">
+    <div className="min-h-full p-3 sm:p-8">
+      <div className="max-w-6xl">
         <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -672,12 +703,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         isDestructive={confirmModal.isDestructive}
       />
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-4 sm:mb-8">
         <div>
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 tracking-tight mb-1 sm:mb-2">
             {type === 'elaborado' ? 'Elaborados' : type === 'bebida' ? 'Bebidas' : 'Platos'}
           </h1>
-          <p className="text-stone-500 text-lg">
+          <p className="text-stone-500 text-xs sm:text-lg">
             {type === 'elaborado' 
               ? 'Crea elaboraciones base que luego podrás usar en tus platos y bebidas.' 
               : type === 'bebida'
@@ -685,27 +716,27 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               : 'Crea platos finales combinando ingredientes y elaborados.'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto justify-end">
           {isAdmin && !viewAsStudent && selectedIds.size > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+              className="bg-red-100 hover:bg-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5"
             >
-              <Trash2 size={18} />
-              Borrar Seleccionados ({selectedIds.size})
+              <Trash2 size={16} />
+              Borrar ({selectedIds.size})
             </button>
           )}
           <button
             onClick={() => { resetForm(); setIsModalOpen(true); }}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+            className="bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm"
           >
-            <Plus size={20} />
+            <Plus size={18} />
             {type === 'elaborado' ? 'Nuevo Elaborado' : type === 'bebida' ? 'Nueva Bebida' : 'Nuevo Plato'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-orange-200 shadow-sm mb-6 flex flex-col gap-4">
+      <div className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-orange-200 shadow-sm mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-4">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between w-full">
           <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-2xl">
             <div className="relative flex-1">
@@ -773,29 +804,29 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
         </div>
       </div>
 
-      {/* VISTA MÓVIL: Lista compacta y sencilla para ver máxima cantidad en pantalla vertical */}
+      {/* VISTA MÓVIL: Lista compacta, sencilla y ligera para ver máxima cantidad en pantalla vertical */}
       <div className="sm:hidden">
         {paginatedRecipes.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-orange-200 p-8 text-center text-stone-500 text-xs">
+          <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-500 text-xs">
             No se encontraron {type === 'elaborado' ? 'elaborados' : type === 'bebida' ? 'bebidas' : 'platos'}.
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-orange-200/90 shadow-2xs overflow-hidden divide-y divide-orange-100/70">
+          <div className="bg-white rounded-xl border border-stone-200 shadow-2xs overflow-hidden divide-y divide-stone-100">
             {paginatedRecipes.map((recipe) => {
               const recipeAllergens = getRecipeAllergens(recipe.ingredients, ingredients, recipes);
-              const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
-              const course = members.length > 0 ? (members.find(m => m.course)?.course || members[0].course) : null;
               const uniqueAllergens = Array.from(new Set(recipeAllergens));
-              const hasElaborados = recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId));
+              const unitWeightDisplay = recipe.type === 'elaborado' && recipe.yieldUnit === 'ud'
+                ? getRecipeUnitWeightDisplay(recipe, ingredients, recipes)
+                : null;
 
               return (
                 <div
                   key={recipe.id}
-                  className="flex items-center justify-between px-3 py-2 hover:bg-orange-50/50 active:bg-orange-100/60 transition-colors gap-2 cursor-pointer"
+                  className="flex items-center justify-between px-3 py-2 hover:bg-stone-50 active:bg-orange-50/70 transition-colors gap-2 cursor-pointer group"
                   onClick={() => openEdit(recipe)}
                 >
                   {isAdmin && !viewAsStudent && (
-                    <div className="shrink-0 flex items-center pr-0.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="shrink-0 flex items-center pr-1" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedIds.has(recipe.id)}
@@ -805,98 +836,90 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   )}
 
-                  {/* Columna con Título e Info compacta */}
+                  {/* Grupo o creador como etiqueta inicial compacta */}
+                  {recipe.group ? (
+                    <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] shrink-0 ${getGroupColor(recipe.createdBy)}`}>
+                      G{recipe.group}
+                    </span>
+                  ) : recipe.createdBy ? (
+                    <span className="text-[10px] text-stone-400 font-semibold px-1 py-0.5 bg-stone-100 rounded shrink-0 max-w-[65px] truncate">
+                      {recipe.createdBy}
+                    </span>
+                  ) : null}
+
+                  {/* Nombre y datos del elaborado/plato */}
                   <div className="flex-1 min-w-0 pr-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-bold text-stone-900 leading-snug truncate">
+                      <span className="text-[13px] font-bold text-stone-900 truncate leading-snug">
                         {recipe.nameES}
                       </span>
+
                       {uniqueAllergens.length > 0 && (
-                        <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px]" title={`${uniqueAllergens.length} alérgenos`}>
-                          {uniqueAllergens.slice(0, 2).map((a, idx) => {
+                        <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px]">
+                          {uniqueAllergens.slice(0, 1).map((a, idx) => {
                             const allergen = ALLERGENS.find(al => al.id === a || al.name.toLowerCase() === a.toLowerCase());
                             return allergen ? (
                               <span key={`${a}-${idx}`}>{allergen.icon}</span>
                             ) : null;
                           })}
-                          {uniqueAllergens.length > 2 && (
-                            <span className="text-[9px] font-bold text-amber-700">+{uniqueAllergens.length - 2}</span>
+                          {uniqueAllergens.length > 1 && (
+                            <span className="text-[9px] font-bold text-amber-700">+{uniqueAllergens.length - 1}</span>
                           )}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-0.5">
-                      {recipe.group ? (
-                        <span className={`font-semibold px-1 py-0.2 rounded text-[9px] shrink-0 ${getGroupColor(recipe.createdBy)}`}>
-                          G{recipe.group}
-                        </span>
-                      ) : recipe.createdBy ? (
-                        <span className="text-[9px] text-stone-400 font-medium truncate max-w-[75px]">
-                          {recipe.createdBy}
-                        </span>
-                      ) : null}
-
-                      <span className="text-stone-300">·</span>
-                      <span className="whitespace-nowrap">{recipe.ingredients.length} ing.</span>
-
-                      {hasElaborados && (
+                      {recipe.type === 'elaborado' ? (
                         <>
+                          <span className="font-semibold text-stone-600">
+                            {recipe.yieldQuantity || 0} {recipe.yieldUnit || 'kg'}
+                          </span>
+                          {unitWeightDisplay && (
+                            <>
+                              <span className="text-stone-300">·</span>
+                              <span className="text-teal-700 font-bold bg-teal-50 px-1 py-0.2 rounded text-[9px]">
+                                {unitWeightDisplay}/ud
+                              </span>
+                            </>
+                          )}
                           <span className="text-stone-300">·</span>
-                          <span className="text-teal-700 font-semibold whitespace-nowrap">con elab.</span>
+                          <span>{recipe.ingredients.length} ing.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{recipe.ingredients.length} ing.</span>
+                          {recipe.ingredients.some(ri => recipes.find(r => r.id === ri.ingredientId)) && (
+                            <>
+                              <span className="text-stone-300">·</span>
+                              <span className="text-teal-700 font-semibold">con elab.</span>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
                   </div>
 
-                  {/* Coste y acciones compactas a la derecha */}
+                  {/* Lado derecho: Nota (si tiene) + Coste + Flecha de apertura */}
                   <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-xs font-bold font-mono text-teal-700 whitespace-nowrap mr-0.5">
+                    {recipe.score !== undefined && recipe.score !== null && (
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                        {recipe.score}
+                      </span>
+                    )}
+
+                    <span className="text-xs font-bold font-mono text-teal-700 whitespace-nowrap">
                       {recipe.totalCost.toFixed(2)} €
                     </span>
 
-                    {isAdmin && !viewAsStudent && recipe.group && (
-                      <button 
-                        type="button"
-                        onClick={() => openEvaluation(recipe)} 
-                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider ${recipe.score !== undefined && recipe.score !== null ? 'bg-amber-100 text-amber-800' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}
-                        title="Evaluar"
-                      >
-                        {recipe.score !== undefined && recipe.score !== null ? `${recipe.score}` : 'Nota'}
-                      </button>
-                    )}
-
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => exportPDF(recipe)} 
-                      disabled={isPrinting}
-                      className="p-1 text-stone-400 hover:text-teal-600 active:text-teal-700 rounded transition-colors" 
-                      title="Imprimir"
+                      onClick={() => openEdit(recipe)}
+                      className="p-1 text-stone-400 hover:text-teal-600 active:text-teal-700 rounded transition-colors"
+                      title="Ver / Editar"
                     >
-                      <Printer size={13} />
+                      <ChevronRight size={15} />
                     </button>
-
-                    {canEditAnyPartOfRecipe(recipe) && (
-                      <button 
-                        type="button"
-                        onClick={() => openEdit(recipe)} 
-                        className="p-1 text-stone-400 hover:text-teal-600 active:text-teal-700 rounded transition-colors" 
-                        title="Editar"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                    )}
-
-                    {(isSuperAdmin || (actualAppUser && (actualAppUser.role === 'admin' || actualAppUser.role === 'docente') && recipe.group === appUser?.group)) && (
-                      <button 
-                        type="button"
-                        onClick={() => handleDelete(recipe.id)} 
-                        className="p-1 text-stone-400 hover:text-red-600 active:text-red-700 rounded transition-colors" 
-                        title="Eliminar"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -912,6 +935,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           const members = recipe.group ? users.filter(u => u.group === recipe.group) : [];
           const course = members.length > 0 ? (members.find(m => m.course)?.course || members[0].course) : null;
           const memberNames = members.map(m => m.name).join(', ');
+          const desktopUnitWeight = recipe.type === 'elaborado' && recipe.yieldUnit === 'ud'
+            ? getRecipeUnitWeightDisplay(recipe, ingredients, recipes)
+            : null;
 
           return (
           <div key={recipe.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-orange-200 overflow-hidden flex flex-row items-center p-2 sm:px-3 gap-3 group relative">
@@ -954,6 +980,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                        <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Coste:</span>
                        <span className="font-bold text-teal-700">{recipe.totalCost.toFixed(2)} €</span>
                     </div>
+                    {recipe.type === 'elaborado' && recipe.yieldQuantity && (
+                      <div className="flex items-center gap-1">
+                         <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Rendimiento:</span>
+                         <span className="font-bold text-stone-700">{recipe.yieldQuantity} {recipe.yieldUnit || 'kg'}</span>
+                      </div>
+                    )}
+                    {desktopUnitWeight && (
+                      <div className="flex items-center gap-1">
+                         <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Peso/ud:</span>
+                         <span className="font-bold text-teal-800 bg-teal-50 px-1 py-0.5 rounded text-[10px]">{desktopUnitWeight}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                        <span className="text-stone-400 font-semibold uppercase tracking-wider text-[9px]">Ingredientes:</span>
                        <div className="flex items-center gap-0.5 font-bold text-stone-600">
@@ -1034,17 +1072,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Controles de paginación */}
       {totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-2xl border border-orange-200 shadow-sm">
-          <div className="text-sm text-stone-500">
-            Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredRecipes.length)}</span> de <span className="font-medium">{filteredRecipes.length}</span> recetas
+        <div className="mt-4 sm:mt-8 flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-orange-200 shadow-sm gap-3">
+          <div className="text-xs sm:text-sm text-stone-500 text-center sm:text-left">
+            Mostrando <span className="font-medium">{startIndex + 1}</span> a <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredRecipes.length)}</span> de <span className="font-medium">{filteredRecipes.length}</span> {type === 'elaborado' ? 'elaborados' : type === 'bebida' ? 'bebidas' : 'platos'}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={16} />
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -1062,7 +1100,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                       currentPage === pageNum
                         ? 'bg-teal-600 text-white border border-teal-600'
                         : 'bg-white text-stone-600 border border-orange-200 hover:bg-stone-50'
@@ -1076,9 +1114,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg border border-orange-200 bg-white text-stone-600 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -1169,7 +1207,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               setFormData({
                                 ...formData,
                                 yieldUnit: newUnit,
-                                portions: newUnit === 'ud' ? formData.portions : null
+                                portions: null
                               });
                             }}
                             className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1180,30 +1218,62 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           </select>
                         </div>
                       </div>
-                      {formData.yieldUnit === 'ud' && (
-                        <div className="flex gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-orange-900 mb-1">Raciones</label>
-                            <input
-                              type="number" min="1" step="1"
-                              value={formData.portions ?? ''}
-                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              onChange={e => setFormData({...formData, portions: e.target.value})}
-                              onFocus={e => e.target.select()}
-                              className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                              placeholder="Ej: 10"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-orange-900 mb-1">Peso por ración</label>
-                            <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-600 font-medium h-[42px] flex items-center">
-                              {formData.yieldQuantity && formData.portions 
-                                ? `${(Number(formData.yieldQuantity) / Number(formData.portions)).toFixed(3)} ${formData.yieldUnit}`
-                                : '-'}
+                      {formData.yieldUnit === 'ud' && (() => {
+                        const theoreticalWeightKg = Number(formData.yieldQuantity) > 0 && formData.ingredients.length > 0
+                          ? calculateRecipeTotalWeightKg(formData.ingredients, ingredients, recipes) / Number(formData.yieldQuantity)
+                          : null;
+                        const theoreticalWeightText = theoreticalWeightKg && theoreticalWeightKg > 0
+                          ? theoreticalWeightKg < 1
+                            ? `${(theoreticalWeightKg * 1000).toFixed(1)} g`
+                            : `${theoreticalWeightKg.toFixed(3)} kg`
+                          : null;
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-orange-900 mb-1 flex items-center justify-between">
+                                <span>Peso por unidad</span>
+                                {theoreticalWeightText && !formData.unitWeight && (
+                                  <span className="text-[11px] text-teal-700 font-normal">Calculado: {theoreticalWeightText}</span>
+                                )}
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  value={formData.unitWeight ?? ''}
+                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                  onChange={e => setFormData({ ...formData, unitWeight: e.target.value })}
+                                  onFocus={e => e.target.select()}
+                                  className="flex-1 px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  placeholder={theoreticalWeightText ? theoreticalWeightText.split(' ')[0] : 'Ej: 45'}
+                                />
+                                <select
+                                  value={formData.unitWeightUnit || 'g'}
+                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                  onChange={e => setFormData({ ...formData, unitWeightUnit: e.target.value as 'g' | 'kg' })}
+                                  className="w-20 px-2 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-stone-700 text-sm"
+                                >
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-orange-900 mb-1">Peso resultante / pieza</label>
+                              <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-700 font-semibold h-[42px] flex items-center text-sm">
+                                {formData.unitWeight && Number(formData.unitWeight) > 0
+                                  ? `${formData.unitWeight} ${formData.unitWeightUnit || 'g'} / ud`
+                                  : theoreticalWeightText
+                                  ? `${theoreticalWeightText} / ud (según escandallo)`
+                                  : 'Introduce peso o ingredientes'}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </>
                   ) : (
                     <div>
@@ -1761,15 +1831,26 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
                     <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
                   </div>
-                  {printingRecipe.portions && (
+                  {printingRecipe.portions && printingRecipe.type !== 'elaborado' && (
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
                       <span className="text-orange-900 font-bold">{printingRecipe.portions}</span>
                     </div>
                   )}
+                  {printingRecipe.type === 'elaborado' && printingRecipe.yieldUnit === 'ud' && (() => {
+                    const unitWeightText = getRecipeUnitWeightDisplay(printingRecipe, ingredients, recipes);
+                    return unitWeightText ? (
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Peso por unidad:</span>
+                        <span className="text-orange-900 font-bold">{unitWeightText}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   {printingRecipe.yieldQuantity && (
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Cantidad Resultante:</span>
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">
+                        {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento:' : 'Cantidad Resultante:'}
+                      </span>
                       <span className="text-orange-900 font-bold">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
                     </div>
                   )}

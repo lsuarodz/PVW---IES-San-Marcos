@@ -55,6 +55,8 @@
         "type": { "type": "string", "enum": ["elaborado", "plato"] },
         "yieldQuantity": { "type": "number" },
         "yieldUnit": { "type": "string", "enum": ["kg", "L", "ud"] },
+        "unitWeight": { "type": "number" },
+        "unitWeightUnit": { "type": "string", "enum": ["g", "kg"] },
         "steps": {
           "type": "array",
           "items": { "type": "string" }
