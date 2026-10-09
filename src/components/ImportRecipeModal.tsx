@@ -159,6 +159,7 @@ export default function ImportRecipeModal({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [stepMessage, setStepMessage] = useState('');
+  const [processError, setProcessError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRecipeData | null>(null);
   const [autoCreateMissing, setAutoCreateMissing] = useState(true);
   const [isSavingIngredients, setIsSavingIngredients] = useState(false);
@@ -169,12 +170,14 @@ export default function ImportRecipeModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        showToast('Por favor selecciona un archivo PDF válido.', 'error');
+      const isSupported = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+      if (!isSupported) {
+        showToast('Por favor selecciona un archivo PDF o imagen (JPG, PNG) válido.', 'error');
         return;
       }
       setSelectedFile(file);
       setParsedData(null);
+      setProcessError(null);
     }
   };
 
@@ -183,12 +186,14 @@ export default function ImportRecipeModal({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        showToast('Por favor sube un archivo PDF de receta.', 'error');
+      const isSupported = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+      if (!isSupported) {
+        showToast('Por favor sube un archivo PDF o imagen de receta.', 'error');
         return;
       }
       setSelectedFile(file);
       setParsedData(null);
+      setProcessError(null);
     }
   };
 
@@ -262,44 +267,79 @@ export default function ImportRecipeModal({
     });
   };
 
-  // Enviar PDF al backend para procesamiento con Gemini
+  // Enviar PDF o imagen al backend para procesamiento con Gemini
   const handleProcessPDF = async () => {
     if (!selectedFile) return;
 
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      showToast('El archivo supera los 25 MB. Por favor selecciona un documento más ligero.', 'error');
+      return;
+    }
+
     setIsProcessing(true);
-    setStepMessage('Leyendo y digitalizando documento PDF...');
+    setProcessError(null);
+    setStepMessage('Leyendo y preparando documento...');
 
     try {
       // 1. Convertir archivo a base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo localmente.'));
         reader.readAsDataURL(selectedFile);
       });
 
       const pdfBase64 = await base64Promise;
 
-      setStepMessage('Extrayendo técnicas culinarias, ingredientes y mermas con IA...');
+      // 2. Llamada a la API backend con reintento automático si hay saturación temporal
+      let data: any = null;
+      let lastErrMsg = '';
 
-      // 2. Llamada a la API backend
-      const response = await fetch('/api/parse-recipe-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pdfBase64,
-          filename: selectedFile.name
-        })
-      });
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        setStepMessage(
+          attempt === 1
+            ? 'Extrayendo técnicas culinarias, ingredientes y mermas con IA...'
+            : 'Servicio de IA con alta demanda, reintentando extracción...'
+        );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error ${response.status}: Error al procesar el PDF.`);
+        const response = await fetch('/api/parse-recipe-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pdfBase64,
+            filename: selectedFile.name
+          })
+        });
+
+        // Leer primero como texto para evitar caídas por respuestas vacías o no JSON
+        const rawText = await response.text();
+        data = null;
+        if (rawText && rawText.trim()) {
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            // No es un JSON válido
+          }
+        }
+
+        if (response.ok && data?.success && data?.recipe) {
+          break; // Éxito obtenido
+        }
+
+        const serverError = data?.error || (rawText && !rawText.trim().startsWith('<') ? rawText : `Error ${response.status}: Error al procesar el documento.`);
+        lastErrMsg = serverError;
+
+        const isOverload = response.status === 503 || response.status === 429 || serverError.includes('sobrecargado') || serverError.includes('503') || serverError.includes('demand');
+        if (isOverload && attempt < 2) {
+          setStepMessage('El servicio de IA está ocupado. Reintentando automáticamente en 2 segundos...');
+          await new Promise(r => setTimeout(r, 2200));
+        } else {
+          break;
+        }
       }
 
-      const data = await response.json();
-      if (!data.success || !data.recipe) {
-        throw new Error('No se pudo extraer la receta del documento proporcionado.');
+      if (!data || !data.success || !data.recipe) {
+        throw new Error(lastErrMsg || 'No se pudo extraer la receta del documento proporcionado.');
       }
 
       const recipe: ParsedRecipeData = data.recipe;
@@ -316,10 +356,13 @@ export default function ImportRecipeModal({
       recipe.ingredients = matchedIngs;
 
       setParsedData(recipe);
+      setProcessError(null);
       showToast('¡Receta extraída correctamente! Revisa los datos antes de aplicar.', 'success');
     } catch (err: any) {
       console.error('Error procesando receta PDF:', err);
-      showToast(err.message || 'Error al procesar el archivo PDF.', 'error');
+      const msg = err.message || 'Error al procesar el archivo de la receta.';
+      setProcessError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsProcessing(false);
       setStepMessage('');
@@ -499,7 +542,7 @@ export default function ImportRecipeModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,application/pdf"
+                  accept=".pdf,application/pdf,image/*,.png,.jpg,.jpeg,.webp"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -511,7 +554,7 @@ export default function ImportRecipeModal({
                 {selectedFile ? (
                   <div>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-900 mb-2">
-                      <CheckCircle2 size={14} className="text-teal-600" /> Archivo PDF seleccionado
+                      <CheckCircle2 size={14} className="text-teal-600" /> Archivo de receta seleccionado
                     </span>
                     <p className="text-sm font-bold text-stone-800 truncate max-w-md mx-auto">
                       {selectedFile.name}
@@ -526,7 +569,7 @@ export default function ImportRecipeModal({
                       Haz clic para elegir un archivo o arrástralo aquí
                     </p>
                     <p className="text-xs text-stone-500">
-                      Admite documentos PDF con escandallos, recetas de repostería, platos o fichas técnicas de cocina.
+                      Admite documentos PDF o imágenes (JPG, PNG) con escandallos, recetas de repostería, platos o fichas técnicas de cocina.
                     </p>
                   </div>
                 )}
@@ -558,7 +601,27 @@ export default function ImportRecipeModal({
               {isProcessing && (
                 <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 text-center animate-pulse">
                   <p className="text-xs font-semibold">{stepMessage || 'Procesando documento...'}</p>
-                  <p className="text-[11px] text-teal-700 mt-1">Esto puede tardar entre 4 y 10 segundos según el contenido del PDF.</p>
+                  <p className="text-[11px] text-teal-700 mt-1">Esto puede tardar entre 3 y 8 segundos según el contenido del documento.</p>
+                </div>
+              )}
+
+              {/* Mensaje de error con botón de reintento */}
+              {processError && !isProcessing && (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                    <div>
+                      <p className="text-xs font-bold text-amber-900">No se pudo completar la extracción</p>
+                      <p className="text-xs text-amber-800 mt-0.5">{processError}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleProcessPDF}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw size={13} /> Reintentar
+                  </button>
                 </div>
               )}
             </div>
