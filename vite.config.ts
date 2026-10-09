@@ -45,12 +45,18 @@ export default defineConfig(({mode}) => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
         workbox: {
-          maximumFileSizeToCacheInBytes: 5000000 // 5 MB
-        }
+          maximumFileSizeToCacheInBytes: 5000000, // 5 MB
+          navigateFallbackDenylist: [/^\/api/],
+          runtimeCaching: [
+            {
+              urlPattern: /^\/api\/.*/i,
+              handler: 'NetworkOnly',
+            },
+          ],
+        },
       }),
     ],
     define: {

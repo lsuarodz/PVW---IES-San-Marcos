@@ -267,6 +267,62 @@ export default function ImportRecipeModal({
     });
   };
 
+  // Función auxiliar de rescate directo con Gemini si el backend está reiniciando o interceptado
+  const parseWithClientGemini = async (pdfBase64: string, filename: string): Promise<ParsedRecipeData | null> => {
+    try {
+      const apiKey = (process.env as any)?.GEMINI_API_KEY;
+      if (!apiKey) return null;
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+
+      const cleanBase64 = pdfBase64.replace(/^data:[^;]+;base64,/, '').replace(/^data:;base64,/, '').trim();
+      let mimeType = 'application/pdf';
+      if (pdfBase64.startsWith('data:image/jpeg') || filename?.toLowerCase().endsWith('.jpg') || filename?.toLowerCase().endsWith('.jpeg')) {
+        mimeType = 'image/jpeg';
+      } else if (pdfBase64.startsWith('data:image/png') || filename?.toLowerCase().endsWith('.png')) {
+        mimeType = 'image/png';
+      } else if (pdfBase64.startsWith('data:image/webp') || filename?.toLowerCase().endsWith('.webp')) {
+        mimeType = 'image/webp';
+      }
+
+      const prompt = `Analiza este documento PDF o imagen de receta/escandallo. Extrae un JSON con: nameES (string), type ('plato'|'elaborado'|'bebida'), descriptionES (string), portions (number), yieldQuantity (number), yieldUnit (string), ingredients (array con name, quantity, unit, grossQuantity, wastePercentage, notes), steps (array de strings), equipment (array de strings). Devuelve SOLO JSON.`;
+
+      for (const modelName of ['gemini-3.1-flash-lite', 'gemini-flash-latest']) {
+        try {
+          const resp = await ai.models.generateContent({
+            model: modelName,
+            contents: [
+              { inlineData: { mimeType, data: cleanBase64 } },
+              { text: prompt }
+            ],
+            config: {
+              responseMimeType: 'application/json'
+            }
+          });
+          if (resp?.text) {
+            let text = resp.text.trim();
+            if (text.startsWith('```')) {
+              text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            }
+            const first = text.indexOf('{');
+            const last = text.lastIndexOf('}');
+            if (first !== -1 && last !== -1 && last >= first) {
+              text = text.substring(first, last + 1);
+            }
+            const parsed = JSON.parse(text);
+            return parsed;
+          }
+        } catch (mErr) {
+          console.warn(`Rescate directo con ${modelName} falló:`, mErr);
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo ejecutar rescate de IA:', e);
+    }
+    return null;
+  };
+
   // Enviar PDF o imagen al backend para procesamiento con Gemini
   const handleProcessPDF = async () => {
     if (!selectedFile) return;
@@ -302,39 +358,68 @@ export default function ImportRecipeModal({
             : 'Servicio de IA con alta demanda, reintentando extracción...'
         );
 
-        const response = await fetch('/api/parse-recipe-pdf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pdfBase64,
-            filename: selectedFile.name
-          })
-        });
+        let response: Response | null = null;
+        let rawText = '';
 
-        // Leer primero como texto para evitar caídas por respuestas vacías o no JSON
-        const rawText = await response.text();
+        try {
+          response = await fetch('/api/parse-recipe-pdf', {
+            method: 'POST',
+            cache: 'no-store',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              pdfBase64,
+              filename: selectedFile.name
+            })
+          });
+
+          rawText = await response.text();
+        } catch (fetchErr: any) {
+          console.warn(`Intento ${attempt} de fetch falló:`, fetchErr);
+          lastErrMsg = 'Error de conexión con el servidor. Verificando disponibilidad...';
+        }
+
         data = null;
         if (rawText && rawText.trim()) {
           try {
             data = JSON.parse(rawText);
           } catch {
-            // No es un JSON válido
+            // Respuesta no es JSON (ej. HTML por Vite o proxy durante reinicio)
           }
         }
 
-        if (response.ok && data?.success && data?.recipe) {
+        if (response?.ok && data?.success && data?.recipe) {
           break; // Éxito obtenido
         }
 
-        const serverError = data?.error || (rawText && !rawText.trim().startsWith('<') ? rawText : `Error ${response.status}: Error al procesar el documento.`);
-        lastErrMsg = serverError;
+        const serverError = data?.error || (rawText && !rawText.trim().startsWith('<') ? rawText : null);
+        if (serverError) {
+          lastErrMsg = serverError;
+        } else if (response && response.status !== 200) {
+          lastErrMsg = `Error del servidor (${response.status}) al procesar el archivo.`;
+        } else {
+          lastErrMsg = 'El servidor no pudo procesar la solicitud.';
+        }
 
-        const isOverload = response.status === 503 || response.status === 429 || serverError.includes('sobrecargado') || serverError.includes('503') || serverError.includes('demand');
+        const isOverload = response?.status === 503 || response?.status === 429 || lastErrMsg.includes('sobrecargado') || lastErrMsg.includes('503') || lastErrMsg.includes('demand');
         if (isOverload && attempt < 2) {
           setStepMessage('El servicio de IA está ocupado. Reintentando automáticamente en 2 segundos...');
           await new Promise(r => setTimeout(r, 2200));
+        } else if (attempt < 2 && !serverError) {
+          await new Promise(r => setTimeout(r, 1200));
         } else {
           break;
+        }
+      }
+
+      // Si la API del servidor no pudo procesar o devolvió HTML, intentar rescate directo con IA en cliente
+      if (!data?.success || !data?.recipe) {
+        setStepMessage('Activando motor secundario de análisis gastronómico...');
+        const rescuedRecipe = await parseWithClientGemini(pdfBase64, selectedFile.name);
+        if (rescuedRecipe && rescuedRecipe.nameES) {
+          data = { success: true, recipe: rescuedRecipe };
         }
       }
 
@@ -343,6 +428,13 @@ export default function ImportRecipeModal({
       }
 
       const recipe: ParsedRecipeData = data.recipe;
+
+      // Validación culinaria: comprobar que haya ingredientes detectados
+      if (!recipe.ingredients || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
+        throw new Error(
+          'El documento subido no contiene ingredientes ni estructura de receta culinaria. Por favor, sube una ficha técnica o documento con ingredientes y modo de preparación.'
+        );
+      }
 
       setStepMessage('Emparejando ingredientes con el catálogo del obrador...');
 

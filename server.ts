@@ -14,6 +14,17 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Middleware CORS y soporte para preflight OPTIONS
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   // Aumentar límite del body para permitir PDFs en base64 de hasta 50MB
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -61,7 +72,7 @@ async function startServer() {
   });
 
   // API para importar y analizar recetas desde PDF con IA (Gemini)
-  app.post('/api/parse-recipe-pdf', async (req, res) => {
+  app.post(['/api/parse-recipe-pdf', '/api/parse-recipe-pdf/'], async (req, res) => {
     try {
       const { pdfBase64, filename } = req.body;
       if (!pdfBase64 || typeof pdfBase64 !== 'string') {
@@ -247,8 +258,52 @@ Normas de extracción profesional de Formación Profesional de Hostelería:
       if (responseText.startsWith('```')) {
         responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
       }
+      const firstBrace = responseText.indexOf('{');
+      const lastBrace = responseText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+        responseText = responseText.substring(firstBrace, lastBrace + 1);
+      }
 
-      const recipeData = JSON.parse(responseText);
+      let recipeData: any;
+      try {
+        recipeData = JSON.parse(responseText);
+      } catch (parseErr) {
+        console.error('Error parseando JSON de Gemini:', parseErr, 'Texto recibido:', responseText);
+        throw new Error('La respuesta generada por la IA no tiene un formato estructurado válido.');
+      }
+
+      // Validar si el documento contenía una receta real o un archivo sin contenido gastronómico
+      const ingredients = Array.isArray(recipeData.ingredients) ? recipeData.ingredients : [];
+      const steps = Array.isArray(recipeData.steps) ? recipeData.steps : [];
+      const docName = String(recipeData.nameES || '').toLowerCase();
+      const docDesc = String(recipeData.descriptionES || '').toLowerCase();
+
+      const indicatesNoRecipe = 
+        docName.includes('no se ha proporcionado') ||
+        docName.includes('no contiene') ||
+        docName.includes('sin receta') ||
+        docName.includes('logotipo') ||
+        docDesc.includes('no contiene una ficha') ||
+        docDesc.includes('no contiene receta') ||
+        docDesc.includes('imagen institucional') ||
+        docDesc.includes('institucional del centro');
+
+      if (ingredients.length === 0 && indicatesNoRecipe) {
+        return res.status(400).json({
+          error: 'El documento o imagen subida no contiene una receta culinaria reconocible ni lista de ingredientes. Por favor, sube un documento PDF o imagen de una ficha técnica o receta gastronómica.'
+        });
+      }
+
+      // Garantizar estructura completa normalizada
+      recipeData.ingredients = ingredients;
+      recipeData.steps = steps;
+      if (!recipeData.nameES || indicatesNoRecipe) {
+        recipeData.nameES = filename ? filename.replace(/\.[^/.]+$/, '') : 'Receta importada';
+      }
+      if (!recipeData.type || !['plato', 'elaborado', 'bebida'].includes(recipeData.type)) {
+        recipeData.type = 'plato';
+      }
+
       return res.status(200).json({ success: true, recipe: recipeData, filename });
     } catch (err: any) {
       console.error('Error parseando receta PDF con Gemini:', err);
@@ -271,9 +326,24 @@ Normas de extracción profesional de Formación Profesional de Hostelería:
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      // Proteger rutas /api/ de devolver el index.html
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: `Ruta de API no encontrada: ${req.path}` });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Middleware global de errores para garantizar respuestas JSON ante cualquier fallo
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Error no capturado en servidor Express:', err);
+    if (req.path?.startsWith('/api/')) {
+      return res.status(err.status || 500).json({
+        error: err.message || 'Error interno del servidor procesando la solicitud.'
+      });
+    }
+    next(err);
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
