@@ -362,6 +362,7 @@
       "description": "A persistent purchase order made by a teacher",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "title": { "type": "string" },
         "userId": { "type": "string" },
         "userName": { "type": "string" },
@@ -387,7 +388,13 @@
           }
         },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending", "completed"] }
+        "status": { "type": "string", "enum": ["draft", "pending", "completed"] },
+        "targetCycleKey": { "type": "string" },
+        "targetCycleStartDate": { "type": "string", "format": "date-time" },
+        "targetCycleEndDate": { "type": "string", "format": "date-time" },
+        "weekLabel": { "type": "string" },
+        "isFuturePlan": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "userId", "userName", "items", "createdAt", "status"]
     },

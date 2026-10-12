@@ -166,6 +166,11 @@ export interface Order {
   items: OrderItem[];
   createdAt: string;
   status: 'draft' | 'pending' | 'completed';
+  targetCycleKey?: string;
+  targetCycleStartDate?: string;
+  targetCycleEndDate?: string;
+  weekLabel?: string;
+  isFuturePlan?: boolean;
 }
 
 export interface CommissionTask {

@@ -11,7 +11,8 @@ export type MenuTileIconType =
   | 'trabajo'
   | 'anterior'
   | 'nuevo'
-  | 'consolidar';
+  | 'consolidar'
+  | 'planificar';
 
 export interface MenuTileProps {
   label: string;
@@ -221,6 +222,25 @@ export default function MenuTile({
             <polygon points="12 2 2 7 12 12 22 7 12 2" />
             <polyline points="2 17 12 22 22 17" />
             <polyline points="2 12 12 17 22 12" />
+          </g>
+        );
+
+      case 'planificar':
+        return (
+          <g
+            transform="translate(29, 18) scale(1.75)"
+            stroke={iconColor}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          >
+            {/* Calendar with clock/planning */}
+            <rect width="18" height="17" x="3" y="4" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="9.5" x2="21" y2="9.5" />
+            <polyline points="8 15 11 17 17 12" />
           </g>
         );
 

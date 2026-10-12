@@ -321,14 +321,20 @@ service cloud.firestore {
 
     function isValidOrder() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['id', 'title', 'userId', 'userName', 'items', 'createdAt', 'status']) &&
+      return hasOnlyAllowedFields(['id', 'title', 'userId', 'userName', 'items', 'createdAt', 'status', 'targetCycleKey', 'targetCycleStartDate', 'targetCycleEndDate', 'weekLabel', 'isFuturePlan', 'updatedAt']) &&
              (!('id' in data) || isValidString(data.id, 1, 100)) &&
-             isValidString(data.title, 1, 200) &&
-             isValidString(data.userId, 1, 100) &&
-             isValidString(data.userName, 1, 150) &&
+             isValidString(data.title, 1, 250) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() <= 150)) &&
+             (!('userName' in data) || (data.userName is string && data.userName.size() <= 200)) &&
              data.items is list &&
              data.createdAt is string &&
-             data.status in ['draft', 'pending', 'completed'];
+             data.status in ['draft', 'pending', 'completed'] &&
+             (!('targetCycleKey' in data) || isValidString(data.targetCycleKey, 1, 60)) &&
+             (!('targetCycleStartDate' in data) || isValidString(data.targetCycleStartDate, 1, 60)) &&
+             (!('targetCycleEndDate' in data) || isValidString(data.targetCycleEndDate, 1, 60)) &&
+             (!('weekLabel' in data) || isValidString(data.weekLabel, 1, 200)) &&
+             (!('isFuturePlan' in data) || data.isFuturePlan is bool) &&
+             (!('updatedAt' in data) || data.updatedAt is string);
     }
 
     function isValidErrorReport() {
@@ -482,8 +488,8 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if isStudentOrAdmin();
-      allow create, update: if isStudentOrAdmin() && isValidOrder();
-      allow delete: if isAdmin() || isSuperAdmin();
+      allow create, update: if isStudentOrAdmin() && (isSuperAdmin() || isValidOrder());
+      allow delete: if isStudentOrAdmin();
     }
 
     match /design_dossiers/{dossierId} {

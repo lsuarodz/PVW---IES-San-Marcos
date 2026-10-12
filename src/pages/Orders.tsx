@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp, Undo2, CalendarDays, CalendarCheck, Sparkles, ArrowRight } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
-import { checkOrderCutoffStatus, DAYS_OF_WEEK, CutoffStatus } from '../utils/orderCutoff';
+import { checkOrderCutoffStatus, DAYS_OF_WEEK, CutoffStatus, WeeklyCycle, getWeeklyCycles, isOrderInCurrentWeek, getOrderPlannedCycle, isOrderPlannedForCycle } from '../utils/orderCutoff';
 import { Recipe, Ingredient, Order, OrderItem } from '../types';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
 
 function formatTeacherName(fullName: string): string {
@@ -642,10 +642,19 @@ export default function Orders() {
   const { showToast } = useToast();
   
   // Entry view state: null displays the initial 2-button landing choice menu
-  const [entryChoice, setEntryChoice] = useState<'continue' | 'new' | 'consolidate' | null>(null);
+  const [entryChoice, setEntryChoice] = useState<'continue' | 'new' | 'consolidate' | 'future-planning' | null>(null);
+  const [selectedPlanningCycle, setSelectedPlanningCycle] = useState<WeeklyCycle | null>(null);
   const [showConfirmNewModal, setShowConfirmNewModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'create' | 'consolidate'>('create');
+  
+  // Weekly cycles computation (current week + 4 upcoming weeks)
+  const weeklyCycles = useMemo(() => {
+    return getWeeklyCycles(settings?.orderCutoff, 4);
+  }, [settings?.orderCutoff]);
+
+  const currentCycle = weeklyCycles[0];
+  const futureCycles = useMemo(() => weeklyCycles.slice(1), [weeklyCycles]);
   
   // Create Tab States
   const [search, setSearch] = useState('');
@@ -689,6 +698,13 @@ export default function Orders() {
   // Weekly order cutoff status & management states
   const cutoffStatus = useMemo(() => checkOrderCutoffStatus(settings?.orderCutoff), [settings?.orderCutoff]);
   const isLockedForCurrentUser = cutoffStatus.isLocked && !canConsolidate;
+  const isCurrentWorkspaceLocked = useMemo(() => {
+    // Si se está planificando una semana futura, el plazo de la semana actual no bloquea la planificación
+    if (selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0) {
+      return false;
+    }
+    return isLockedForCurrentUser;
+  }, [selectedPlanningCycle, isLockedForCurrentUser]);
 
   const editingOrder = useMemo(() => {
     if (!editingOrderId) return null;
@@ -699,6 +715,112 @@ export default function Orders() {
   const autoOrderTitle = useMemo(() => {
     return generateAutoOrderTitle(appUser?.name);
   }, [appUser?.name]);
+
+  // Modal para que Compras confirme la eliminación de pedidos de esta semana
+  const [showConfirmDeleteWeekModal, setShowConfirmDeleteWeekModal] = useState(false);
+
+  // User's saved orders (sorted newest first)
+  const mySavedOrders = useMemo(() => {
+    return orders
+      .filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders, appUser]);
+
+  // Helper to find an order for a specific weekly cycle
+  const getOrderForCycle = (cycle: WeeklyCycle) => {
+    return mySavedOrders.find(o => {
+      if (cycle.weekOffset === 0) {
+        // En la semana actual NUNCA se devuelven pedidos marcados como plan futuro (isFuturePlan)
+        return !o.isFuturePlan && isOrderInCurrentWeek(o, cycle);
+      }
+      if (o.targetCycleKey === cycle.key) return true;
+      if (o.targetCycleStartDate) {
+        const orderStartTime = new Date(o.targetCycleStartDate).getTime();
+        return Math.abs(orderStartTime - cycle.startDate.getTime()) < 12 * 60 * 60 * 1000;
+      }
+      return false;
+    });
+  };
+
+  // Pedido anterior de este docente que Compras aún no ha tramitado o eliminado
+  const unresolvedPreviousOrder = useMemo(() => {
+    return mySavedOrders.find(o => {
+      // Excluir borradores y pedidos de planificación futura
+      if (o.status === 'draft' || o.isFuturePlan) return false;
+      // Cualquier pedido enviado sigue activo y pendiente de tramitación mientras Compras no lo haya eliminado
+      return true;
+    });
+  }, [mySavedOrders]);
+
+  const hasUnresolvedPreviousOrder = Boolean(unresolvedPreviousOrder);
+
+  // Pedido planificado por el usuario cuya fecha objetivo corresponde a esta semana
+  const plannedOrderForCurrentWeek = useMemo(() => {
+    return mySavedOrders.find(o => Boolean(o.isFuturePlan && (o.targetCycleKey === currentCycle.key || isOrderPlannedForCycle(o, currentCycle))));
+  }, [mySavedOrders, currentCycle]);
+
+  // User's order for the CURRENT week (solo pedidos activos de esta semana, nunca planes futuros sin activar)
+  const userCurrentOrder = useMemo(() => {
+    return getOrderForCycle(currentCycle) || null;
+  }, [mySavedOrders, currentCycle]);
+
+  // Count of future orders planned by this user
+  const futurePlannedCount = useMemo(() => {
+    return futureCycles.filter(c => Boolean(getOrderForCycle(c))).length;
+  }, [futureCycles, mySavedOrders]);
+
+  // Order active in current workspace (or null if none)
+  const userSavedOrder = useMemo(() => {
+    if (selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0) {
+      return getOrderForCycle(selectedPlanningCycle) || null;
+    }
+    return userCurrentOrder || (hasUnresolvedPreviousOrder ? unresolvedPreviousOrder : null);
+  }, [selectedPlanningCycle, userCurrentOrder, hasUnresolvedPreviousOrder, unresolvedPreviousOrder]);
+
+  // Pedido actualmente en edición o espacio de trabajo
+  const currentActiveOrder = useMemo(() => {
+    if (editingOrderId) {
+      return orders.find(o => o.id === editingOrderId) || null;
+    }
+    return userSavedOrder;
+  }, [editingOrderId, orders, userSavedOrder]);
+
+  // Si el pedido actual ya ha sido enviado a consolidación o si sigue en borrador / sin enviar
+  const isCurrentOrderSent = Boolean(currentActiveOrder && currentActiveOrder.status !== 'draft');
+
+  // Activar un pedido planificado cuando Compras ya ha eliminado los anteriores y abierto la semana
+  const handleActivatePlannedOrder = async (orderToActivate: Order) => {
+    setSelectedPlanningCycle(null);
+    setEditingOrderId(orderToActivate.id);
+    const cleanTitle = generateAutoOrderTitle(appUser?.name);
+    setOrderTitle(cleanTitle);
+    const hydratedItems = orderToActivate.items.map(item => {
+      if (item.type === 'recipe' && !item.basePortions) {
+        const rec = recipes.find(r => r.id === item.id);
+        const base = rec ? (rec.portions && rec.portions > 0 ? rec.portions : (rec.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1)) : 1;
+        return { ...item, basePortions: base };
+      }
+      return item;
+    });
+    setOrderItems(hydratedItems);
+
+    try {
+      await updateDoc(doc(db, 'orders', orderToActivate.id), {
+        title: cleanTitle,
+        isFuturePlan: false,
+        targetCycleKey: currentCycle.key,
+        targetCycleStartDate: currentCycle.startDate.toISOString(),
+        targetCycleEndDate: currentCycle.endDate.toISOString(),
+        weekLabel: currentCycle.label,
+        status: 'draft',
+      });
+      showToast(`Pedido activado para esta semana. Ya puedes revisarlo y enviarlo a consolidación.`, 'success');
+    } catch (e) {
+      console.warn('Notice activating planned order:', e);
+    }
+    setActiveTab('create');
+    setEntryChoice('continue');
+  };
 
   const [cutoffEnabled, setCutoffEnabled] = useState(false);
   const [cutoffDay, setCutoffDay] = useState(1); // 1 = Lunes
@@ -781,9 +903,14 @@ export default function Orders() {
   const printRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Pedidos enviados a consolidación (excluyendo borradores)
+  // Pedidos enviados a consolidación (excluyendo borradores y excluyendo planes futuros)
   const submittedOrders = useMemo(() => {
-    return orders.filter(o => o.status !== 'draft');
+    return orders.filter(o => {
+      if (o.status === 'draft') return false;
+      // En la consolidación NUNCA se mezclan los pedidos planificados a futuro
+      if (o.isFuturePlan) return false;
+      return true;
+    });
   }, [orders]);
 
   // Automatically select all pending orders when submitted orders list loads or tab changes
@@ -932,31 +1059,65 @@ export default function Orders() {
     }));
   };
 
-  // Save current workspace to Firestore (enforcing strictly 1 order per user)
+  // Save current workspace to Firestore (enforcing strictly 1 order per user per cycle)
   const handleSaveOrder = async (isDraft: boolean = true) => {
     if (orderItems.length === 0) {
       showToast('Añade al menos una receta, menú o ingrediente a tu pedido.', 'error');
       return;
     }
+
+    const isFuture = Boolean(selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0);
+
+    // Validación de envío: no se puede enviar si el plazo está bloqueado o si hay pedidos anteriores sin resolver
+    if (!isDraft) {
+      if (isCurrentWorkspaceLocked) {
+        showToast('Los pedidos están bloqueados hasta que compras los autorice para la próxima semana.', 'error');
+        return;
+      }
+      if (!isFuture && hasUnresolvedPreviousOrder && (!editingOrderId || editingOrderId !== unresolvedPreviousOrder?.id)) {
+        showToast('No puedes enviar un nuevo pedido hasta que Compras resuelva y elimine tu pedido anterior.', 'error');
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
-      // Find all existing orders of this user to enforce strictly 1 order per user
       const userOrders = orders.filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name));
-      const targetOrderId = editingOrderId || (userOrders.length > 0 ? userOrders[0].id : doc(collection(db, 'orders')).id);
-      
-      // Clean up any extra redundant orders if more than 1 existed
+
+      // Find existing order for this cycle to avoid duplicate orders in the same cycle
+      let existingOrderInThisCycle: Order | undefined;
+      if (isFuture && selectedPlanningCycle) {
+        existingOrderInThisCycle = userOrders.find(o => 
+          o.targetCycleKey === selectedPlanningCycle.key ||
+          (o.targetCycleStartDate && Math.abs(new Date(o.targetCycleStartDate).getTime() - selectedPlanningCycle.startDate.getTime()) < 12 * 60 * 60 * 1000)
+        );
+      } else {
+        existingOrderInThisCycle = userOrders.find(o => isOrderInCurrentWeek(o, currentCycle));
+      }
+
+      const targetOrderId = editingOrderId || (existingOrderInThisCycle ? existingOrderInThisCycle.id : doc(collection(db, 'orders')).id);
+
+      // Clean up any duplicates ONLY for the same cycle
       for (const oldOrder of userOrders) {
         if (oldOrder.id !== targetOrderId) {
-          try {
-            await deleteDoc(doc(db, 'orders', oldOrder.id));
-          } catch (e) {
-            console.warn('Notice removing duplicate user order:', e);
+          const isSameCycle = isFuture && selectedPlanningCycle
+            ? (Boolean(oldOrder.isFuturePlan) && oldOrder.targetCycleKey === selectedPlanningCycle.key)
+            : (!oldOrder.isFuturePlan && oldOrder.targetCycleKey === currentCycle.key);
+          if (isSameCycle) {
+            try {
+              await deleteDoc(doc(db, 'orders', oldOrder.id));
+            } catch (e) {
+              console.warn('Notice removing duplicate cycle order:', e);
+            }
           }
         }
       }
 
-      const existingOrder = orders.find(o => o.id === targetOrderId);
-      const titleStr = generateAutoOrderTitle(appUser?.name);
+      const existingOrder = orders.find(o => o.id === targetOrderId) || existingOrderInThisCycle;
+      const baseTitle = generateAutoOrderTitle(appUser?.name);
+      const titleStr = isFuture && selectedPlanningCycle
+        ? `${baseTitle} (${selectedPlanningCycle.shortLabel})`
+        : baseTitle;
       
       let newStatus: 'draft' | 'pending' | 'completed' = 'draft';
       if (!isDraft) newStatus = 'pending';
@@ -998,16 +1159,40 @@ export default function Orders() {
       const newOrder: Order = {
         id: targetOrderId,
         title: titleStr,
-        userId: appUser?.uid || (existingOrder ? existingOrder.userId : ''),
-        userName: appUser?.name || (existingOrder ? existingOrder.userName : 'Profesor'),
+        userId: appUser?.uid || (existingOrder ? existingOrder.userId : '') || (auth.currentUser ? auth.currentUser.uid : 'user'),
+        userName: appUser?.name || (existingOrder ? existingOrder.userName : '') || (auth.currentUser?.displayName || 'Docente'),
         items: cleanedItems,
         createdAt: existingOrder?.createdAt || new Date().toISOString(),
         status: newStatus
       };
+
+      if (isFuture && selectedPlanningCycle) {
+        newOrder.targetCycleKey = selectedPlanningCycle.key;
+        newOrder.targetCycleStartDate = selectedPlanningCycle.startDate.toISOString();
+        newOrder.targetCycleEndDate = selectedPlanningCycle.endDate.toISOString();
+        newOrder.weekLabel = selectedPlanningCycle.label;
+        newOrder.isFuturePlan = true;
+      } else {
+        newOrder.targetCycleKey = currentCycle.key;
+        newOrder.targetCycleStartDate = currentCycle.startDate.toISOString();
+        newOrder.targetCycleEndDate = currentCycle.endDate.toISOString();
+        newOrder.weekLabel = currentCycle.label;
+        newOrder.isFuturePlan = false;
+      }
       
       await setDoc(doc(db, 'orders', targetOrderId), newOrder);
       setEditingOrderId(targetOrderId);
-      showToast(isDraft ? 'Pedido guardado (1 pedido activo por usuario).' : '¡Pedido enviado a consolidación!', 'success');
+      
+      if (isFuture && selectedPlanningCycle) {
+        showToast(
+          isDraft
+            ? `Pedido planificado para ${selectedPlanningCycle.shortLabel} guardado con éxito.`
+            : `¡Pedido para ${selectedPlanningCycle.shortLabel} confirmado! Se podrá activar en su semana correspondiente.`,
+          'success'
+        );
+      } else {
+        showToast(isDraft ? 'Pedido guardado (1 pedido activo por usuario).' : '¡Pedido enviado a consolidación!', 'success');
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
       showToast('Error al guardar el pedido.', 'error');
@@ -1018,11 +1203,23 @@ export default function Orders() {
 
   // Deshacer el envío del pedido: pasa el estado a 'draft' para que desaparezca de la consolidación
   const handleUnsendOrder = async () => {
+    const isFuture = Boolean(selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0);
     const userOrders = orders.filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name));
-    const targetOrderId = editingOrderId || (userOrders.length > 0 ? userOrders[0].id : null);
+    
+    let targetOrderId: string | null = null;
+    if (editingOrderId) {
+      targetOrderId = editingOrderId;
+    } else if (isFuture && selectedPlanningCycle) {
+      const existing = userOrders.find(o => o.targetCycleKey === selectedPlanningCycle.key);
+      targetOrderId = existing ? existing.id : null;
+    } else {
+      const current = userOrders.find(o => isOrderInCurrentWeek(o, currentCycle));
+      targetOrderId = current ? current.id : (userOrders.length > 0 ? userOrders[0].id : null);
+    }
+
     if (!targetOrderId) return;
 
-    if (isLockedForCurrentUser) {
+    if (isCurrentWorkspaceLocked) {
       showToast('No es posible deshacer el envío porque la hora límite semanal de pedidos ha expirado.', 'error');
       return;
     }
@@ -1030,7 +1227,10 @@ export default function Orders() {
     setIsSaving(true);
     try {
       const existingOrder = orders.find(o => o.id === targetOrderId);
-      const titleStr = generateAutoOrderTitle(appUser?.name);
+      const baseTitle = generateAutoOrderTitle(appUser?.name);
+      const titleStr = isFuture && selectedPlanningCycle
+        ? `${baseTitle} (${selectedPlanningCycle.shortLabel})`
+        : baseTitle;
 
       // Conservar los artículos actuales del espacio de trabajo
       const cleanedItems: OrderItem[] = orderItems.length > 0 ? orderItems.map(item => {
@@ -1062,7 +1262,7 @@ export default function Orders() {
         return clean;
       }) : (existingOrder?.items || []);
 
-      await setDoc(doc(db, 'orders', targetOrderId), {
+      const updatedOrderDoc: Order = {
         id: targetOrderId,
         title: titleStr,
         userId: appUser?.uid || (existingOrder ? existingOrder.userId : 'unknown'),
@@ -1070,7 +1270,23 @@ export default function Orders() {
         items: cleanedItems,
         createdAt: existingOrder?.createdAt || new Date().toISOString(),
         status: 'draft'
-      });
+      };
+
+      if (isFuture && selectedPlanningCycle) {
+        updatedOrderDoc.targetCycleKey = selectedPlanningCycle.key;
+        updatedOrderDoc.targetCycleStartDate = selectedPlanningCycle.startDate.toISOString();
+        updatedOrderDoc.targetCycleEndDate = selectedPlanningCycle.endDate.toISOString();
+        updatedOrderDoc.weekLabel = selectedPlanningCycle.label;
+        updatedOrderDoc.isFuturePlan = true;
+      } else if (existingOrder?.targetCycleKey) {
+        updatedOrderDoc.targetCycleKey = existingOrder.targetCycleKey;
+        if (existingOrder.targetCycleStartDate) updatedOrderDoc.targetCycleStartDate = existingOrder.targetCycleStartDate;
+        if (existingOrder.targetCycleEndDate) updatedOrderDoc.targetCycleEndDate = existingOrder.targetCycleEndDate;
+        if (existingOrder.weekLabel) updatedOrderDoc.weekLabel = existingOrder.weekLabel;
+        if (existingOrder.isFuturePlan) updatedOrderDoc.isFuturePlan = existingOrder.isFuturePlan;
+      }
+
+      await setDoc(doc(db, 'orders', targetOrderId), updatedOrderDoc);
 
       setEditingOrderId(targetOrderId);
       showToast('Envío deshecho: tu pedido vuelve a ser un borrador y se ha retirado de la consolidación de compras.', 'success');
@@ -1126,6 +1342,31 @@ export default function Orders() {
         })
       );
       showToast('Pedidos seleccionados eliminados.', 'success');
+      setSelectedOrderIds([]);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'orders');
+      showToast('Error al eliminar los pedidos.', 'error');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Delete all submitted orders of current cycle (called by Compras)
+  const handleDeleteAllSubmittedCurrentOrders = async () => {
+    const currentOrdersToDelete = submittedOrders.filter(o => !o.isFuturePlan);
+    if (currentOrdersToDelete.length === 0) {
+      showToast('No hay pedidos tramitados de esta semana para eliminar.', 'info');
+      return;
+    }
+    setIsUpdatingStatus(true);
+    setShowConfirmDeleteWeekModal(false);
+    try {
+      await Promise.all(
+        currentOrdersToDelete.map(async (o) => {
+          await deleteDoc(doc(db, 'orders', o.id));
+        })
+      );
+      showToast(`Se han eliminado los ${currentOrdersToDelete.length} pedidos tramitados de esta semana.`, 'success');
       setSelectedOrderIds([]);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
@@ -1567,34 +1808,20 @@ export default function Orders() {
     }
   };
 
-  // User's saved orders (sorted newest first)
-  const mySavedOrders = useMemo(() => {
-    return orders
-      .filter(o => o.userId === appUser?.uid || (appUser?.name && o.userName === appUser.name))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [orders, appUser]);
-
-  const userSavedOrder = mySavedOrders[0] || null;
-
-  // Pedido actualmente en edición o espacio de trabajo
-  const currentActiveOrder = useMemo(() => {
-    if (editingOrderId) {
-      return orders.find(o => o.id === editingOrderId) || null;
-    }
-    return userSavedOrder;
-  }, [editingOrderId, orders, userSavedOrder]);
-
-  // Si el pedido actual ya ha sido enviado a consolidación o si sigue en borrador / sin enviar
-  const isCurrentOrderSent = Boolean(currentActiveOrder && currentActiveOrder.status !== 'draft');
-
   const handleContinuePrevious = () => {
-    if (!userSavedOrder) {
-      showToast('No tienes ningún pedido anterior guardado.', 'error');
+    setSelectedPlanningCycle(null);
+    const orderToLoad = userCurrentOrder || unresolvedPreviousOrder;
+    if (!orderToLoad) {
+      if (plannedOrderForCurrentWeek && !hasUnresolvedPreviousOrder && !cutoffStatus.isLocked) {
+        handleActivatePlannedOrder(plannedOrderForCurrentWeek);
+        return;
+      }
+      showToast('No tienes ningún pedido anterior guardado para esta semana.', 'error');
       return;
     }
-    setEditingOrderId(userSavedOrder.id);
-    setOrderTitle(userSavedOrder.title);
-    const hydratedItems = userSavedOrder.items.map(item => {
+    setEditingOrderId(orderToLoad.id);
+    setOrderTitle(orderToLoad.title);
+    const hydratedItems = orderToLoad.items.map(item => {
       if (item.type === 'recipe' && !item.basePortions) {
         const rec = recipes.find(r => r.id === item.id);
         const base = rec ? (rec.portions && rec.portions > 0 ? rec.portions : (rec.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1)) : 1;
@@ -1605,11 +1832,37 @@ export default function Orders() {
     setOrderItems(hydratedItems);
     setActiveTab('create');
     setEntryChoice('continue');
-    showToast(`Pedido "${userSavedOrder.title}" cargado para editar.`, 'info');
+    showToast(`Pedido "${orderToLoad.title}" cargado para revisar.`, 'info');
+  };
+
+  const handleSelectFutureWeek = (cycle: WeeklyCycle) => {
+    setSelectedPlanningCycle(cycle);
+    const existingFutureOrder = getOrderForCycle(cycle);
+    if (existingFutureOrder) {
+      setEditingOrderId(existingFutureOrder.id);
+      setOrderTitle(existingFutureOrder.title);
+      const hydratedItems = existingFutureOrder.items.map(item => {
+        if (item.type === 'recipe' && !item.basePortions) {
+          const rec = recipes.find(r => r.id === item.id);
+          const base = rec ? (rec.portions && rec.portions > 0 ? rec.portions : (rec.yieldQuantity && rec.yieldQuantity > 0 ? rec.yieldQuantity : 1)) : 1;
+          return { ...item, basePortions: base };
+        }
+        return item;
+      });
+      setOrderItems(hydratedItems);
+      showToast(`Pedido de ${cycle.shortLabel} cargado para editar.`, 'info');
+    } else {
+      setEditingOrderId(null);
+      setOrderItems([]);
+      setOrderTitle('');
+    }
+    setActiveTab('create');
+    setEntryChoice('continue');
   };
 
   const startFreshOrder = () => {
-    setEditingOrderId(userSavedOrder ? userSavedOrder.id : null);
+    setSelectedPlanningCycle(null);
+    setEditingOrderId(userCurrentOrder ? userCurrentOrder.id : null);
     setOrderItems([]);
     setOrderTitle('');
     setActiveTab('create');
@@ -1618,8 +1871,8 @@ export default function Orders() {
   };
 
   const handleStartNewOrderClick = () => {
-    if (userSavedOrder) {
-      showToast('Ya tienes un pedido activo guardado. Cada usuario solo puede mantener un pedido.', 'info');
+    if (userCurrentOrder) {
+      showToast('Ya tienes un pedido activo guardado para esta semana. Cada usuario solo puede mantener un pedido por semana.', 'info');
       return;
     }
     startFreshOrder();
@@ -1694,6 +1947,64 @@ export default function Orders() {
           </div>
         )}
 
+        {/* Banner de aviso si el docente tiene un pedido de la semana anterior pendiente de tramitar por Compras */}
+        {hasUnresolvedPreviousOrder && (
+          <div className="mb-8 w-full max-w-xl mx-auto bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 shadow-xs text-left">
+            <div className="p-2 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+              <Clock size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-amber-950 text-sm">Pedido anterior en tramitación</h4>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase">
+                  Compras
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                Tu pedido anterior (<strong>{unresolvedPreviousOrder?.title}</strong>) está siendo tramitado por el departamento de compras.
+                No podrás enviar nuevos pedidos hasta que Compras resuelva y elimine los pedidos anteriores.
+              </p>
+              {plannedOrderForCurrentWeek && (
+                <div className="hidden md:flex mt-2.5 p-2 bg-amber-100/80 rounded-xl border border-amber-300/80 text-[11px] text-amber-950 font-medium items-center gap-1.5">
+                  <Sparkles size={13} className="text-amber-800 shrink-0" />
+                  <span>Tienes preparado el pedido planificado <strong>"{plannedOrderForCurrentWeek.title}"</strong>. Se podrá activar en cuanto Compras elimine tu pedido anterior.</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Banner para activar pedido planificado de esta semana (solo en versión escritorio/tablet si compras ya eliminó los anteriores) */}
+        {!hasUnresolvedPreviousOrder && !cutoffStatus.isLocked && plannedOrderForCurrentWeek && !userCurrentOrder && (
+          <div className="hidden md:flex mb-8 w-full max-w-xl mx-auto bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-left shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-xl text-emerald-800 shrink-0 mt-0.5">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-emerald-950 text-sm">Pedido planificado listo para esta semana</h4>
+                  <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full uppercase">
+                    Disponible
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-900/90 mt-1 leading-relaxed">
+                  Tienes preparado: <strong>{plannedOrderForCurrentWeek.title}</strong> ({plannedOrderForCurrentWeek.items.length} productos).
+                  Compras ha abierto la nueva semana. Puedes activarlo ahora para revisarlo y enviarlo.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleActivatePlannedOrder(plannedOrderForCurrentWeek)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Sparkles size={14} />
+              <span>Activar pedido</span>
+            </button>
+          </div>
+        )}
+
         {/* Action Buttons: MenuTile style (similar to Home) */}
         <div className="flex flex-wrap items-start justify-center gap-8 sm:gap-10 md:gap-14 mb-8">
           {/* Botón 1: Continuar con el pedido anterior */}
@@ -1725,12 +2036,20 @@ export default function Orders() {
               Continuar pedido
             </span>
             <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center">
-              {userSavedOrder ? 'Editar pedido anterior' : 'Sin pedido guardado'}
+              {hasUnresolvedPreviousOrder
+                ? 'Revisar pedido enviado'
+                : userSavedOrder
+                  ? 'Editar pedido guardado'
+                  : 'Sin pedido guardado'}
             </span>
             {userSavedOrder ? (
               <div className="mt-2 flex flex-col items-center gap-1">
-                <span className="inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
-                  1 activo
+                <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none ${
+                  hasUnresolvedPreviousOrder
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-teal-50 text-teal-700 border border-teal-200'
+                }`}>
+                  {hasUnresolvedPreviousOrder ? 'En tramitación' : '1 activo'}
                 </span>
                 <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-[10px] font-bold leading-none ${
                   userSavedOrder.status === 'draft'
@@ -1742,7 +2061,7 @@ export default function Orders() {
                 {userSavedOrder.status !== 'draft' && (
                   <span className="text-[10px] text-amber-700 font-semibold mt-0.5 flex items-center gap-1">
                     <Undo2 size={10} />
-                    Clic para editar o deshacer
+                    Clic para ver o deshacer
                   </span>
                 )}
               </div>
@@ -1753,38 +2072,48 @@ export default function Orders() {
             )}
           </button>
 
-          {/* Botón 2: Iniciar nuevo pedido (DESACTIVADO si ya tiene pedido activo) */}
+          {/* Botón 2: Iniciar nuevo pedido (DESACTIVADO si ya tiene pedido activo o anterior sin resolver) */}
           <button
             type="button"
-            disabled={Boolean(userSavedOrder)}
-            onClick={userSavedOrder ? undefined : handleStartNewOrderClick}
+            disabled={Boolean(userSavedOrder) || hasUnresolvedPreviousOrder}
+            onClick={userSavedOrder || hasUnresolvedPreviousOrder ? undefined : handleStartNewOrderClick}
             className={`group flex flex-col items-center text-center transition-all focus:outline-none ${
-              userSavedOrder
+              userSavedOrder || hasUnresolvedPreviousOrder
                 ? 'opacity-40 cursor-not-allowed grayscale select-none'
                 : 'cursor-pointer hover:-translate-y-1'
             }`}
             title={
-              userSavedOrder
-                ? `Ya tienes un pedido activo guardado ("${userSavedOrder.title}"). Solo se permite 1 pedido por usuario. Edita el anterior o elimínalo si deseas empezar de nuevo.`
-                : 'Iniciar nuevo pedido desde cero'
+              hasUnresolvedPreviousOrder
+                ? `Tienes un pedido anterior pendiente de tramitar por Compras ("${unresolvedPreviousOrder?.title}"). No podrás iniciar un nuevo pedido hasta que Compras tramite y elimine el pedido anterior.`
+                : userSavedOrder
+                  ? `Ya tienes un pedido activo guardado ("${userSavedOrder.title}"). Solo se permite 1 pedido por usuario. Edita el anterior o elimínalo si deseas empezar de nuevo.`
+                  : 'Iniciar nuevo pedido desde cero'
             }
           >
             <MenuTile
               label="NUEVO"
               icon="nuevo"
               className={`w-32 h-32 md:w-36 md:h-36 transition-transform ${
-                userSavedOrder ? '' : 'group-hover:scale-105'
+                userSavedOrder || hasUnresolvedPreviousOrder ? '' : 'group-hover:scale-105'
               }`}
             />
             <span className={`font-bold text-sm sm:text-base mt-3.5 transition-colors ${
-              userSavedOrder ? 'text-stone-400' : 'text-stone-800 group-hover:text-teal-700'
+              userSavedOrder || hasUnresolvedPreviousOrder ? 'text-stone-400' : 'text-stone-800 group-hover:text-teal-700'
             }`}>
               Nuevo pedido
             </span>
             <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center inline-block">
-              {userSavedOrder ? 'Ya tienes un pedido activo' : 'Iniciar desde cero'}
+              {hasUnresolvedPreviousOrder 
+                ? 'Pedido anterior en tramitación'
+                : userSavedOrder 
+                  ? 'Ya tienes un pedido activo' 
+                  : 'Iniciar desde cero'}
             </span>
-            {userSavedOrder ? (
+            {hasUnresolvedPreviousOrder ? (
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-amber-100 text-amber-800 border border-amber-300">
+                Bloqueado por compras
+              </span>
+            ) : userSavedOrder ? (
               <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-none bg-stone-200/90 text-stone-500 border border-stone-300">
                 Desactivado (1 máx.)
               </span>
@@ -1822,6 +2151,37 @@ export default function Orders() {
               </span>
             </button>
           )}
+
+          {/* Botón 4: Planificar pedidos futuros (solo en versión escritorio/tablet, oculto en versión móvil) */}
+          <button
+            type="button"
+            onClick={() => {
+              setEntryChoice('future-planning');
+            }}
+            className="hidden md:flex flex-col items-center text-center transition-all focus:outline-none cursor-pointer hover:-translate-y-1"
+            title="Planificar pedidos para las próximas 4 semanas"
+          >
+            <MenuTile
+              label="PLANIFICAR"
+              icon="planificar"
+              className="w-32 h-32 md:w-36 md:h-36 group-hover:scale-105 transition-transform"
+            />
+            <span className="font-bold text-stone-800 text-sm sm:text-base mt-3.5 group-hover:text-teal-700 transition-colors">
+              Planificar pedidos futuros
+            </span>
+            <span className="text-xs text-stone-500 max-w-[150px] leading-snug mt-0.5 text-center">
+              Hasta 4 semanas vista
+            </span>
+            {futurePlannedCount > 0 ? (
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {futurePlannedCount} {futurePlannedCount === 1 ? 'semana preparada' : 'semanas preparadas'}
+              </span>
+            ) : (
+              <span className="mt-2 inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-[11px] font-bold leading-none bg-teal-50 text-teal-700 border border-teal-200">
+                4 semanas disponibles
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Modal de confirmación si ya tiene pedido guardado al pulsar "Iniciar nuevo pedido" */}
@@ -1865,24 +2225,271 @@ export default function Orders() {
     );
   }
 
+  // ==================== FUTURE PLANNING 4-WEEK SELECTION PANEL ====================
+  if (entryChoice === 'future-planning') {
+    return (
+      <div className="flex flex-col items-center justify-start min-h-[calc(100vh-8rem)] p-4 sm:p-8 max-w-5xl mx-auto font-sans pb-24 relative z-10">
+        {/* Mobile notice: Future planning is hidden/disabled on mobile */}
+        <div className="md:hidden w-full max-w-sm mx-auto my-12 bg-white rounded-2xl border-2 border-stone-200 p-6 text-center shadow-md">
+          <CalendarDays size={32} className="mx-auto text-teal-600 mb-3" />
+          <h3 className="text-base font-bold text-stone-900 mb-2">Planificación de pedidos futuros</h3>
+          <p className="text-xs text-stone-600 mb-5 leading-relaxed">
+            La planificación de pedidos futuros solo está disponible en la versión de escritorio o tablet.
+          </p>
+          <button
+            type="button"
+            onClick={() => setEntryChoice(null)}
+            className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            Volver al Menú de Pedidos
+          </button>
+        </div>
+
+        {/* Desktop / Tablet Container */}
+        <div className="hidden md:flex flex-col items-center w-full">
+          {/* Top Back Navigation */}
+          <div className="w-full flex items-center justify-between mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPlanningCycle(null);
+                setEntryChoice(null);
+              }}
+              className="px-4 py-2.5 rounded-xl border-2 border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-950 transition-all flex items-center gap-2 text-sm font-bold shadow-xs cursor-pointer"
+            >
+              <ArrowLeft size={18} className="text-teal-700" />
+              <span>Volver a Gestión de Pedidos</span>
+            </button>
+
+            <span className="text-xs font-semibold text-stone-500 hidden sm:inline-flex items-center gap-1.5">
+              <CalendarDays size={15} className="text-teal-600" />
+              Planificación a 4 semanas
+            </span>
+          </div>
+
+          {/* Header */}
+          <div className="text-center max-w-2xl mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold uppercase tracking-wider mb-3">
+              <Sparkles size={14} className="text-teal-600" />
+              Planificación Anticipada
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-stone-900 font-serif tracking-tight mb-2.5">
+              Planificar Pedidos Futuros
+            </h1>
+            <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
+              Adelanta la confección de tus pedidos para las próximas semanas. Cada pedido quedará guardado y se activará de forma automática al llegar su fecha límite semanal.
+            </p>
+          </div>
+
+        {/* Informative Rule Card (Very clear for older adults) */}
+        <div className="w-full max-w-3xl mb-8 bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-xs text-left">
+          <div className="p-2.5 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+            <Clock size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-amber-950 text-sm sm:text-base flex items-center gap-2">
+              ¿Cómo funciona la activación semanal?
+            </h3>
+            <p className="text-xs sm:text-sm text-amber-900/90 mt-1 leading-relaxed">
+              El rol de compras establece el corte semanal cada <strong>{cutoffStatus.cutoffText}</strong>. Cada semana que ves a continuación empieza exactamente en esa hora límite.
+              <br />
+              Puedes preparar los pedidos de cualquiera de estas 4 semanas con total calma. Cuando el reloj alcance la fecha límite correspondiente, el pedido se activará automáticamente como tu pedido en curso.
+            </p>
+          </div>
+        </div>
+
+        {/* The 4 Week Selection Cards */}
+        <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+          {futureCycles.map((cycle, idx) => {
+            const plannedOrder = getOrderForCycle(cycle);
+            const hasOrder = Boolean(plannedOrder);
+            const itemCount = plannedOrder ? plannedOrder.items.length : 0;
+            const weekNumberBadge = idx === 0 ? 'Semana 1 (Próxima)' : `Semana +${idx + 1}`;
+
+            return (
+              <div
+                key={cycle.key}
+                className={`relative rounded-2xl border-2 p-5 sm:p-6 transition-all flex flex-col justify-between ${
+                  hasOrder
+                    ? 'bg-white border-teal-500 shadow-md ring-2 ring-teal-500/20'
+                    : 'bg-white border-stone-200 hover:border-teal-300 shadow-xs hover:shadow-md'
+                }`}
+              >
+                <div>
+                  {/* Top Week Pill & Status */}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className={`text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
+                      hasOrder
+                        ? 'bg-teal-100 text-teal-900 border border-teal-300'
+                        : 'bg-stone-100 text-stone-700 border border-stone-200'
+                    }`}>
+                      {weekNumberBadge}
+                    </span>
+
+                    {hasOrder ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                        <CheckCircle size={12} className="text-emerald-600" />
+                        Pedido preparado
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-stone-400 bg-stone-50 border border-stone-200 px-2.5 py-0.5 rounded-full">
+                        Sin pedido aún
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Date Range - Big and readable */}
+                  <h2 className="text-lg sm:text-xl font-bold text-stone-900 font-serif mb-1">
+                    {cycle.title}
+                  </h2>
+
+                  <div className="flex items-center gap-1.5 text-xs text-stone-500 mb-4">
+                    <Calendar size={13} className="text-stone-400 shrink-0" />
+                    <span>Período: <strong className="text-stone-700">{cycle.dateRangeFormatted}</strong></span>
+                  </div>
+
+                  {/* Activation Notice box */}
+                  <div className="bg-stone-50 rounded-xl p-3 border border-stone-100 mb-5 flex items-start gap-2">
+                    <Clock size={15} className="text-teal-700 shrink-0 mt-0.5" />
+                    <p className="text-xs text-stone-600 leading-snug">
+                      <strong>Activación:</strong> {cycle.activationNotice}.
+                    </p>
+                  </div>
+
+                  {/* Summary if order is already planned */}
+                  {hasOrder && plannedOrder && (
+                    <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-3 mb-5 text-left">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-teal-950">
+                          {itemCount} {itemCount === 1 ? 'producto añadido' : 'productos añadidos'}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          plannedOrder.status === 'draft'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        }`}>
+                          {plannedOrder.status === 'draft' ? 'Borrador' : 'Confirmado'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-teal-800/80 mt-1 truncate">
+                        "{plannedOrder.title}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Action Buttons */}
+                <div className="pt-2 border-t border-stone-100 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectFutureWeek(cycle)}
+                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
+                      hasOrder
+                        ? 'bg-teal-700 hover:bg-teal-800 active:bg-teal-900 text-white'
+                        : 'bg-stone-900 hover:bg-teal-700 text-white'
+                    }`}
+                  >
+                    {hasOrder ? (
+                      <>
+                        <span>Editar pedido de esta semana</span>
+                        <ArrowRight size={16} />
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} />
+                        <span>Planificar pedido para esta semana</span>
+                      </>
+                    )}
+                  </button>
+
+                  {hasOrder && plannedOrder && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderToDelete({ id: plannedOrder.id, title: `${plannedOrder.title} (${cycle.shortLabel})` })}
+                      className="p-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl transition-colors cursor-pointer shrink-0"
+                      title="Eliminar este pedido planificado"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Security confirmation modal for deleting order */}
+        {orderToDelete && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-700 flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-stone-900 mb-2">
+                ¿Eliminar pedido planificado?
+              </h3>
+              <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar permanentemente el pedido <strong className="text-stone-900">"{orderToDelete.title}"</strong>?
+              </p>
+              <div className="flex gap-2.5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setOrderToDelete(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const idToDelete = orderToDelete.id;
+                    setOrderToDelete(null);
+                    await handleDeleteOrder(idToDelete);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+                >
+                  Sí, eliminar pedido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 max-w-7xl font-sans pb-28 relative z-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setEntryChoice(null)}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-950 transition-colors flex items-center gap-1.5 text-xs font-bold shadow-sm"
-            title="Volver al menú de pedidos"
+            onClick={() => {
+              if (selectedPlanningCycle) {
+                setSelectedPlanningCycle(null);
+                setEntryChoice('future-planning');
+              } else {
+                setEntryChoice(null);
+              }
+            }}
+            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-950 transition-colors flex items-center gap-1.5 text-xs font-bold shadow-sm cursor-pointer"
+            title={selectedPlanningCycle ? 'Volver a la selección de semanas planificadas' : 'Volver al menú de pedidos'}
           >
             <ArrowLeft size={16} className="text-teal-600" />
-            <span className="hidden sm:inline">Menú de Pedidos</span>
+            <span className="hidden sm:inline">
+              {selectedPlanningCycle ? 'Semanas Planificadas' : 'Menú de Pedidos'}
+            </span>
           </button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">Pedidos</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+              {selectedPlanningCycle ? `Pedido ${selectedPlanningCycle.shortLabel}` : 'Pedidos'}
+            </h1>
             <p className="text-xs sm:text-sm text-stone-500 mt-0.5">
-              {activeTab === 'create' 
-                ? (editingOrderId ? 'Editando tu pedido guardado' : 'Configura tu pedido semanal') 
-                : 'Consolidación de pedidos para compras y economato'}
+              {selectedPlanningCycle 
+                ? `Planificando para: ${selectedPlanningCycle.title}`
+                : (activeTab === 'create' 
+                    ? (editingOrderId ? 'Editando tu pedido guardado' : 'Configura tu pedido semanal') 
+                    : 'Consolidación de pedidos para compras y economato')}
             </p>
           </div>
         </div>
@@ -1908,8 +2515,43 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Banner de aviso de cierre semanal en la vista de edición/creación */}
-      {isLockedForCurrentUser && (
+      {/* Banner de aviso para Planificación Futura */}
+      {selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0 && (
+        <div className="mb-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-teal-700 text-white rounded-xl shadow-xs shrink-0">
+              <CalendarDays size={24} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-extrabold bg-teal-200 text-teal-900 px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                  {selectedPlanningCycle.shortLabel}
+                </span>
+                <h3 className="font-bold text-stone-900 text-sm sm:text-base">
+                  Planificando: {selectedPlanningCycle.title}
+                </h3>
+              </div>
+              <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+                {selectedPlanningCycle.activationNotice}. Tu pedido se guardará y se activará de forma automática al llegar su fecha límite.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlanningCycle(null);
+              setEntryChoice('future-planning');
+            }}
+            className="px-4 py-2 bg-white hover:bg-stone-50 border-2 border-teal-300 text-teal-900 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs shrink-0 cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>Cambiar de semana</span>
+          </button>
+        </div>
+      )}
+
+      {/* Banner de aviso de cierre semanal en la vista de edición/creación (SOLO para semana en curso) */}
+      {!selectedPlanningCycle && isLockedForCurrentUser && (
         <div className="mb-5 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3.5 shadow-xs">
           <div className="p-2 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
             <Lock size={20} />
@@ -1977,7 +2619,7 @@ export default function Orders() {
                   <PlusCircle size={16} className="text-teal-600" />
                   Añadir al Pedido
                 </h3>
-                {isLockedForCurrentUser ? (
+                {isCurrentWorkspaceLocked ? (
                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Lock size={11} /> Plazo cerrado
                   </span>
@@ -2019,7 +2661,7 @@ export default function Orders() {
                 )}
               </div>
 
-              {isLockedForCurrentUser ? (
+              {isCurrentWorkspaceLocked ? (
                 <div className="text-center py-4 px-3 border border-dashed border-amber-200 rounded-lg bg-amber-50/50 flex flex-col items-center justify-center gap-1.5">
                   <Lock size={20} className="text-amber-600 shrink-0" />
                   <p className="text-xs text-amber-900 font-semibold">
@@ -2146,16 +2788,16 @@ export default function Orders() {
               <div className="mt-2.5 pt-2 border-t border-stone-100">
                 <button
                   type="button"
-                  disabled={isLockedForCurrentUser}
+                  disabled={isCurrentWorkspaceLocked}
                   onClick={() => openCustomProductModal()}
                   className={`w-full py-1.5 px-2.5 border rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-                    isLockedForCurrentUser
+                    isCurrentWorkspaceLocked
                       ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed'
                       : 'bg-stone-50 hover:bg-teal-50/70 border-dashed border-stone-300 hover:border-teal-400 text-stone-700 hover:text-teal-800 cursor-pointer'
                   }`}
-                  title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado' : 'Pedir un producto especial no disponible en el catálogo'}
+                  title={isCurrentWorkspaceLocked ? 'Plazo de pedidos cerrado' : 'Pedir un producto especial no disponible en el catálogo'}
                 >
-                  {isLockedForCurrentUser ? (
+                  {isCurrentWorkspaceLocked ? (
                     <Lock size={14} className="text-stone-400 shrink-0" />
                   ) : (
                     <PlusCircle size={14} className="text-teal-600 shrink-0" />
@@ -2202,7 +2844,7 @@ export default function Orders() {
                       <button
                         type="button"
                         onClick={handleUnsendOrder}
-                        disabled={isSaving || isLockedForCurrentUser}
+                        disabled={isSaving || isCurrentWorkspaceLocked}
                         className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-full transition-colors cursor-pointer shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
                         title="Deshacer el envío para volver a poner el pedido en borrador y poder añadir o modificar productos. Desaparecerá de la lista de consolidación."
                       >
@@ -2232,6 +2874,23 @@ export default function Orders() {
                   </button>
                 )}
               </div>
+
+              {/* Banner de aviso si hay un pedido anterior en tramitación */}
+              {!selectedPlanningCycle && hasUnresolvedPreviousOrder && (
+                <div className="mb-3.5 bg-amber-50 border-2 border-amber-300 rounded-xl p-3 flex items-start gap-2.5 shadow-2xs">
+                  <div className="p-1 rounded-lg bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+                    <Clock size={16} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-amber-950 leading-tight">
+                      Pedido anterior en tramitación por Compras ({unresolvedPreviousOrder?.title})
+                    </p>
+                    <p className="text-[11px] text-amber-800/90 leading-tight mt-0.5">
+                      El departamento de compras está gestionando los pedidos de la semana anterior. Puedes preparar y guardar borradores, pero no podrás enviar un nuevo pedido hasta que Compras tramite y elimine los pedidos anteriores.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Banner informativo si el pedido está actualmente enviado */}
               {isCurrentOrderSent && (
@@ -2569,7 +3228,7 @@ export default function Orders() {
                         <button
                           type="button"
                           onClick={handleUnsendOrder}
-                          disabled={isSaving || isLockedForCurrentUser}
+                          disabled={isSaving || isCurrentWorkspaceLocked}
                           className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold py-1.5 px-3 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-40"
                           title="Deshacer el envío para volver a poner el pedido en borrador y que no aparezca en consolidación"
                         >
@@ -2582,22 +3241,38 @@ export default function Orders() {
                         disabled={isSaving}
                         className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold py-1.5 px-3.5 rounded-lg border border-teal-200 transition-colors text-xs disabled:opacity-50 flex items-center gap-1.5"
                       >
-                        {isSaving ? '...' : (editingOrderId ? 'Guardar Cambios' : 'Guardar Borrador')}
+                        {isSaving
+                          ? '...'
+                          : selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0
+                            ? (editingOrderId ? 'Guardar Cambios' : `Guardar para ${selectedPlanningCycle.shortLabel}`)
+                            : (editingOrderId ? 'Guardar Cambios' : 'Guardar Borrador')}
                       </button>
                       {!isCurrentOrderSent ? (
                         <button
                           onClick={() => handleSaveOrder(false)}
-                          disabled={isSaving || isLockedForCurrentUser}
+                          disabled={isSaving || isCurrentWorkspaceLocked || (!selectedPlanningCycle && hasUnresolvedPreviousOrder)}
                           className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1.5 px-3.5 rounded-lg transition-colors shadow-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                          title={isLockedForCurrentUser ? 'Plazo de pedidos cerrado por compras' : undefined}
+                          title={
+                            isCurrentWorkspaceLocked 
+                              ? 'Plazo de pedidos cerrado por compras' 
+                              : (!selectedPlanningCycle && hasUnresolvedPreviousOrder)
+                                ? 'No se puede enviar un nuevo pedido hasta que Compras tramite y elimine tu pedido anterior'
+                                : undefined
+                          }
                         >
-                          {isLockedForCurrentUser && <Lock size={12} />}
-                          {isSaving ? 'Enviando...' : 'Enviar Pedido'}
+                          {(isCurrentWorkspaceLocked || (!selectedPlanningCycle && hasUnresolvedPreviousOrder)) && <Lock size={12} />}
+                          {isSaving
+                            ? 'Enviando...'
+                            : selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0
+                              ? `Confirmar para ${selectedPlanningCycle.shortLabel}`
+                              : 'Enviar Pedido'}
                         </button>
                       ) : (
                         <span className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
                           <CheckCircle size={13} className="text-emerald-600" />
-                          Enviado a consolidación
+                          {selectedPlanningCycle && selectedPlanningCycle.weekOffset > 0
+                            ? `Confirmado para ${selectedPlanningCycle.shortLabel}`
+                            : 'Enviado a consolidación'}
                         </span>
                       )}
                     </>
@@ -2641,8 +3316,20 @@ export default function Orders() {
                   </div>
                 </div>
 
-                {/* Acciones Rápidas de Bloqueo / Desbloqueo */}
+                {/* Acciones Rápidas de Bloqueo / Desbloqueo y Eliminación de pedidos tramitados */}
                 <div className="flex flex-wrap items-center gap-2">
+                  {submittedOrders.filter(o => !o.isFuturePlan).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmDeleteWeekModal(true)}
+                      disabled={isUpdatingStatus}
+                      className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-900 border border-red-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-2xs"
+                      title="Eliminar los pedidos de los docentes ya tramitados para liberar la siguiente semana"
+                    >
+                      <Trash2 size={14} className="text-red-600" />
+                      <span>Eliminar pedidos tramitados ({submittedOrders.filter(o => !o.isFuturePlan).length})</span>
+                    </button>
+                  )}
                   {cutoffStatus.isLocked ? (
                     <button
                       type="button"
@@ -2792,7 +3479,7 @@ export default function Orders() {
                           </span>
                         </div>
                         
-                        <p className="text-xs text-stone-600 mt-1 flex items-center gap-1">
+                        <p className="text-xs text-stone-600 mt-1 flex items-center justify-between gap-1">
                           <span className="font-medium text-stone-800">{order.userName}</span>
                         </p>
 
@@ -4172,6 +4859,48 @@ export default function Orders() {
               >
                 <Trash2 size={14} />
                 <span>Sí, eliminar {selectedOrderIds.length} pedidos</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: SEGURIDAD PARA ELIMINAR TODOS LOS PEDIDOS TRAMITADOS DE LA SEMANA ==================== */}
+      {showConfirmDeleteWeekModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-stone-200 flex flex-col">
+            <div className="flex items-start gap-3.5 mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-stone-900">¿Eliminar pedidos tramitados de esta semana?</h3>
+                <p className="text-xs text-stone-500 mt-0.5">Limpieza de ciclo de compras</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente los <strong className="text-stone-900">{submittedOrders.filter(o => !o.isFuturePlan).length} pedidos tramitados</strong> de los docentes?
+              <br /><br />
+              Una vez eliminados, los docentes podrán comenzar a enviar sus nuevos pedidos para la siguiente semana y activar los pedidos planificados con anticipación.
+            </p>
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowConfirmDeleteWeekModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllSubmittedCurrentOrders}
+                disabled={isUpdatingStatus}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>{isUpdatingStatus ? 'Eliminando...' : `Sí, eliminar ${submittedOrders.filter(o => !o.isFuturePlan).length} pedidos`}</span>
               </button>
             </div>
           </div>
