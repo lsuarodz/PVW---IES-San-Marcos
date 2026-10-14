@@ -492,6 +492,11 @@ service cloud.firestore {
       allow delete: if isStudentOrAdmin();
     }
 
+    match /archived_orders/{orderId} {
+      allow read: if isStudentOrAdmin();
+      allow create, update, delete: if isComprasOrAdmin() || isSuperAdmin();
+    }
+
     match /design_dossiers/{dossierId} {
       allow read: if isStudentOrAdmin();
       allow create, update, delete: if isStudentOrAdmin();

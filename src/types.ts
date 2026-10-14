@@ -173,6 +173,12 @@ export interface Order {
   isFuturePlan?: boolean;
 }
 
+export interface ArchivedOrder extends Order {
+  archivedAt: string;
+  archivedBy?: string;
+  archiveBatch?: string;
+}
+
 export interface CommissionTask {
   id: string;
   commission: string;

@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp, Undo2, CalendarDays, CalendarCheck, Sparkles, ArrowRight } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Trash2, Calculator, Printer, User, Calendar, CheckSquare, Square, CheckCircle, ListFilter, Trash, FolderOpen, PlusCircle, X, ArrowLeft, AlertCircle, MessageSquare, Eye, PackagePlus, FileText, Lock, Unlock, Clock, AlertTriangle, ChefHat, ChevronDown, ChevronUp, Undo2, CalendarDays, CalendarCheck, Sparkles, ArrowRight, Archive } from 'lucide-react';
 import MenuTile from '../components/MenuTile';
+import ArchivedOrdersModal from '../components/ArchivedOrdersModal';
 import { generatePDF } from '../utils/pdf';
 import { canViewItem } from '../utils/visibility';
 import { checkOrderCutoffStatus, DAYS_OF_WEEK, CutoffStatus, WeeklyCycle, getWeeklyCycles, isOrderInCurrentWeek, getOrderPlannedCycle, isOrderPlannedForCycle } from '../utils/orderCutoff';
@@ -718,6 +719,7 @@ export default function Orders() {
 
   // Modal para que Compras confirme la eliminación de pedidos de esta semana
   const [showConfirmDeleteWeekModal, setShowConfirmDeleteWeekModal] = useState(false);
+  const [showArchivedOrdersModal, setShowArchivedOrdersModal] = useState(false);
 
   // User's saved orders (sorted newest first)
   const mySavedOrders = useMemo(() => {
@@ -1298,11 +1300,20 @@ export default function Orders() {
     }
   };
 
-  // Delete an individual order
+  // Delete an individual order (archiving first)
   const handleDeleteOrder = async (orderId: string) => {
     try {
+      const orderToArchive = orders.find(o => o.id === orderId);
+      if (orderToArchive) {
+        await setDoc(doc(db, 'archived_orders', orderId), {
+          ...orderToArchive,
+          archivedAt: new Date().toISOString(),
+          archivedBy: appUser?.name || 'Compras',
+          archiveBatch: `Pedido Individual (${new Date().toLocaleDateString('es-ES')})`
+        });
+      }
       await deleteDoc(doc(db, 'orders', orderId));
-      showToast('Pedido eliminado correctamente.', 'success');
+      showToast('Pedido archivado y eliminado correctamente.', 'success');
       setSelectedOrderIds(selectedOrderIds.filter(id => id !== orderId));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `orders/${orderId}`);
@@ -1330,18 +1341,27 @@ export default function Orders() {
     }
   };
 
-  // Delete selected orders (confirmed)
+  // Delete selected orders (confirmed - archive first)
   const confirmDeleteSelected = async () => {
     if (selectedOrderIds.length === 0) return;
     setIsUpdatingStatus(true);
     setShowBulkDeleteModal(false);
     try {
+      const ordersToArchive = orders.filter(o => selectedOrderIds.includes(o.id));
+      const now = new Date();
+      const batchLabel = `Lote Seleccionado (${now.toLocaleDateString('es-ES')} ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})`;
       await Promise.all(
-        selectedOrderIds.map(async (id) => {
-          await deleteDoc(doc(db, 'orders', id));
+        ordersToArchive.map(async (o) => {
+          await setDoc(doc(db, 'archived_orders', o.id), {
+            ...o,
+            archivedAt: now.toISOString(),
+            archivedBy: appUser?.name || 'Compras',
+            archiveBatch: batchLabel
+          });
+          await deleteDoc(doc(db, 'orders', o.id));
         })
       );
-      showToast('Pedidos seleccionados eliminados.', 'success');
+      showToast(`${ordersToArchive.length} pedidos archivados y eliminados.`, 'success');
       setSelectedOrderIds([]);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
@@ -1351,7 +1371,7 @@ export default function Orders() {
     }
   };
 
-  // Delete all submitted orders of current cycle (called by Compras)
+  // Delete all submitted orders of current cycle (called by Compras - archives first)
   const handleDeleteAllSubmittedCurrentOrders = async () => {
     const currentOrdersToDelete = submittedOrders.filter(o => !o.isFuturePlan);
     if (currentOrdersToDelete.length === 0) {
@@ -1361,12 +1381,20 @@ export default function Orders() {
     setIsUpdatingStatus(true);
     setShowConfirmDeleteWeekModal(false);
     try {
+      const now = new Date();
+      const batchLabel = `Consolidación ${now.toLocaleDateString('es-ES')} ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
       await Promise.all(
         currentOrdersToDelete.map(async (o) => {
+          await setDoc(doc(db, 'archived_orders', o.id), {
+            ...o,
+            archivedAt: now.toISOString(),
+            archivedBy: appUser?.name || 'Compras',
+            archiveBatch: batchLabel
+          });
           await deleteDoc(doc(db, 'orders', o.id));
         })
       );
-      showToast(`Se han eliminado los ${currentOrdersToDelete.length} pedidos tramitados de esta semana.`, 'success');
+      showToast(`Se han archivado y eliminado los ${currentOrdersToDelete.length} pedidos tramitados de esta semana.`, 'success');
       setSelectedOrderIds([]);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'orders');
@@ -3353,6 +3381,15 @@ export default function Orders() {
                       <span>Bloquear pedidos ahora</span>
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivedOrdersModal(true)}
+                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 hover:border-indigo-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Consultar el histórico de pedidos consolidados archivados"
+                  >
+                    <Archive size={14} className="text-indigo-600" />
+                    <span>Historial Archivado</span>
+                  </button>
                 </div>
               </div>
 
@@ -3428,8 +3465,19 @@ export default function Orders() {
                   <User size={20} className="text-teal-600" />
                   Pedidos del Profesorado
                 </h2>
-                <div className="text-[10px] bg-teal-50 text-teal-800 font-bold px-2 py-0.5 rounded-full uppercase">
-                  {submittedOrders.length} {submittedOrders.length === 1 ? 'enviado' : 'enviados'}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivedOrdersModal(true)}
+                    className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Consultar pedidos archivados"
+                  >
+                    <Archive size={12} />
+                    <span>Archivados</span>
+                  </button>
+                  <div className="text-[10px] bg-teal-50 text-teal-800 font-bold px-2 py-0.5 rounded-full uppercase">
+                    {submittedOrders.length} {submittedOrders.length === 1 ? 'enviado' : 'enviados'}
+                  </div>
                 </div>
               </div>
 
@@ -4880,9 +4928,13 @@ export default function Orders() {
             </div>
 
             <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
-              ¿Estás seguro de que deseas eliminar permanentemente los <strong className="text-stone-900">{submittedOrders.filter(o => !o.isFuturePlan).length} pedidos tramitados</strong> de los docentes?
+              ¿Estás seguro de que deseas eliminar los <strong className="text-stone-900">{submittedOrders.filter(o => !o.isFuturePlan).length} pedidos tramitados</strong> de los docentes?
               <br /><br />
-              Una vez eliminados, los docentes podrán comenzar a enviar sus nuevos pedidos para la siguiente semana y activar los pedidos planificados con anticipación.
+              <span className="text-indigo-900 font-medium bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 block text-xs">
+                <strong>Archivo de seguridad:</strong> Los pedidos no se pierden; se guardarán automáticamente en el <strong>Historial Archivado</strong> para que siempre puedas consultarlos (diseño de impresión por profesor) o recuperarlos si fuera necesario.
+              </span>
+              <br />
+              Al eliminarlos de la lista activa, los docentes podrán comenzar a enviar sus pedidos para la siguiente semana y activar los pedidos planificados.
             </p>
 
             <div className="flex justify-end gap-2.5">
@@ -4906,6 +4958,17 @@ export default function Orders() {
           </div>
         </div>
       )}
+
+      {/* Modal de Historial de Pedidos Consolidados y Archivados */}
+      <ArchivedOrdersModal
+        isOpen={showArchivedOrdersModal}
+        onClose={() => setShowArchivedOrdersModal(false)}
+        recipes={recipes}
+        ingredients={ingredients}
+        menus={menus}
+        settings={settings}
+        canManage={canConsolidate}
+      />
     </div>
   );
 }
