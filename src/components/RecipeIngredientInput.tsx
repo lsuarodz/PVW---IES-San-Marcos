@@ -78,7 +78,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   if (isUnit) {
     return (
       <div className="relative">
-        <div className="absolute -top-3.5 text-[9px] left-1 text-[10px] text-stone-500 font-medium">Unidades</div>
+        <div className="absolute -top-3 sm:-top-3.5 left-1 text-[9px] sm:text-[10px] text-stone-500 font-medium">Unidades</div>
         <input
           ref={unitInputRef}
           type="number"
@@ -89,7 +89,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           disabled={isDisabled}
           onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-10 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+          className="w-full pl-2 pr-8 sm:pr-10 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
           placeholder="Unidades"
         />
         <button
@@ -97,7 +97,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           disabled={(!subRecipe || !subRecipe.portions) || isDisabled}
           onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
           title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
-          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
+          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[8px] sm:text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
             ri.usePortions 
               ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
               : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'
@@ -110,9 +110,9 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   }
 
   return (
-    <div className="flex gap-2 relative">
+    <div className="flex gap-1.5 sm:gap-2 relative">
       <div className="relative flex-1">
-        <div className="absolute -top-3.5 left-1 text-[10px] text-stone-500 font-medium">Bruto</div>
+        <div className="absolute -top-3 sm:-top-3.5 left-1 text-[9px] sm:text-[10px] text-stone-500 font-medium">Bruto</div>
         <input
           type="text"
           inputMode="decimal"
@@ -143,13 +143,13 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-1 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+          className="w-full pl-1.5 sm:pl-2 pr-1 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
           placeholder="Bruto"
           title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
         />
       </div>
       <div className="relative flex-1">
-        <div className="absolute -top-3.5 left-1 text-[10px] text-stone-500 font-medium">Neto</div>
+        <div className="absolute -top-3 sm:-top-3.5 left-1 text-[9px] sm:text-[10px] text-stone-500 font-medium">Neto</div>
         <input
           ref={netInputRef}
           type="text"
@@ -186,7 +186,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-7 py-1.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+          className="w-full pl-1.5 sm:pl-2 pr-6 sm:pr-7 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
           placeholder="Neto"
           title="Peso neto (listo para usar)"
         />
@@ -195,7 +195,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           disabled={(!subRecipe || !subRecipe.portions) || isDisabled}
           onClick={() => updateRecipeIngredient(index, 'usePortions', !ri.usePortions)}
           title={ri.usePortions ? "Cambiar a unidad base" : (subRecipe?.portions ? "Cambiar a raciones" : "No hay raciones definidas")}
-          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
+          className={`absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 text-[8px] sm:text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
             ri.usePortions 
               ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
               : 'bg-stone-100 text-stone-500 hover:bg-stone-200 disabled:opacity-50'

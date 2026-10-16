@@ -172,21 +172,21 @@ export default function IngredientSelect({
             }
           }}
           onClick={() => !disabled && setIsOpen(true)}
-          className={`flex items-center px-2.5 py-1.5 h-[34px] bg-white border border-stone-200 rounded-lg cursor-pointer transition-all ${
+          className={`flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg cursor-pointer transition-all ${
             disabled 
               ? 'opacity-50 cursor-not-allowed bg-stone-50' 
-              : 'hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500'
+              : 'hover:border-teal-400 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500'
           }`}
           title={displayValue || placeholderText}
         >
-          <span className={`flex-1 truncate text-[13px] ${displayValue ? 'text-stone-800 font-medium' : 'text-stone-400'}`}>
+          <span className={`flex-1 truncate text-xs sm:text-[13px] ${displayValue ? 'text-stone-800 font-medium' : 'text-stone-400'}`}>
             {displayValue || placeholderText}
           </span>
-          <ChevronDown size={16} className="text-stone-400 shrink-0 ml-1" />
+          <ChevronDown size={14} className="text-stone-400 shrink-0 ml-1" />
         </div>
       ) : (
-        <div className="flex items-center px-2 py-1 h-[34px] bg-white border-2 border-teal-500 rounded-lg shadow-xs ring-2 ring-teal-500/20">
-          <Search size={14} className="text-teal-600 mr-1.5 shrink-0" />
+        <div className="flex items-center px-2 py-1 h-[30px] sm:h-[34px] bg-white border-2 border-teal-500 rounded-md sm:rounded-lg shadow-xs ring-2 ring-teal-500/20">
+          <Search size={13} className="text-teal-600 mr-1.5 shrink-0" />
           <input
             ref={searchInputRef}
             type="text"
@@ -197,7 +197,7 @@ export default function IngredientSelect({
             }}
             onKeyDown={handleKeyDown}
             placeholder={displayValue || placeholderText}
-            className="flex-1 text-[13px] outline-none bg-transparent placeholder:text-stone-400 font-medium text-stone-900 min-w-0"
+            className="flex-1 text-xs sm:text-[13px] outline-none bg-transparent placeholder:text-stone-400 font-medium text-stone-900 min-w-0"
           />
           {search ? (
             <button

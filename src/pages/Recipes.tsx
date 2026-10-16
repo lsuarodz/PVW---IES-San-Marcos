@@ -6,7 +6,7 @@ import { db, storage, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera, Scale, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, BookOpen, Printer, ChevronLeft, ChevronRight, Camera, Scale, Sparkles, X } from 'lucide-react';
 import { ALLERGENS } from '../constants/allergens';
 import { getGroupColor } from '../utils/groupColors';
 import CreateIngredientModal from '../components/CreateIngredientModal';
@@ -1212,235 +1212,368 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-orange-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden ring-1 ring-orange-200">
-            <div className="p-6 border-b border-orange-200 flex justify-between items-center bg-orange-100">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-orange-950">
-                  {editingId ? 'Editar Receta' : 'Nueva Receta'}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="px-3 py-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                  title="Rellenar campos importando un PDF"
-                >
-                  <Sparkles size={14} className="text-amber-600" />
-                  Importar PDF
-                </button>
-                {editingId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+          <div className="bg-orange-50 rounded-none sm:rounded-2xl shadow-2xl w-full max-w-4xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden sm:ring-1 sm:ring-orange-200">
+            {/* Cabecera del modal: compacta y adaptada a móvil */}
+            <div className="p-2 sm:p-5 border-b border-orange-200 bg-orange-100 shrink-0">
+              {/* Vista Móvil de Cabecera: Ultracompacta en una sola fila */}
+              <div className="flex sm:hidden items-center justify-between gap-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase shrink-0 ${
+                      formData.type === 'elaborado' ? 'bg-orange-200/60 text-orange-900 border-orange-300' : 'bg-teal-100 text-teal-800 border-teal-200'
+                    }`}>
+                      {formData.type === 'elaborado' ? 'Elab' : 'Plato'}
+                    </span>
+                    <h2 className="text-xs font-bold text-orange-950 truncate max-w-[150px]">
+                      {formData.nameES || (formData.type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato')}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <div className="text-xs font-bold font-mono text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-md">
+                    {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => {
-                      const rec = recipes.find(r => r.id === editingId);
-                      if (rec) setPrintModalRecipe(rec);
-                    }}
-                    disabled={isPrinting}
-                    className="px-3 py-1 bg-white hover:bg-teal-50 text-stone-700 hover:text-teal-700 border border-orange-300 hover:border-teal-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                    title="Imprimir (Ficha técnica, Escandallo o Completa)"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="p-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-md text-[11px] font-semibold flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
+                    title="Importar PDF"
                   >
-                    <Printer size={14} className="text-teal-600" />
-                    Imprimir
+                    <Sparkles size={14} className="text-amber-600" />
                   </button>
-                )}
+
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rec = recipes.find(r => r.id === editingId);
+                        if (rec) setPrintModalRecipe(rec);
+                      }}
+                      disabled={isPrinting}
+                      className="p-1 bg-white hover:bg-teal-50 text-stone-700 hover:text-teal-700 border border-orange-300 hover:border-teal-300 rounded-md text-[11px] font-semibold flex items-center justify-center shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                      title="Imprimir (Ficha técnica, Escandallo o Completa)"
+                    >
+                      <Printer size={14} className="text-teal-600" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-1 text-stone-400 hover:text-stone-700 hover:bg-orange-200/50 rounded-md transition-colors cursor-pointer"
+                    title="Cerrar"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
-              <div className="text-lg font-bold text-teal-700 bg-teal-50 border-teal-100 px-3 py-1 rounded-lg shadow-sm border border-orange-200">
-                Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
+
+              {/* Vista Tablet / Escritorio de Cabecera: Original espaciosa */}
+              <div className="hidden sm:flex justify-between items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-xl font-bold text-orange-950 truncate">
+                        {editingId ? (formData.type === 'elaborado' ? 'Elaborado' : 'Plato') : (formData.type === 'elaborado' ? 'Nuevo Elaborado' : 'Nuevo Plato')}
+                      </h2>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase shrink-0 ${
+                        formData.type === 'elaborado' ? 'bg-orange-200/60 text-orange-900 border-orange-300' : 'bg-teal-100 text-teal-800 border-teal-200'
+                      }`}>
+                        {formData.type === 'elaborado' ? 'Elab' : 'Plato'}
+                      </span>
+                    </div>
+                    {editingId && formData.nameES && (
+                      <p className="text-xs text-stone-600 truncate font-medium max-w-md">
+                        {formData.nameES}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="px-2 py-1 bg-white hover:bg-orange-50 text-amber-900 border border-orange-300 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      title="Rellenar campos importando un PDF"
+                    >
+                      <Sparkles size={13} className="text-amber-600" />
+                      <span>Importar PDF</span>
+                    </button>
+                    {editingId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rec = recipes.find(r => r.id === editingId);
+                          if (rec) setPrintModalRecipe(rec);
+                        }}
+                        disabled={isPrinting}
+                        className="px-2 py-1 bg-white hover:bg-teal-50 text-stone-700 hover:text-teal-700 border border-orange-300 hover:border-teal-300 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                        title="Imprimir (Ficha técnica, Escandallo o Completa)"
+                      >
+                        <Printer size={13} className="text-teal-600" />
+                        <span>Imprimir</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-base font-bold text-teal-700 bg-teal-50 border-teal-200 px-3 py-1 rounded-lg shadow-2xs border">
+                    <span className="text-xs text-teal-600 font-semibold mr-1 uppercase">Total:</span>
+                    {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-orange-200/50 rounded-lg transition-colors cursor-pointer"
+                    title="Cerrar"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
+            </div>
+
+            {/* Barra de navegación rápida por secciones (solo móvil para adaptación y agilidad) */}
+            <div className="flex sm:hidden items-center gap-1 px-2.5 py-1.5 bg-orange-200/50 border-b border-orange-200 overflow-x-auto no-scrollbar shrink-0 text-[11px]">
+              <button
+                type="button"
+                onClick={() => document.getElementById('sec-general')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="px-2 py-0.5 rounded-full bg-white/90 text-stone-700 border border-orange-200 whitespace-nowrap active:bg-orange-100 font-medium"
+              >
+                General
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('sec-escandallo')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="px-2 py-0.5 rounded-full bg-white/90 text-teal-800 border border-teal-200 whitespace-nowrap active:bg-teal-100 font-medium"
+              >
+                Escandallo ({formData.ingredients.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('sec-pasos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="px-2 py-0.5 rounded-full bg-white/90 text-stone-700 border border-orange-200 whitespace-nowrap active:bg-orange-100 font-medium"
+              >
+                Pasos ({formData.steps.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('sec-material')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="px-2 py-0.5 rounded-full bg-white/90 text-stone-700 border border-orange-200 whitespace-nowrap active:bg-orange-100 font-medium"
+              >
+                Material ({formData.equipment.length})
+              </button>
+              {formData.type !== 'elaborado' && (
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('sec-mise')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="px-2 py-0.5 rounded-full bg-white/90 text-stone-700 border border-orange-200 whitespace-nowrap active:bg-orange-100 font-medium"
+                >
+                  Mise en place
+                </button>
+              )}
             </div>
             
             <form id="recipe-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="p-5 overflow-y-auto flex-1 space-y-5">
+              <div className="p-2.5 sm:p-5 overflow-y-auto flex-1 space-y-2.5 sm:space-y-5">
                 {editingId && recipes.find(r => r.id === editingId)?.group !== appUser?.group && !isAdmin && commissionMode && (
-                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-xl text-sm mb-4">
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm mb-2 sm:mb-4">
                     Estás editando una receta de otro grupo como miembro de la comisión de <strong>{appUser?.commission}</strong>. Solo puedes modificar los campos permitidos.
                   </div>
                 )}
                 
-                <div className="mb-4 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isPublic"
-                    checked={formData.isPublic}
-                    onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                    disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                    className="w-4 h-4 text-teal-600 bg-white border-stone-300 rounded focus:ring-teal-500"
-                  />
-                  <label htmlFor="isPublic" className="text-sm font-medium text-orange-900">
-                    Hacer público (visible para todos los usuarios)
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-orange-900 mb-1">Nombre *</label>
+                <div id="sec-general" className="space-y-2 sm:space-y-4">
+                  <div className="mb-2 sm:mb-4 flex items-center gap-2">
                     <input
-                      type="text" required
-                      value={formData.nameES}
+                      type="checkbox"
+                      id="isPublic"
+                      checked={formData.isPublic}
+                      onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
                       disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                      onChange={e => setFormData({...formData, nameES: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder={`Ej: ${formData.type === 'elaborado' ? 'Sofrito tradicional' : 'Paella Valenciana'}`}
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600 bg-white border-stone-300 rounded focus:ring-teal-500"
                     />
+                    <label htmlFor="isPublic" className="text-xs sm:text-sm font-medium text-orange-900">
+                      Hacer público (visible para todos los usuarios)
+                    </label>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-orange-900 mb-1">Tipo *</label>
-                    <select
-                      value={formData.type}
-                      onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado' | 'bebida'})}
-                      disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                      className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="plato">Plato</option>
-                      <option value="elaborado">Elaborado</option>
-                      <option value="bebida">Bebida</option>
-                    </select>
-                  </div>
-                  {formData.type === 'elaborado' ? (
-                    <>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-orange-900 mb-1">Cantidad resultante</label>
-                          <input
-                            type="number" min="0" step="0.001" required
-                            value={formData.yieldQuantity ?? ''}
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
-                            onFocus={e => e.target.select()}
-                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            placeholder="Ej: 1.5"
-                          />
-                        </div>
-                        <div className="w-24">
-                          <label className="block text-sm font-medium text-orange-900 mb-1">Unidad</label>
-                          <select
-                            value={formData.yieldUnit}
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onChange={e => {
-                              const newUnit = e.target.value as 'kg' | 'L' | 'ud';
-                              setFormData({
-                                ...formData,
-                                yieldUnit: newUnit,
-                                portions: null
-                              });
-                            }}
-                            className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <option value="kg">kg</option>
-                            <option value="L">L</option>
-                            <option value="ud">ud</option>
-                          </select>
-                        </div>
-                      </div>
-                      {formData.yieldUnit === 'ud' && (() => {
-                        const theoreticalWeightKg = Number(formData.yieldQuantity) > 0 && formData.ingredients.length > 0
-                          ? calculateRecipeTotalWeightKg(formData.ingredients, ingredients, recipes) / Number(formData.yieldQuantity)
-                          : null;
-                        const theoreticalWeightText = theoreticalWeightKg && theoreticalWeightKg > 0
-                          ? theoreticalWeightKg < 1
-                            ? `${(theoreticalWeightKg * 1000).toFixed(1)} g`
-                            : `${theoreticalWeightKg.toFixed(3)} kg`
-                          : null;
 
-                        return (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-orange-900 mb-1 flex items-center justify-between">
-                                <span>Peso por unidad</span>
-                                {theoreticalWeightText && !formData.unitWeight && (
-                                  <span className="text-[11px] text-teal-700 font-normal">Calculado: {theoreticalWeightText}</span>
-                                )}
-                              </label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={formData.unitWeight ?? ''}
-                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                                  onChange={e => setFormData({ ...formData, unitWeight: e.target.value })}
-                                  onFocus={e => e.target.select()}
-                                  className="flex-1 px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                  placeholder={theoreticalWeightText ? theoreticalWeightText.split(' ')[0] : 'Ej: 45'}
-                                />
-                                <select
-                                  value={formData.unitWeightUnit || 'g'}
-                                  disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                                  onChange={e => setFormData({ ...formData, unitWeightUnit: e.target.value as 'g' | 'kg' })}
-                                  className="w-20 px-2 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-stone-700 text-sm"
-                                >
-                                  <option value="g">g</option>
-                                  <option value="kg">kg</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-orange-900 mb-1">Peso resultante / pieza</label>
-                              <div className="w-full px-4 py-2 bg-stone-100 border border-orange-200 rounded-xl text-stone-700 font-semibold h-[42px] flex items-center text-sm">
-                                {formData.unitWeight && Number(formData.unitWeight) > 0
-                                  ? `${formData.unitWeight} ${formData.unitWeightUnit || 'g'} / ud`
-                                  : theoreticalWeightText
-                                  ? `${theoreticalWeightText} / ud (según escandallo)`
-                                  : 'Introduce peso o ingredientes'}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-orange-900 mb-1">
-                        Raciones base del escandallo
-                      </label>
+                      <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">Nombre *</label>
                       <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        required
-                        value={formData.portions ?? 1}
+                        type="text" required
+                        value={formData.nameES}
                         disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onChange={e => {
-                          const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                          setFormData({ ...formData, portions: val });
-                        }}
-                        onFocus={e => e.target.select()}
-                        className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-stone-800"
-                        placeholder="Ej: 10"
+                        onChange={e => setFormData({...formData, nameES: e.target.value})}
+                        className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                        placeholder={`Ej: ${formData.type === 'elaborado' ? 'Sofrito tradicional' : 'Paella Valenciana'}`}
                       />
-                      <span className="text-[11px] text-stone-500 mt-1 block">
-                        Raciones para las que están calculados los ingredientes en esta ficha
-                      </span>
                     </div>
-                  )}
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">Tipo *</label>
+                      <select
+                        value={formData.type}
+                        onChange={e => setFormData({...formData, type: e.target.value as 'plato' | 'elaborado' | 'bebida'})}
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                      >
+                        <option value="plato">Plato</option>
+                        <option value="elaborado">Elaborado</option>
+                        <option value="bebida">Bebida</option>
+                      </select>
+                    </div>
+                    {formData.type === 'elaborado' ? (
+                      <>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">Cantidad resultante</label>
+                            <input
+                              type="number" min="0" step="0.001" required
+                              value={formData.yieldQuantity ?? ''}
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                              onChange={e => setFormData({...formData, yieldQuantity: e.target.value})}
+                              onFocus={e => e.target.select()}
+                              className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                              placeholder="Ej: 1.5"
+                            />
+                          </div>
+                          <div className="w-20 sm:w-24">
+                            <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">Unidad</label>
+                            <select
+                              value={formData.yieldUnit}
+                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                              onChange={e => {
+                                const newUnit = e.target.value as 'kg' | 'L' | 'ud';
+                                setFormData({
+                                  ...formData,
+                                  yieldUnit: newUnit,
+                                  portions: null
+                                });
+                              }}
+                              className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                            >
+                              <option value="kg">kg</option>
+                              <option value="L">L</option>
+                              <option value="ud">ud</option>
+                            </select>
+                          </div>
+                        </div>
+                        {formData.yieldUnit === 'ud' && (() => {
+                          const theoreticalWeightKg = Number(formData.yieldQuantity) > 0 && formData.ingredients.length > 0
+                            ? calculateRecipeTotalWeightKg(formData.ingredients, ingredients, recipes) / Number(formData.yieldQuantity)
+                            : null;
+                          const theoreticalWeightText = theoreticalWeightKg && theoreticalWeightKg > 0
+                            ? theoreticalWeightKg < 1
+                              ? `${(theoreticalWeightKg * 1000).toFixed(1)} g`
+                              : `${theoreticalWeightKg.toFixed(3)} kg`
+                            : null;
 
-                  {/* Descripción para la minuta (solo en platos y bebidas) */}
-                  {formData.type !== 'elaborado' && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-orange-900 mb-1 flex items-center justify-between">
-                        <span>Descripción para la minuta (opcional)</span>
-                        <span className="text-xs text-stone-500 font-normal">Saldrá bajo el nombre del plato en la minuta con letra más clarita</span>
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={formData.descriptionES}
-                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                        onChange={e => setFormData({...formData, descriptionES: e.target.value})}
-                        className="w-full px-4 py-2 bg-white border border-orange-200 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        placeholder="Ej: Acompañado de reducción de frutos rojos y cremoso de patata trufada..."
-                      />
-                    </div>
-                  )}
+                          return (
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4 md:col-span-2">
+                              <div>
+                                <label className="block text-[11px] sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">
+                                  <span>Peso por unidad</span>
+                                  {theoreticalWeightText && !formData.unitWeight && (
+                                    <span className="text-[10px] text-teal-700 font-normal block sm:inline sm:ml-1">Calc: {theoreticalWeightText}</span>
+                                  )}
+                                </label>
+                                <div className="flex gap-1.5 sm:gap-2">
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={formData.unitWeight ?? ''}
+                                    disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                    onChange={e => setFormData({ ...formData, unitWeight: e.target.value })}
+                                    onFocus={e => e.target.select()}
+                                    className="flex-1 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                                    placeholder={theoreticalWeightText ? theoreticalWeightText.split(' ')[0] : 'Ej: 45'}
+                                  />
+                                  <select
+                                    value={formData.unitWeightUnit || 'g'}
+                                    disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                    onChange={e => setFormData({ ...formData, unitWeightUnit: e.target.value as 'g' | 'kg' })}
+                                    className="w-14 sm:w-20 px-1.5 sm:px-2 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-stone-700 text-xs sm:text-sm"
+                                  >
+                                    <option value="g">g</option>
+                                    <option value="kg">kg</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">Peso resultante / pieza</label>
+                                <div className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-stone-100 border border-orange-200 rounded-lg sm:rounded-xl text-stone-700 font-semibold h-[32px] sm:h-[42px] flex items-center text-xs sm:text-sm truncate">
+                                  {formData.unitWeight && Number(formData.unitWeight) > 0
+                                    ? `${formData.unitWeight} ${formData.unitWeightUnit || 'g'} / ud`
+                                    : theoreticalWeightText
+                                    ? `${theoreticalWeightText} / ud`
+                                    : 'Sin datos'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1">
+                          Raciones base del escandallo
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          required
+                          value={formData.portions ?? 1}
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onChange={e => {
+                            const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                            setFormData({ ...formData, portions: val });
+                          }}
+                          onFocus={e => e.target.select()}
+                          className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-stone-800 text-xs sm:text-sm"
+                          placeholder="Ej: 10"
+                        />
+                        <span className="text-[10px] sm:text-[11px] text-stone-500 mt-0.5 sm:mt-1 block">
+                          Raciones para las que están calculados los ingredientes en esta ficha
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Descripción para la minuta (solo en platos y bebidas) */}
+                    {formData.type !== 'elaborado' && (
+                      <div className="md:col-span-2">
+                        <label className="block text-xs sm:text-sm font-medium text-orange-900 mb-0.5 sm:mb-1 flex items-center justify-between">
+                          <span>Descripción para la minuta (opcional)</span>
+                          <span className="text-[10px] sm:text-xs text-stone-500 font-normal">Para la minuta</span>
+                        </label>
+                        <textarea
+                          rows={1}
+                          value={formData.descriptionES}
+                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                          onChange={e => setFormData({...formData, descriptionES: e.target.value})}
+                          className="w-full px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-orange-200 shadow-2xs rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                          placeholder="Ej: Acompañado de reducción de frutos rojos y cremoso de patata trufada..."
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">Ingredientes (Escandallo)</label>
+                <div id="sec-escandallo">
+                  <div className="flex justify-between items-center mb-1.5 sm:mb-3">
+                    <label className="block text-xs sm:text-sm font-bold text-stone-900">Ingredientes (Escandallo)</label>
+                    <span className="text-[11px] sm:text-xs text-stone-500 font-medium">
+                      {formData.ingredients.length} items · Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
+                    </span>
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-1.5 sm:space-y-3">
                     {formData.ingredients.map((ri, index) => {
                       const selectedIng = ingredients.find(i => i.id === ri.ingredientId);
                       const subRecipe = recipes.find(r => r.id === ri.ingredientId);
@@ -1458,187 +1591,228 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       }
                       
                       return (
-                        <div key={index} className="flex gap-2 items-start bg-white p-2 px-3 rounded-lg border border-orange-200 shadow-sm relative">
-                          <div className="flex-1 min-w-0 flex gap-1.5 pt-3">
-                            <IngredientSelect
-                              value={ri.ingredientId}
-                              onChange={id => {
-                                updateRecipeIngredient(index, 'ingredientId', id);
-                                if (newlyAddedIndex === index) {
-                                  setNewlyAddedIndex(null);
-                                }
-                                setFocusedNetIndex(index);
-                              }}
-                              ingredients={ingredients}
-                              recipes={recipes}
-                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              itemType={ri.itemType}
-                              currentRecipeId={editingId}
-                              autoFocus={newlyAddedIndex === index}
-                              onClose={() => {
-                                if (newlyAddedIndex === index) {
-                                  setNewlyAddedIndex(null);
-                                }
-                              }}
-                            />
+                        <div key={index} className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-orange-200 shadow-2xs relative flex flex-col md:flex-row gap-1.5 md:gap-3 items-stretch md:items-start">
+                          {/* Fila 1: Selector de ingrediente + Botones de acción rápida y coste */}
+                          <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0 md:pt-3">
+                            <div className="flex-1 min-w-0">
+                              <IngredientSelect
+                                value={ri.ingredientId}
+                                onChange={id => {
+                                  updateRecipeIngredient(index, 'ingredientId', id);
+                                  if (newlyAddedIndex === index) {
+                                    setNewlyAddedIndex(null);
+                                  }
+                                  setFocusedNetIndex(index);
+                                }}
+                                ingredients={ingredients}
+                                recipes={recipes}
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                itemType={ri.itemType}
+                                currentRecipeId={editingId}
+                                autoFocus={newlyAddedIndex === index}
+                                onClose={() => {
+                                  if (newlyAddedIndex === index) {
+                                    setNewlyAddedIndex(null);
+                                  }
+                                }}
+                              />
+                            </div>
                             {selectedIng && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  // We need to trigger the edit ingredient modal.
-                                  // Let's add an editingIngredientId state.
                                   setEditingIngredientId(selectedIng.id);
                                   setIsIngredientModalOpen(true);
                                 }}
-                                className="p-1.5 text-stone-500 hover:text-teal-600 bg-white border border-orange-200 rounded-lg flex-shrink-0 h-[34px]"
+                                className="p-1 sm:p-1.5 text-stone-500 hover:text-teal-600 bg-white border border-orange-200 rounded-md sm:rounded-lg shrink-0 h-[30px] sm:h-[34px] w-[30px] sm:w-[34px] flex items-center justify-center cursor-pointer"
                                 title="Editar ingrediente"
                               >
-                                <Edit2 size={16} />
+                                <Edit2 size={13} />
                               </button>
                             )}
                             {subRecipe && (
-                              <a
-                                href={`/elaborados?edit=${ri.ingredientId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-stone-500 hover:text-indigo-600 bg-white border border-orange-200 rounded-lg flex items-center justify-center flex-shrink-0 h-[34px]"
-                                title="Editar elaborado en nueva pestaña"
+                              <button
+                                type="button"
+                                onClick={() => openEdit(subRecipe)}
+                                className="p-1 sm:p-1.5 text-stone-500 hover:text-indigo-600 bg-white border border-orange-200 rounded-md sm:rounded-lg shrink-0 h-[30px] sm:h-[34px] w-[30px] sm:w-[34px] flex items-center justify-center cursor-pointer"
+                                title="Consultar / Editar elaborado"
                               >
-                                <Edit2 size={16} />
-                              </a>
+                                <Edit2 size={13} />
+                              </button>
                             )}
+
+                            {/* Coste y papelera en la misma fila en móvil para máxima compacidad */}
+                            <div className="flex md:hidden items-center gap-1 shrink-0 ml-auto pl-1">
+                              <span className="font-bold text-teal-700 text-[11px] sm:text-xs font-mono bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                {cost.toFixed(2)} €
+                              </span>
+                              <button
+                                type="button"
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                onClick={() => removeRecipeIngredient(index)}
+                                className="p-1 text-stone-400 hover:text-red-600 active:bg-red-50 rounded transition-colors h-[28px] w-[28px] flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                title="Eliminar"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                           
-                          <div className="w-40 shrink-0 pt-3 relative">
-                            <div className="absolute top-0 left-1 text-[9px] text-stone-500 font-medium uppercase tracking-wider">preelaborar</div>
-                            <input
-                              type="text"
-                              value={ri.preparation || ''}
-                              onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
-                              placeholder="Mirepoix, escaldar..."
-                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                              className="w-full px-2 py-1.5 h-[34px] text-[13px] bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Preelaboración"
-                            />
+                          {/* Fila 2: En móvil, 2 columnas compactas (Preelaboración y Pesos/Unidades) */}
+                          <div className="grid grid-cols-2 md:contents gap-1.5 sm:gap-2">
+                            <div className="w-full md:w-36 lg:w-40 shrink-0 md:pt-3 relative">
+                              <div className="hidden md:block text-[9px] md:absolute md:top-0 md:left-1 text-stone-500 font-medium uppercase tracking-wider mb-0.5 md:mb-0">
+                                Preelaborar
+                              </div>
+                              <input
+                                type="text"
+                                value={ri.preparation || ''}
+                                onChange={e => updateRecipeIngredient(index, 'preparation', e.target.value)}
+                                placeholder="Preelaborar..."
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                                className="w-full px-2 py-1 md:py-1.5 h-[30px] sm:h-[34px] text-xs sm:text-[13px] bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 placeholder-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Preelaboración (corte, limpieza, etc.)"
+                              />
+                            </div>
+
+                            <div className="w-full md:w-52 lg:w-56 shrink-0 md:pt-3 relative">
+                              <RecipeIngredientInput
+                                ri={ri}
+                                index={index}
+                                selectedIng={selectedIng}
+                                subRecipe={subRecipe}
+                                editingId={editingId}
+                                recipes={recipes}
+                                updateRecipeIngredient={updateRecipeIngredient}
+                                canEditField={canEditField}
+                                autoFocusNet={focusedNetIndex === index}
+                                onNetFocused={() => setFocusedNetIndex(null)}
+                              />
+                            </div>
                           </div>
 
-                          <div className="w-56 shrink-0 pt-3 relative">
-                            <RecipeIngredientInput
-                              ri={ri}
-                              index={index}
-                              selectedIng={selectedIng}
-                              subRecipe={subRecipe}
-                              editingId={editingId}
-                              recipes={recipes}
-                              updateRecipeIngredient={updateRecipeIngredient}
-                              canEditField={canEditField}
-                              autoFocusNet={focusedNetIndex === index}
-                              onNetFocused={() => setFocusedNetIndex(null)}
-                            />
-                          </div>
-                          <div className="w-24 text-right font-bold text-teal-700 pt-[22px] text-sm">
+                          {/* Coste y papelera solo en escritorio */}
+                          <div className="hidden md:block w-20 lg:w-24 text-right font-bold text-teal-700 pt-[22px] text-sm shrink-0 font-mono">
                             {cost.toFixed(2)} €
                           </div>
-                          <div className="pt-3">
+                          <div className="hidden md:block pt-3 shrink-0">
                             <button
                               type="button"
                               disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
                               onClick={() => removeRecipeIngredient(index)}
-                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[34px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors h-[34px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                              title="Eliminar ingrediente"
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>
                       );
                     })}
                     {formData.ingredients.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
+                      <div className="text-center py-4 sm:py-6 text-stone-500 text-xs sm:text-sm border-2 border-dashed border-orange-200 rounded-lg sm:rounded-xl">
                         No hay ingredientes añadidos.
                       </div>
                     )}
-                    <div className="flex gap-4 mt-4">
-                      <div className="flex-1 flex flex-col gap-2">
-                        <button
-                          type="button"
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                          onClick={addIngredientToRecipe}
-                          className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Plus size={18} /> Añadir ingrediente
-                        </button>
-                        {appUser?.role !== 'docente' && (
-                          <button
-                            type="button"
-                            disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                            onClick={() => setIsIngredientModalOpen(true)}
-                            className="w-full py-2 bg-white border border-orange-200 shadow-sm text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Plus size={14} /> Nuevo ingrediente
-                          </button>
-                        )}
-                      </div>
 
-                      <div className="flex-1 flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-4 mt-2 sm:mt-4">
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onClick={addIngredientToRecipe}
+                        className="w-full py-1.5 sm:py-3 border-2 border-dashed border-stone-300 rounded-lg sm:rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1 font-medium text-xs sm:text-sm disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <Plus size={15} /> Añadir ingrediente
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onClick={addElaboradoToRecipe}
+                        className="w-full py-1.5 sm:py-3 border-2 border-dashed border-indigo-200 rounded-lg sm:rounded-xl text-indigo-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1 font-medium text-xs sm:text-sm disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <Plus size={15} /> Añadir elaborado
+                      </button>
+
+                      {appUser?.role !== 'docente' && (
                         <button
                           type="button"
                           disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                          onClick={addElaboradoToRecipe}
-                          className="w-full py-3 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                          onClick={() => setIsIngredientModalOpen(true)}
+                          className="w-full py-1 sm:py-2 bg-white border border-orange-200 shadow-2xs text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                         >
-                          <Plus size={18} /> Añadir elaborado
+                          <Plus size={12} /> Nuevo ingrediente
                         </button>
-                        <button
-                          type="button"
-                          disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
-                          onClick={() => setIsElaboradoModalOpen(true)}
-                          className="w-full py-2 bg-white border border-orange-200 shadow-sm text-stone-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5 rounded-xl text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Plus size={14} /> Nuevo elaborado
-                        </button>
-                      </div>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false}
+                        onClick={() => setIsElaboradoModalOpen(true)}
+                        className={`w-full py-1 sm:py-2 bg-white border border-orange-200 shadow-2xs text-stone-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer ${
+                          appUser?.role === 'docente' ? 'col-span-2' : ''
+                        }`}
+                      >
+                        <Plus size={12} /> Nuevo elaborado
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">{formData.type !== 'elaborado' ? 'Pasos' : 'Pasos de receta'}</label>
+                <div id="sec-pasos">
+                  <div className="flex justify-between items-center mb-1.5 sm:mb-3">
+                    <label className="block text-xs sm:text-sm font-bold text-stone-900">
+                      {formData.type !== 'elaborado' ? 'Pasos' : 'Pasos de receta'}
+                    </label>
+                    <span className="text-[11px] sm:text-xs text-stone-500 font-medium">
+                      {formData.steps.length} {formData.steps.length === 1 ? 'paso' : 'pasos'}
+                    </span>
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-1.5 sm:space-y-3">
                     {formData.steps.map((step, index) => {
                       const parsed = parseStepStr(step);
                       return (
-                        <div key={index} className="flex flex-col md:flex-row gap-3 items-start bg-stone-50 p-3 rounded-xl border border-orange-200">
-                          <div className="flex items-center gap-2 w-full md:w-auto self-stretch shrink-0">
-                            <div className="font-bold text-stone-400 w-6 text-center shrink-0">{index + 1}.</div>
-                            {formData.type !== 'elaborado' && (
-                              <div className="flex items-center gap-1.5 bg-white border border-orange-200 px-2 py-1.5 rounded-lg shrink-0">
-                                <span className="text-[10px] text-stone-500 font-medium font-sans">Tiempo:</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={59}
-                                  value={parsed.minutes || ''}
-                                  placeholder="Min"
-                                  disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
-                                  onChange={e => updateStepMinutes(index, parseInt(e.target.value, 10) || 0)}
-                                  className="w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
-                                />
-                                <span className="text-stone-400 text-xs font-bold">:</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={59}
-                                  value={parsed.seconds || ''}
-                                  placeholder="Seg"
-                                  disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
-                                  onChange={e => updateStepSeconds(index, parseInt(e.target.value, 10) || 0)}
-                                  className="w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
-                                />
-                              </div>
-                            )}
+                        <div key={index} className="flex flex-col md:flex-row gap-1.5 sm:gap-3 items-stretch md:items-start bg-stone-50 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-orange-200">
+                          <div className="flex items-center justify-between gap-1.5 w-full md:w-auto self-stretch shrink-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="font-bold text-stone-500 text-xs sm:text-sm w-5 text-center shrink-0">{index + 1}.</div>
+                              {formData.type !== 'elaborado' && (
+                                <div className="flex items-center gap-1 bg-white border border-orange-200 px-1.5 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg shrink-0">
+                                  <span className="text-[9px] sm:text-[10px] text-stone-500 font-medium font-sans">Tiempo:</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    value={parsed.minutes || ''}
+                                    placeholder="Min"
+                                    disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                                    onChange={e => updateStepMinutes(index, parseInt(e.target.value, 10) || 0)}
+                                    className="w-8 sm:w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                  />
+                                  <span className="text-stone-400 text-xs font-bold">:</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    value={parsed.seconds || ''}
+                                    placeholder="Seg"
+                                    disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                                    onChange={e => updateStepSeconds(index, parseInt(e.target.value, 10) || 0)}
+                                    className="w-8 sm:w-10 text-center text-xs border-b border-orange-200 focus:outline-none focus:border-teal-500 font-mono font-bold text-teal-700"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
+                              onClick={() => removeStep(index)}
+                              className="md:hidden p-1 text-stone-400 hover:text-red-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Eliminar paso"
+                            >
+                              <Trash2 size={15} />
+                            </button>
                           </div>
                           <textarea
                             ref={el => {
@@ -1659,14 +1833,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 updateStep(index, e.target.value);
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-stone-800"
+                            className="flex-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm text-stone-800"
                             placeholder={formData.type !== 'elaborado' ? 'Ej: Marcar carne, regenerar puré, montar plato...' : 'Describe este paso de la elaboración...'}
                           />
                           <button
                             type="button"
                             disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                             onClick={() => removeStep(index)}
-                            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="hidden md:block p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Eliminar paso"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -1674,7 +1849,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       );
                     })}
                     {formData.steps.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
+                      <div className="text-center py-4 sm:py-6 text-stone-500 text-xs sm:text-sm border-2 border-dashed border-orange-200 rounded-lg sm:rounded-xl">
                         No hay pasos añadidos.
                       </div>
                     )}
@@ -1682,22 +1857,25 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       type="button"
                       disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                       onClick={addStep}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 sm:py-3 border-2 border-dashed border-stone-300 rounded-lg sm:rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 font-medium text-xs sm:text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                     >
-                      <Plus size={18} /> Añadir paso
+                      <Plus size={16} /> Añadir paso
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-stone-900">Material y Equipamiento</label>
+                <div id="sec-material">
+                  <div className="flex justify-between items-center mb-1.5 sm:mb-3">
+                    <label className="block text-xs sm:text-sm font-bold text-stone-900">Material y Equipamiento</label>
+                    <span className="text-[11px] sm:text-xs text-stone-500 font-medium">
+                      {formData.equipment.length} items
+                    </span>
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-1.5 sm:space-y-3">
                     {formData.equipment.map((eq, index) => (
-                      <div key={index} className="flex gap-2 items-start bg-white p-2 px-3 rounded-lg border border-orange-200 shadow-sm relative">
-                        <div className="pt-2 font-bold text-stone-400 w-6 text-center">•</div>
+                      <div key={index} className="flex gap-1.5 sm:gap-2 items-center bg-white p-1.5 px-2.5 sm:p-2 sm:px-3 rounded-lg border border-orange-200 shadow-2xs relative">
+                        <div className="font-bold text-stone-400 text-xs w-4 text-center shrink-0">•</div>
                         <input
                           type="text"
                           required
@@ -1715,21 +1893,22 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               }, 0);
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 px-2.5 py-1 sm:py-2 h-[30px] sm:h-auto text-xs sm:text-sm bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder="Ej: 1 sartén, 1 batidora..."
                         />
                         <button
                           type="button"
                           disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'logistica') : false}
                           onClick={() => removeEquipment(index)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1 sm:p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                          title="Eliminar material"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     ))}
                     {formData.equipment.length === 0 && (
-                      <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
+                      <div className="text-center py-4 sm:py-6 text-stone-500 text-xs sm:text-sm border-2 border-dashed border-orange-200 rounded-lg sm:rounded-xl">
                         No hay material añadido.
                       </div>
                     )}
@@ -1737,43 +1916,43 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       type="button"
                       disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'logistica') : false}
                       onClick={addEquipment}
-                      className="w-full py-3 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 sm:py-3 border-2 border-dashed border-stone-300 rounded-lg sm:rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 font-medium text-xs sm:text-base disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                     >
-                      <Plus size={18} /> Añadir material
+                      <Plus size={16} /> Añadir material
                     </button>
                   </div>
                 </div>
 
                 {formData.type !== 'elaborado' && (
-                  <div>
-                    <label className="block text-sm font-medium text-stone-900 mb-1">Mise en place</label>
+                  <div id="sec-mise">
+                    <label className="block text-xs sm:text-sm font-bold text-stone-900 mb-1">Mise en place</label>
                     <textarea
-                      rows={3}
+                      rows={2}
                       value={formData.miseEnPlace}
                       disabled={editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false}
                       onChange={e => setFormData({ ...formData, miseEnPlace: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Describe la mise en place necesaria..."
                     />
                   </div>
                 )}
 
                 {formData.type !== 'elaborado' && (
-                  <div className="mt-8 border-t border-orange-200 pt-6">
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="block text-sm font-medium text-stone-900">Tareas para Lista de Trabajo</label>
+                  <div className="mt-4 sm:mt-8 border-t border-orange-200 pt-3 sm:pt-6">
+                    <div className="flex justify-between items-center mb-1.5 sm:mb-3">
+                      <label className="block text-xs sm:text-sm font-bold text-stone-900">Tareas para Lista de Trabajo</label>
                       <button
                         type="button"
                         disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
                         onClick={addWorkListTask}
-                        className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="text-xs sm:text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <Plus size={16} /> Añadir Tarea
+                        <Plus size={15} /> Añadir Tarea
                       </button>
                     </div>
-                    <p className="text-xs text-stone-500 mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
+                    <p className="text-[11px] sm:text-xs text-stone-500 mb-2 sm:mb-4">Estas tareas se añadirán automáticamente cuando agregues esta receta a una Lista de Trabajo de Producción.</p>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-1.5 sm:space-y-3">
                       {formData.workListTasks.map((task, index) => {
                         const processes = settings?.processes || [];
                         const currentProcessLower = task.process?.toLowerCase().trim() || '';
@@ -1783,14 +1962,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         }
 
                         return (
-                          <div key={task.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-xl border border-orange-200">
-                            <div className="flex-1 max-w-[200px]">
+                          <div key={task.id} className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 items-stretch sm:items-center bg-stone-50 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-orange-200">
+                            <div className="flex-1 sm:max-w-[200px]">
                               <select
                                 required
                                 value={task.process}
                                 disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
                                 onChange={e => updateWorkListTask(index, 'process', e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-orange-900"
+                                className="w-full px-2.5 py-1 sm:py-2 text-xs sm:text-sm bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-orange-900 h-[30px] sm:h-auto"
                               >
                                 <option value="">-- Proceso --</option>
                                 {processOptions.map((p, i) => (
@@ -1800,30 +1979,31 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 ))}
                               </select>
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 flex items-center gap-1.5">
                               <input
                                 type="text"
                                 required
                                 value={task.element}
                                 disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
                                 onChange={e => updateWorkListTask(index, 'element', e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900"
+                                className="flex-1 px-2.5 py-1 sm:py-2 text-xs sm:text-sm bg-white border border-orange-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900 h-[30px] sm:h-auto"
                                 placeholder="Ej: PESCADO CEVICHE"
                               />
+                              <button
+                                type="button"
+                                disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
+                                onClick={() => removeWorkListTask(index)}
+                                className="p-1 sm:p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Eliminar tarea"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              disabled={editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'tareas') : false}
-                              onClick={() => removeWorkListTask(index)}
-                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <Trash2 size={18} />
-                            </button>
                           </div>
                         );
                       })}
                       {formData.workListTasks.length === 0 && (
-                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-200 rounded-xl">
+                        <div className="text-center py-4 sm:py-6 text-stone-500 text-xs sm:text-sm border-2 border-dashed border-orange-200 rounded-lg sm:rounded-xl">
                           No hay tareas configuradas para esta receta.
                         </div>
                       )}
@@ -1831,8 +2011,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                 )}
 
-                <div className="mt-8 border-t border-orange-200 pt-6">
-                  <div className="flex items-center gap-4">
+                <div className="mt-3 sm:mt-8 border-t border-orange-200 pt-2.5 sm:pt-6">
+                  <div className="flex items-center gap-2.5 sm:gap-4">
                     <input
                       type="file"
                       ref={imageFileInputRef}
@@ -1845,29 +2025,29 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       type="button"
                       disabled={uploadingImage || (editingId ? !isOwner(recipes.find(r => r.id === editingId)!) : false)}
                       onClick={() => imageFileInputRef.current?.click()}
-                      className="flex-1 py-3 bg-white border-2 border-dashed border-stone-300 rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50"
+                      className="flex-1 py-1.5 sm:py-3 bg-white border-2 border-dashed border-stone-300 rounded-lg sm:rounded-xl text-stone-600 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors flex items-center justify-center gap-1.5 font-medium text-xs sm:text-sm disabled:opacity-50 cursor-pointer"
                     >
-                      <Camera size={18} />
-                      {uploadingImage ? 'Subiendo imagen...' : (formData.imageUrl ? 'Cambiar Imagen' : 'Añadir Imagen')}
+                      <Camera size={15} />
+                      {uploadingImage ? 'Subiendo...' : (formData.imageUrl ? 'Cambiar Foto' : 'Añadir Foto')}
                     </button>
                     {formData.imageUrl && (
-                      <img src={formData.imageUrl} alt="Vista previa" className="w-12 h-12 object-cover rounded-lg border border-orange-200 shrink-0" />
+                      <img src={formData.imageUrl} alt="Vista previa" className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-md sm:rounded-lg border border-orange-200 shrink-0" />
                     )}
                   </div>
                 </div>
               </div>
             
-              <div className="p-6 border-t border-orange-200 flex justify-end gap-3 bg-stone-50 rounded-b-2xl shrink-0">
+              <div className="p-2 sm:p-6 border-t border-orange-200 flex justify-end gap-2 bg-stone-50 rounded-none sm:rounded-b-2xl shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-stone-600 hover:bg-stone-200 rounded-xl font-medium transition-colors"
+                  className="px-3.5 py-1.5 sm:px-5 sm:py-2.5 text-stone-600 hover:bg-stone-200 rounded-lg sm:rounded-xl text-xs sm:text-base font-medium transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+                  className="px-4 py-1.5 sm:px-5 sm:py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg sm:rounded-xl text-xs sm:text-base font-medium transition-colors cursor-pointer"
                 >
                   Guardar Receta
                 </button>
