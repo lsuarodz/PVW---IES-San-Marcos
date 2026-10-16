@@ -435,7 +435,7 @@ export default function ArchivedOrdersModal({
       );
 
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 150));
 
       const opt = {
         margin: [12, 10, 12, 10],

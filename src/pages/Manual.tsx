@@ -10,8 +10,17 @@ export default function Manual() {
   const { settings } = useData();
 
   // Función para exportar el contenido a PDF usando html2pdf.js
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (printRef.current) {
+      if (typeof document !== 'undefined' && 'fonts' in document) {
+        try {
+          await document.fonts.ready;
+        } catch (e) {
+          console.warn('Font loading check:', e);
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       const opt = {
         margin: [0.3, 0.3, 0.3, 0.3], // Pequeños márgenes para maximizar contenido por página
         filename: activeTab === 'usuario' 
@@ -28,7 +37,7 @@ export default function Manual() {
         pagebreak: { mode: 'css', avoid: ['.print-avoid-break', 'h1', 'h2', 'h3'] }
       };
       // Ejecutamos la conversión
-      generatePDF(printRef.current, opt);
+      await generatePDF(printRef.current, opt);
     }
   };
 

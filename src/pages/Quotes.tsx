@@ -944,9 +944,14 @@ export default function Quotes() {
         ${menusHtml}
         
         <script>
-          setTimeout(() => {
-            window.print();
-          }, 800);
+          (async () => {
+            if ('fonts' in document) {
+              try { await document.fonts.ready; } catch(e) {}
+            }
+            setTimeout(() => {
+              window.print();
+            }, 150);
+          })();
         </script>
       </body>
       </html>

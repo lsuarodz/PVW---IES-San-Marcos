@@ -464,7 +464,16 @@ export default function Menus() {
             })
           );
 
+          if (typeof document !== 'undefined' && 'fonts' in document) {
+            try {
+              await document.fonts.ready;
+            } catch (e) {
+              console.warn('Font loading check:', e);
+            }
+          }
+
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          await new Promise(r => setTimeout(r, 150));
 
           const opt = {
             margin: 0,
@@ -513,6 +522,15 @@ export default function Menus() {
     setTimeout(async () => {
       if (printEquipmentRef.current) {
         try {
+          if (typeof document !== 'undefined' && 'fonts' in document) {
+            try {
+              await document.fonts.ready;
+            } catch (e) {
+              console.warn('Font loading check:', e);
+            }
+          }
+          await new Promise(r => setTimeout(r, 150));
+
           const opt = {
             margin: 0,
             filename: `Material_Menu_${menu.nameES.replace(/\s+/g, '_')}.pdf`,

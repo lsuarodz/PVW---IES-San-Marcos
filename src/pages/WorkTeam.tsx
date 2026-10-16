@@ -188,8 +188,17 @@ export default function WorkTeam() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Font loading check:', e);
+      }
+    }
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const handleDeleteAllSubmissions = async () => {

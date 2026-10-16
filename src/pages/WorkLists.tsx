@@ -397,7 +397,14 @@ export default function WorkLists() {
       setIsExportingPDF(true);
       showToast('Generando PDF formateado...', 'info');
       // Esperar un breve momento para que React re-renderice la vista en modo estático
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      if (typeof document !== 'undefined' && 'fonts' in document) {
+        try {
+          await document.fonts.ready;
+        } catch (e) {
+          console.warn('Font loading check:', e);
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       const fileName = `lista_trabajo_${(editingList.title || 'sin_nombre')
         .toLowerCase()

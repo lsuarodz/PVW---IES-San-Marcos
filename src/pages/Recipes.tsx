@@ -14,6 +14,7 @@ import CreateElaboradoModal from '../components/CreateElaboradoModal';
 import ImportRecipeModal from '../components/ImportRecipeModal';
 import ConfirmModal from '../components/ConfirmModal';
 import IngredientSelect from '../components/IngredientSelect';
+import RecipePrintModal, { RecipePrintMode } from '../components/RecipePrintModal';
 import { generatePDF } from '../utils/pdf';
 import { calculateRecipeTotalCost, getRecipeAllergens, calculateRecipeTotalWeightKg, getRecipeUnitWeightDisplay } from '../utils/calculations';
 import { canViewItem } from '../utils/visibility';
@@ -121,6 +122,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const printRef = useRef<HTMLDivElement>(null);
   const [printingRecipe, setPrintingRecipe] = useState<Recipe | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [printModalRecipe, setPrintModalRecipe] = useState<Recipe | null>(null);
+  const [currentPrintMode, setCurrentPrintMode] = useState<RecipePrintMode>('complete');
+  const [includeSubRecipesInPrint, setIncludeSubRecipesInPrint] = useState<boolean>(true);
   
   // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
@@ -600,9 +604,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   
-  const getPrintableRecipes = (mainRecipe: Recipe) => {
+  const getPrintableRecipes = (mainRecipe: Recipe, includeSub = includeSubRecipesInPrint) => {
     const list = [mainRecipe];
-    if (mainRecipe.type !== 'elaborado') {
+    if (includeSub && mainRecipe.type !== 'elaborado') {
       const elaboradosIds = mainRecipe.ingredients
         .filter(ri => ri.itemType === 'elaborado' || recipes.find(r => r.id === ri.ingredientId)?.type === 'elaborado')
         .map(ri => ri.ingredientId);
@@ -615,10 +619,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     return list;
   };
 
-  const exportPDF = async (recipe: Recipe) => {
+  const exportPDF = async (
+    recipe: Recipe,
+    mode: RecipePrintMode = 'complete',
+    includeSub: boolean = true
+  ) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingRecipe(recipe);
+    setCurrentPrintMode(mode);
+    setIncludeSubRecipesInPrint(includeSub);
+    setPrintModalRecipe(null);
     showToast('Generando PDF...', 'info');
     
     // Safety timeout to unblock UI if something goes wrong
@@ -633,6 +644,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
     setTimeout(async () => {
       if (printRef.current) {
         try {
+          // Asegurarse de que las fuentes estén cargadas y dar tiempo a computar estilos
+          if (typeof document !== 'undefined' && 'fonts' in document) {
+            await document.fonts.ready;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 150));
+
           // Preload any images within printRef to ensure clean rendering
           const images = Array.from(printRef.current.querySelectorAll('img'));
           await Promise.all(
@@ -645,9 +662,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             })
           );
 
+          const modePrefix = mode === 'technical'
+            ? 'Ficha_Tecnica'
+            : mode === 'costing'
+              ? 'Escandallo'
+              : 'Ficha_Completa';
+
           const opt = {
             margin: [14, 12, 14, 12], // mm: Top, Left, Bottom, Right on EVERY page
-            filename: `Receta_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
+            filename: `${modePrefix}_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { 
               scale: 2, 
@@ -666,6 +689,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           };
           
           await generatePDF(printRef.current, opt);
+          showToast('PDF generado correctamente.', 'success');
         } catch (err: any) {
           console.error('Error generating PDF:', err);
           showToast('Error al generar el PDF. Por favor, inténtalo de nuevo.', 'error');
@@ -1106,10 +1130,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </button>
                   )}
                   <button 
-                    onClick={() => exportPDF(recipe)} 
+                    onClick={() => setPrintModalRecipe(recipe)} 
                     disabled={isPrinting}
-                    className="p-1.5 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:opacity-50" 
-                    title="Imprimir"
+                    className="p-1.5 text-stone-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:opacity-50 cursor-pointer" 
+                    title="Imprimir (Ficha técnica, Escandallo o Completa)"
                   >
                     <Printer size={14} />
                   </button>
@@ -1204,6 +1228,21 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <Sparkles size={14} className="text-amber-600" />
                   Importar PDF
                 </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rec = recipes.find(r => r.id === editingId);
+                      if (rec) setPrintModalRecipe(rec);
+                    }}
+                    disabled={isPrinting}
+                    className="px-3 py-1 bg-white hover:bg-teal-50 text-stone-700 hover:text-teal-700 border border-orange-300 hover:border-teal-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    title="Imprimir (Ficha técnica, Escandallo o Completa)"
+                  >
+                    <Printer size={14} className="text-teal-600" />
+                    Imprimir
+                  </button>
+                )}
               </div>
               <div className="text-lg font-bold text-teal-700 bg-teal-50 border-teal-100 px-3 py-1 rounded-lg shadow-sm border border-orange-200">
                 Total: {calculateRecipeTotalCost(formData.ingredients, ingredients, recipes).toFixed(2)} €
@@ -1917,7 +1956,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <div className="z-10 w-full">
               <div className="border-b border-orange-200 pb-3 mb-4 flex justify-between items-start print-avoid-break">
                 <div>
-                  <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">Ficha Técnica de Producción</div>
+                  <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">
+                    {currentPrintMode === 'technical'
+                      ? 'Ficha Técnica de Cocina · Sin Datos Económicos'
+                      : currentPrintMode === 'costing'
+                        ? 'Escandallo Detallado · Control de Costes y Rendimientos'
+                        : 'Ficha Técnica de Producción y Escandallo Completo'}
+                  </div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
                   {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
                   {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-2 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
@@ -1931,10 +1976,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </div>
               
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4 print-avoid-break">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-stone-400 uppercase tracking-widest">Coste:</span>
-                    <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
-                  </div>
+                  {currentPrintMode !== 'technical' && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
+                      <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  {currentPrintMode !== 'technical' && printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Coste/Ración:</span>
+                      <span className="text-teal-700 font-bold text-[10px]">
+                        {(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €
+                      </span>
+                    </div>
+                  )}
                   {printingRecipe.portions && printingRecipe.type !== 'elaborado' && (
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
@@ -1966,16 +2021,29 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Escandallo Detallado</h3>
+                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
+                    {currentPrintMode === 'technical' ? 'Ingredientes y Preelaboración' : 'Escandallo Detallado'}
+                  </h3>
                   <table className="w-full text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
                     <thead>
                       <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans text-[9px]">
-                        <th className="py-2.5 px-2 font-medium w-[26%]">Ingrediente</th>
-                        <th className="py-2.5 px-2 font-medium w-[23%]">Preelaboración</th>
-                        <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Bruto</th>
-                        <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Neto</th>
-                        <th className="py-2.5 px-2 font-medium text-right w-[11%]">Coste/Ud</th>
-                        <th className="py-2.5 px-2 font-medium text-right w-[12%]">Total</th>
+                        {currentPrintMode === 'technical' ? (
+                          <>
+                            <th className="py-2.5 px-2 font-medium w-[36%]">Ingrediente / Elaborado</th>
+                            <th className="py-2.5 px-2 font-medium w-[30%]">Preelaboración</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[17%]">P. Bruto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[17%]">P. Neto</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="py-2.5 px-2 font-medium w-[26%]">Ingrediente</th>
+                            <th className="py-2.5 px-2 font-medium w-[23%]">Preelaboración</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Bruto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Neto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[11%]">Coste/Ud</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[12%]">Total</th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 font-sans">
@@ -2012,22 +2080,75 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                               {formattedNet} {unit}
                               {waste > 0 && <span className="text-[8px] text-stone-400 block font-sans">(-{waste}%)</span>}
                             </td>
-                            <td className="py-2.5 px-2 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
-                            <td className="py-2.5 px-2 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
+                            {currentPrintMode !== 'technical' && (
+                              <>
+                                <td className="py-2.5 px-2 text-right text-stone-500 whitespace-nowrap">{realCostPerUnit.toFixed(2)} €</td>
+                                <td className="py-2.5 px-2 text-right font-bold text-stone-800 whitespace-nowrap">{itemTotalCost.toFixed(2)} €</td>
+                              </>
+                            )}
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot className="print-avoid-break">
-                      <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
-                        <td colSpan={5} className="py-2.5 px-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total</td>
-                        <td className="py-2.5 px-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
-                      </tr>
+                      {currentPrintMode === 'technical' ? (
+                        <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
+                          <td colSpan={2} className="py-2.5 px-2 uppercase tracking-widest text-[9px] text-stone-400">Total Ingredientes</td>
+                          <td colSpan={2} className="py-2.5 px-2 text-right text-stone-700 text-[10px] font-mono">{printingRecipe.ingredients.length} elementos</td>
+                        </tr>
+                      ) : (
+                        <>
+                          <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
+                            <td colSpan={5} className="py-2.5 px-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total Materias Primas</td>
+                            <td className="py-2.5 px-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
+                          </tr>
+                          {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
+                            <tr className="border-t border-stone-100 font-sans text-[9px]">
+                              <td colSpan={5} className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">Coste por ración ({printingRecipe.portions} raciones)</td>
+                              <td className="py-1 px-2 text-right font-bold text-stone-800 whitespace-nowrap">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</td>
+                            </tr>
+                          )}
+                        </>
+                      )}
                     </tfoot>
                   </table>
                 </div>
 
-                {printingRecipe.type !== 'elaborado' ? (
+                {currentPrintMode === 'costing' && (
+                  <div className="mt-2 p-4 rounded-xl bg-stone-50 border border-orange-200 print-avoid-break font-sans">
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-800 mb-2.5 border-b border-stone-200 pb-1">
+                      Resumen Económico y Rendimientos
+                    </h4>
+                    <div className="grid grid-cols-3 gap-3 text-[10px]">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Total Materias Primas</span>
+                        <span className="text-sm font-bold text-teal-700 mt-0.5 block">{printingRecipe.totalCost.toFixed(2)} €</span>
+                      </div>
+                      {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                          <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Unitario por Ración</span>
+                          <span className="text-sm font-bold text-stone-800 mt-0.5 block">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</span>
+                        </div>
+                      )}
+                      {printingRecipe.yieldQuantity && (
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                          <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">
+                            {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento' : 'Cantidad Resultante'}
+                          </span>
+                          <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
+                        </div>
+                      )}
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Total Ingredientes / Elaborados</span>
+                        <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.ingredients.length}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentPrintMode !== 'costing' && (
+                  <>
+                    {printingRecipe.type !== 'elaborado' ? (
                   <div className="grid grid-cols-2 gap-8 print-avoid-break">
                     <div>
                       {printingRecipe.miseEnPlace && (
@@ -2274,11 +2395,17 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   );
                 })()}
+                  </>
+                )}
               </div>
 
               <div className="mt-auto pt-8 text-center">
                 <p className="text-[8px] text-stone-400 uppercase tracking-[0.3em] font-sans">
-                  Ficha Técnica · Proyecto Intermodular Gastronómico
+                  {currentPrintMode === 'technical'
+                    ? 'Ficha Técnica de Cocina · Sin Datos Económicos · Proyecto Gastronómico'
+                    : currentPrintMode === 'costing'
+                      ? 'Escandallo y Control de Costes · Proyecto Gastronómico'
+                      : 'Ficha Técnica de Producción y Escandallo Completo · Proyecto Gastronómico'}
                 </p>
               </div>
             </div>
@@ -2342,6 +2469,20 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
           </div>
         </div>
       )}
+
+      {/* Modal de Selección de Formato de Impresión (Ficha técnica, Completa, Escandallo) */}
+      <RecipePrintModal
+        isOpen={Boolean(printModalRecipe)}
+        onClose={() => setPrintModalRecipe(null)}
+        recipe={printModalRecipe}
+        onPrint={exportPDF}
+        isPrinting={isPrinting}
+        hasSubRecipes={Boolean(
+          printModalRecipe &&
+          printModalRecipe.type !== 'elaborado' &&
+          printModalRecipe.ingredients.some(ri => ri.itemType === 'elaborado' || recipes.find(r => r.id === ri.ingredientId)?.type === 'elaborado')
+        )}
+      />
     </div>
   );
 }

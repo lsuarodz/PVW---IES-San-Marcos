@@ -1801,9 +1801,9 @@ export default function Orders() {
         })
       );
 
-      // 4. Force browser paint and layout calculation passes
+      // 4. Force browser paint and layout calculation passes (150ms for style computation)
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 150));
 
       const opt = {
         margin: [12, 10, 12, 10], // mm: [top, left, bottom, right] applied to EVERY page

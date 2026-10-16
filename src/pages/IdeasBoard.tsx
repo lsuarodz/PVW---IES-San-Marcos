@@ -429,17 +429,31 @@ export default function IdeasBoard() {
   };
 
   // Helper trigger to set target and open print dialog
-  const handlePrintNote = (note: IdeasBoardNote) => {
+  const handlePrintNote = async (note: IdeasBoardNote) => {
     document.title = note.title || 'Tablón de Ideas';
     setPrintTarget(note);
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Font loading check:', e);
+      }
+    }
     setTimeout(() => {
       window.print();
     }, 150);
   };
 
-  const handlePrintAll = () => {
+  const handlePrintAll = async () => {
     document.title = 'Tablón de Ideas';
     setPrintTarget('all');
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Font loading check:', e);
+      }
+    }
     setTimeout(() => {
       window.print();
     }, 150);
@@ -1058,7 +1072,16 @@ export default function IdeasBoard() {
               </div>
               
               <button
-                onClick={() => window.print()}
+                onClick={async () => {
+                  if (typeof document !== 'undefined' && 'fonts' in document) {
+                    try {
+                      await document.fonts.ready;
+                    } catch (e) {
+                      console.warn('Font loading check:', e);
+                    }
+                  }
+                  setTimeout(() => window.print(), 150);
+                }}
                 className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer border border-violet-500 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Printer size={16} />
