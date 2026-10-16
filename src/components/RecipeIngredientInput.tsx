@@ -22,6 +22,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
   
   const isDisabled = editingId ? !canEditField(recipes.find(r => r.id === editingId)!, 'escandallo') : false;
 
+  const grossInputRef = useRef<HTMLInputElement>(null);
   const netInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,35 +43,57 @@ export const RecipeIngredientInput: React.FC<Props> = ({
     }
   }, [autoFocusNet, isUnit, isDisabled, onNetFocused]);
 
-  // Local state to hold the exact string typed by the user to avoid losing dots/commas
-  const [localGross, setLocalGross] = useState<string>(ri.quantity?.toString() || '');
-  const [localNet, setLocalNet] = useState<string>('');
+  // Local state to hold the exact string typed by the user, formatted to 3 decimals
+  const [localGross, setLocalGross] = useState<string>(() => {
+    const grossNum = Number(ri.quantity);
+    if (!isNaN(grossNum) && (ri.quantity as any) !== '' && ri.quantity !== null && ri.quantity !== undefined) {
+      return grossNum.toFixed(3);
+    }
+    return '';
+  });
+
+  const [localNet, setLocalNet] = useState<string>(() => {
+    const grossNum = Number(ri.quantity);
+    if (!isNaN(grossNum) && (ri.quantity as any) !== '' && ri.quantity !== null && ri.quantity !== undefined) {
+      const net = waste === 100 ? 0 : (waste > 0 ? grossNum * (1 - waste / 100) : grossNum);
+      return net.toFixed(3);
+    }
+    return '';
+  });
 
   // Sync from props
   useEffect(() => {
+    const isFocused =
+      document.activeElement === grossInputRef.current ||
+      document.activeElement === netInputRef.current;
+
     const grossNum = Number(ri.quantity);
-    if (!isNaN(grossNum) && (ri.quantity as any) !== '') {
-      const expectedNet = (Math.max(0, grossNum * (1 - waste / 100))).toFixed(3);
-      
+    if (!isNaN(grossNum) && (ri.quantity as any) !== '' && ri.quantity !== null && ri.quantity !== undefined) {
+      const netNum = waste === 100 ? 0 : (waste > 0 ? grossNum * (1 - waste / 100) : grossNum);
+      const expectedGross = grossNum.toFixed(3);
+      const expectedNet = netNum.toFixed(3);
+
       const localGrossNum = Number(localGross);
       const localNetNum = Number(localNet);
-      const expectedNetNum = Number(expectedNet);
 
-      // Only rewrite our local string states if there is a significant mathematical difference,
-      // or if they are blank (to ensure initial hydration or external updates are reflected correctly).
-      const hasSignificantDiff =
+      const mathDiff =
         isNaN(localGrossNum) || isNaN(localNetNum) ||
         Math.abs(localGrossNum - grossNum) > 0.0001 ||
-        Math.abs(localNetNum - expectedNetNum) > 0.0001;
+        Math.abs(localNetNum - netNum) > 0.0001;
 
-      if (hasSignificantDiff || localGross === '' || localNet === '') {
-        setLocalGross(Number(ri.quantity.toString()).toFixed(3).replace(/\.?0+$/, ''));
-        setLocalNet(expectedNet.replace(/\.?0+$/, ''));
+      if (mathDiff) {
+        setLocalGross(expectedGross);
+        setLocalNet(expectedNet);
+      } else if (!isFocused) {
+        if (localGross !== expectedGross) setLocalGross(expectedGross);
+        if (localNet !== expectedNet) setLocalNet(expectedNet);
       }
     } else {
-      if ((ri.quantity as any) === '' || ri.quantity === undefined) {
-        setLocalGross('');
-        setLocalNet('');
+      if ((ri.quantity as any) === '' || ri.quantity === undefined || ri.quantity === null) {
+        if (!isFocused) {
+          setLocalGross('');
+          setLocalNet('');
+        }
       }
     }
   }, [ri.quantity, waste]);
@@ -89,7 +112,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           disabled={isDisabled}
           onChange={e => updateRecipeIngredient(index, 'quantity', e.target.value)}
           onFocus={e => e.target.select()}
-          className="w-full pl-2 pr-8 sm:pr-10 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
+          className="w-full pl-2 pr-8 sm:pr-10 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px] font-mono"
           placeholder="Unidades"
         />
         <button
@@ -114,6 +137,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
       <div className="relative flex-1">
         <div className="absolute -top-3 sm:-top-3.5 left-1 text-[9px] sm:text-[10px] text-stone-500 font-medium">Bruto</div>
         <input
+          ref={grossInputRef}
           type="text"
           inputMode="decimal"
           required
@@ -129,7 +153,7 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
             if (/^\d*\.?\d*$/.test(val) && !val.endsWith('.')) {
               const grossNum = Number(val);
-              const netNum = grossNum * (1 - waste / 100);
+              const netNum = waste === 100 ? 0 : (waste > 0 ? grossNum * (1 - waste / 100) : grossNum);
               const formattedNet = netNum.toFixed(3);
               setLocalNet(formattedNet);
               updateRecipeIngredient(index, 'quantity', val);
@@ -137,14 +161,18 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           }}
           onBlur={() => {
             if (localGross && !isNaN(Number(localGross))) {
-              const formattedGross = Number(localGross).toFixed(3);
+              const grossNum = Number(localGross);
+              const formattedGross = grossNum.toFixed(3);
+              const netNum = waste === 100 ? 0 : (waste > 0 ? grossNum * (1 - waste / 100) : grossNum);
+              const formattedNet = netNum.toFixed(3);
               setLocalGross(formattedGross);
+              setLocalNet(formattedNet);
               updateRecipeIngredient(index, 'quantity', formattedGross);
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-1.5 sm:pl-2 pr-1 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
-          placeholder="Bruto"
+          className="w-full pl-1.5 sm:pl-2 pr-1 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px] font-mono"
+          placeholder="0.000"
           title={`Peso bruto ${selectedIng?.wastePercentage ? `(Merma: ${selectedIng.wastePercentage}%)` : ''}`}
         />
       </div>
@@ -168,8 +196,8 @@ export const RecipeIngredientInput: React.FC<Props> = ({
             }
             if (/^\d*\.?\d*$/.test(val) && !val.endsWith('.')) {
               const net = Number(val);
-              const gross = waste === 100 ? 0 : net / (1 - waste / 100);
-              const formattedGross = Number(gross.toFixed(3)).toString();
+              const gross = waste === 100 ? 0 : (waste > 0 ? net / (1 - waste / 100) : net);
+              const formattedGross = gross.toFixed(3);
               setLocalGross(formattedGross);
               updateRecipeIngredient(index, 'quantity', formattedGross);
             }
@@ -177,17 +205,17 @@ export const RecipeIngredientInput: React.FC<Props> = ({
           onBlur={() => {
             if (localNet && !isNaN(Number(localNet))) {
               const net = Number(localNet);
-              const gross = waste === 100 ? 0 : net / (1 - waste / 100);
+              const gross = waste === 100 ? 0 : (waste > 0 ? net / (1 - waste / 100) : net);
               const formattedNet = net.toFixed(3);
-              const formattedGross = Number(gross.toFixed(3)).toString();
+              const formattedGross = gross.toFixed(3);
               setLocalNet(formattedNet);
               setLocalGross(formattedGross);
               updateRecipeIngredient(index, 'quantity', formattedGross);
             }
           }}
           onFocus={e => e.target.select()}
-          className="w-full pl-1.5 sm:pl-2 pr-6 sm:pr-7 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px]"
-          placeholder="Neto"
+          className="w-full pl-1.5 sm:pl-2 pr-6 sm:pr-7 py-1 sm:py-1.5 h-[30px] sm:h-[34px] bg-white border border-stone-200 rounded-md sm:rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-[13px] font-mono"
+          placeholder="0.000"
           title="Peso neto (listo para usar)"
         />
         <button

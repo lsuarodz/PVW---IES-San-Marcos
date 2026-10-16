@@ -669,7 +669,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               : 'Ficha_Completa';
 
           const opt = {
-            margin: [14, 12, 14, 12], // mm: Top, Left, Bottom, Right on EVERY page
+            margin: [12, 10, 12, 10], // mm: Top, Left, Bottom, Right
             filename: `${modePrefix}_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { 
@@ -683,8 +683,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
-              mode: ['avoid-all', 'css', 'legacy'], 
-              avoid: ['tr', '.print-avoid-break', 'h1', 'h2', 'h3', 'thead', 'tfoot', '.avoid-break'] 
+              mode: ['css', 'legacy'], 
+              avoid: ['tr', '.print-avoid-break'] 
             }
           };
           
@@ -2127,14 +2127,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
               tr { page-break-inside: avoid !important; break-inside: avoid !important; }
               thead { display: table-header-group !important; }
-              tfoot { display: table-footer-group !important; }
+              tfoot { display: table-row-group !important; }
             `}</style>
             {getPrintableRecipes(printingRecipe).map((pRecipe, index) => {
               const printingRecipe = pRecipe;
               return (
-                <div key={printingRecipe.id + index} className={`px-2 py-1 flex flex-col relative overflow-hidden text-stone-900 font-serif w-[794px] bg-white ${index > 0 ? 'page-break' : ''}`}>
+                <div key={printingRecipe.id + index} className={`px-2 py-1 relative text-stone-900 font-serif w-[794px] bg-white ${index > 0 ? 'page-break' : ''}`}>
                   <div className="z-10 w-full">
-              <div className="border-b border-orange-200 pb-3 mb-4 flex justify-between items-start print-avoid-break">
+              <div className="border-b border-orange-200 pb-2.5 mb-2.5 flex justify-between items-start">
                 <div>
                   <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">
                     {currentPrintMode === 'technical'
@@ -2145,7 +2145,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
                   {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
-                  {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-2 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
+                  {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-1.5 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
                 </div>
                 <img 
                   src={settings?.logoUrl || '/logo.png'} 
@@ -2155,7 +2155,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 />
               </div>
               
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-4 print-avoid-break">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-3">
                   {currentPrintMode !== 'technical' && (
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
@@ -2199,7 +2199,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-4">
                 <div>
                   <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                     {currentPrintMode === 'technical' ? 'Ingredientes y Preelaboración' : 'Escandallo Detallado'}
@@ -2247,8 +2247,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const gross = Number(ri.quantity) || 0;
                         const waste = ing?.wastePercentage || 0;
                         const net = waste === 100 ? 0 : (waste > 0 ? gross * (1 - waste / 100) : gross);
-                        const formattedGross = Number(gross.toFixed(3));
-                        const formattedNet = Number(net.toFixed(3));
+                        const isWeightOrVolume = unit !== 'ud' && unit !== 'unidad';
+                        const formattedGross = isWeightOrVolume || gross % 1 !== 0 ? gross.toFixed(3) : gross.toString();
+                        const formattedNet = isWeightOrVolume || net % 1 !== 0 ? net.toFixed(3) : net.toString();
                         const itemTotalCost = realCostPerUnit * gross;
 
                         return (
