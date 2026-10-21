@@ -607,14 +607,24 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const getPrintableRecipes = (mainRecipe: Recipe, includeSub = includeSubRecipesInPrint) => {
     const list = [mainRecipe];
     if (includeSub && mainRecipe.type !== 'elaborado') {
-      const elaboradosIds = mainRecipe.ingredients
-        .filter(ri => ri.itemType === 'elaborado' || recipes.find(r => r.id === ri.ingredientId)?.type === 'elaborado')
-        .map(ri => ri.ingredientId);
-      const uniqueElaboradosIds = Array.from(new Set(elaboradosIds));
-      uniqueElaboradosIds.forEach(id => {
-        const elab = recipes.find(r => r.id === id);
-        if (elab) list.push(elab);
-      });
+      const visited = new Set<string>([mainRecipe.id]);
+      const queue = [...(mainRecipe.ingredients || [])];
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current) continue;
+        const subId = current.ingredientId;
+        if (subId && !visited.has(subId)) {
+          const found = recipes.find(r => r.id === subId);
+          if (found && (found.type === 'elaborado' || current.itemType === 'elaborado')) {
+            visited.add(subId);
+            list.push(found);
+            if (found.ingredients) {
+              queue.push(...found.ingredients);
+            }
+          }
+        }
+      }
     }
     return list;
   };
@@ -684,7 +694,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
               mode: ['css', 'legacy'], 
-              avoid: ['tr', '.print-avoid-break'] 
+              avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot'] 
             }
           };
           
@@ -2124,24 +2134,65 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
             
               .page-break { page-break-before: always !important; break-before: page !important; }
+              .recipe-page-sheet { width: 794px !important; box-sizing: border-box !important; }
               .print-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
               tr { page-break-inside: avoid !important; break-inside: avoid !important; }
               thead { display: table-header-group !important; }
               tfoot { display: table-row-group !important; }
             `}</style>
-            {getPrintableRecipes(printingRecipe).map((pRecipe, index) => {
+            {getPrintableRecipes(printingRecipe, includeSubRecipesInPrint).map((pRecipe, index, allList) => {
               const printingRecipe = pRecipe;
+              const isSubRecipe = index > 0;
+
+              const totals = printingRecipe.ingredients.reduce(
+                (acc, ri) => {
+                  const ing = ingredients.find(i => i.id === ri.ingredientId);
+                  const subRecipe = recipes.find(r => r.id === ri.ingredientId);
+                  const unit = ri.usePortions ? 'ud' : (ing ? ing.unit : (subRecipe ? subRecipe.yieldUnit || 'ud' : 'ud'));
+                  const isWeightOrVolume = unit !== 'ud' && unit !== 'unidad';
+                  const gross = Number(ri.quantity) || 0;
+                  const waste = ing?.wastePercentage || 0;
+                  const net = waste === 100 ? 0 : (waste > 0 ? gross * (1 - waste / 100) : gross);
+
+                  if (isWeightOrVolume) {
+                    acc.grossWeightKg += gross;
+                    acc.netWeightKg += net;
+                  } else {
+                    acc.grossUnits += gross;
+                    acc.netUnits += net;
+                  }
+                  return acc;
+                },
+                { grossWeightKg: 0, netWeightKg: 0, grossUnits: 0, netUnits: 0 }
+              );
+
               return (
-                <div key={printingRecipe.id + index} className={`px-2 py-1 relative text-stone-900 font-serif w-[794px] bg-white ${index > 0 ? 'page-break' : ''}`}>
+                <div 
+                  key={printingRecipe.id + '_' + index} 
+                  className={`recipe-page-sheet px-2 py-1 relative text-stone-900 font-serif w-[794px] bg-white ${isSubRecipe ? 'page-break pt-2' : ''}`}
+                  style={isSubRecipe ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}
+                >
                   <div className="z-10 w-full">
               <div className="border-b border-orange-200 pb-2.5 mb-2.5 flex justify-between items-start">
                 <div>
-                  <div className="text-stone-400 text-[8px] tracking-[0.3em] uppercase mb-1 font-sans font-medium">
-                    {currentPrintMode === 'technical'
-                      ? 'Ficha Técnica de Cocina · Sin Datos Económicos'
-                      : currentPrintMode === 'costing'
-                        ? 'Escandallo Detallado · Control de Costes y Rendimientos'
-                        : 'Ficha Técnica de Producción y Escandallo Completo'}
+                  <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
+                    {isSubRecipe && (
+                      <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal">
+                        Elaborado Base (Pág. {index + 1})
+                      </span>
+                    )}
+                    <span>
+                      {currentPrintMode === 'technical'
+                        ? 'Ficha Técnica de Cocina · Sin Datos Económicos'
+                        : currentPrintMode === 'costing'
+                          ? 'Escandallo Detallado · Control de Costes y Rendimientos'
+                          : 'Ficha Técnica de Producción y Escandallo Completo'}
+                    </span>
+                    {isSubRecipe && allList[0]?.nameES && (
+                      <span className="text-stone-400 font-normal">
+                        · Plato: {allList[0].nameES}
+                      </span>
+                    )}
                   </div>
                   <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
                   {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
@@ -2155,15 +2206,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 />
               </div>
               
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-stone-500 text-[9px] font-sans mb-3">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-3 pb-2 border-b border-stone-100">
                   {currentPrintMode !== 'technical' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
                       <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
                     </div>
                   )}
                   {currentPrintMode !== 'technical' && printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Coste/Ración:</span>
                       <span className="text-teal-700 font-bold text-[10px]">
                         {(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €
@@ -2171,29 +2222,56 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   )}
                   {printingRecipe.portions && printingRecipe.type !== 'elaborado' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
                       <span className="text-orange-900 font-bold">{printingRecipe.portions}</span>
+                    </div>
+                  )}
+                  {(totals.grossWeightKg > 0 || totals.grossUnits > 0) && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Peso Bruto Total:</span>
+                      <span className="text-stone-800 font-bold font-mono">
+                        {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : `${totals.grossUnits.toFixed(3)} ud`}
+                      </span>
+                    </div>
+                  )}
+                  {(totals.netWeightKg > 0 || totals.netUnits > 0) && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-teal-800 uppercase tracking-widest">Peso Neto Total:</span>
+                      <span className="text-teal-800 font-bold font-mono">
+                        {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : `${totals.netUnits.toFixed(3)} ud`}
+                      </span>
+                      {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
+                        <span className="text-teal-600 text-[8px] font-mono">
+                          ({((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(0)} g/rac)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {totals.grossUnits > 0 && totals.grossWeightKg > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Unidades:</span>
+                      <span className="text-stone-700 font-bold font-mono">{totals.grossUnits} ud</span>
                     </div>
                   )}
                   {printingRecipe.type === 'elaborado' && printingRecipe.yieldUnit === 'ud' && (() => {
                     const unitWeightText = getRecipeUnitWeightDisplay(printingRecipe, ingredients, recipes);
                     return unitWeightText ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="font-bold text-stone-400 uppercase tracking-widest">Peso por unidad:</span>
                         <span className="text-orange-900 font-bold">{unitWeightText}</span>
                       </div>
                     ) : null;
                   })()}
                   {printingRecipe.yieldQuantity && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-stone-400 uppercase tracking-widest">
                         {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento:' : 'Cantidad Resultante:'}
                       </span>
                       <span className="text-orange-900 font-bold">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
                     <span className="text-orange-900">{printingRecipe.createdBy}</span>
                   </div>
@@ -2210,18 +2288,27 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         {currentPrintMode === 'technical' ? (
                           <>
                             <th className="py-2.5 px-2 font-medium w-[36%]">Ingrediente / Elaborado</th>
-                            <th className="py-2.5 px-2 font-medium w-[30%]">Preelaboración</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[17%]">P. Bruto</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[17%]">P. Neto</th>
+                            <th className="py-2.5 px-2 font-medium w-[26%]">Preelaboración</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[19%]">Peso Bruto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[19%]">Peso Neto</th>
+                          </>
+                        ) : currentPrintMode === 'costing' ? (
+                          <>
+                            <th className="py-2.5 px-2 font-medium w-[28%]">Ingrediente / Elaborado</th>
+                            <th className="py-2.5 px-2 font-medium text-center w-[12%]">% Merma</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[15%]">Peso Bruto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[15%]">Peso Neto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">Coste/Ud</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[16%]">Total</th>
                           </>
                         ) : (
                           <>
-                            <th className="py-2.5 px-2 font-medium w-[26%]">Ingrediente</th>
-                            <th className="py-2.5 px-2 font-medium w-[23%]">Preelaboración</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Bruto</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">P. Neto</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[11%]">Coste/Ud</th>
-                            <th className="py-2.5 px-2 font-medium text-right w-[12%]">Total</th>
+                            <th className="py-2.5 px-2 font-medium w-[24%]">Ingrediente / Elaborado</th>
+                            <th className="py-2.5 px-2 font-medium w-[20%]">Preelaboración</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">Peso Bruto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[14%]">Peso Neto</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[13%]">Coste/Ud</th>
+                            <th className="py-2.5 px-2 font-medium text-right w-[15%]">Total</th>
                           </>
                         )}
                       </tr>
@@ -2247,19 +2334,26 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const gross = Number(ri.quantity) || 0;
                         const waste = ing?.wastePercentage || 0;
                         const net = waste === 100 ? 0 : (waste > 0 ? gross * (1 - waste / 100) : gross);
-                        const isWeightOrVolume = unit !== 'ud' && unit !== 'unidad';
-                        const formattedGross = isWeightOrVolume || gross % 1 !== 0 ? gross.toFixed(3) : gross.toString();
-                        const formattedNet = isWeightOrVolume || net % 1 !== 0 ? net.toFixed(3) : net.toString();
+                        const formattedGross = gross.toFixed(3);
+                        const formattedNet = net.toFixed(3);
                         const itemTotalCost = realCostPerUnit * gross;
 
                         return (
                           <tr key={idx} className="hover:bg-stone-50 print-avoid-break">
                             <td className="py-2.5 px-2 font-medium text-stone-800 break-words">{name}</td>
-                            <td className="py-2.5 px-2 text-stone-600 break-words">{ri.preparation || '-'}</td>
+                            {currentPrintMode === 'costing' ? (
+                              <td className="py-2.5 px-2 text-center text-stone-500 font-mono text-[9.5px]">
+                                {waste > 0 ? `${waste}%` : '-'}
+                              </td>
+                            ) : (
+                              <td className="py-2.5 px-2 text-stone-600 break-words">{ri.preparation || '-'}</td>
+                            )}
                             <td className="py-2.5 px-2 text-right text-stone-700 whitespace-nowrap font-mono">{formattedGross} {unit}</td>
-                            <td className="py-2.5 px-2 text-right text-stone-600 whitespace-nowrap font-mono">
+                            <td className="py-2.5 px-2 text-right text-teal-800 font-semibold whitespace-nowrap font-mono bg-teal-50/40">
                               {formattedNet} {unit}
-                              {waste > 0 && <span className="text-[8px] text-stone-400 block font-sans">(-{waste}%)</span>}
+                              {currentPrintMode !== 'costing' && waste > 0 && (
+                                <span className="text-[8px] text-stone-400 block font-sans font-normal">(-{waste}% merma)</span>
+                              )}
                             </td>
                             {currentPrintMode !== 'technical' && (
                               <>
@@ -2271,22 +2365,67 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         );
                       })}
                     </tbody>
-                    <tfoot className="print-avoid-break">
+                    <tfoot className="print-avoid-break font-sans">
                       {currentPrintMode === 'technical' ? (
-                        <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
-                          <td colSpan={2} className="py-2.5 px-2 uppercase tracking-widest text-[9px] text-stone-400">Total Ingredientes</td>
-                          <td colSpan={2} className="py-2.5 px-2 text-right text-stone-700 text-[10px] font-mono">{printingRecipe.ingredients.length} elementos</td>
-                        </tr>
+                        <>
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px]">
+                            <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
+                              Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono text-stone-800 whitespace-nowrap font-bold">
+                              {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : (totals.grossUnits > 0 ? `${totals.grossUnits.toFixed(3)} ud` : '-')}
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono text-teal-800 font-bold whitespace-nowrap bg-teal-50/50">
+                              {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : (totals.netUnits > 0 ? `${totals.netUnits.toFixed(3)} ud` : '-')}
+                            </td>
+                          </tr>
+                          {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
+                            <tr className="border-t border-stone-100 text-[9px] text-stone-600">
+                              <td colSpan={3} className="py-1 px-2 text-right uppercase tracking-wider text-stone-500">
+                                Peso neto por ración ({printingRecipe.portions} raciones):
+                              </td>
+                              <td className="py-1 px-2 text-right font-mono font-bold text-stone-800 whitespace-nowrap bg-teal-50/50">
+                                {((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(1)} g
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       ) : (
                         <>
-                          <tr className="border-t border-orange-200 font-bold text-stone-900 font-sans">
-                            <td colSpan={5} className="py-2.5 px-2 text-right uppercase tracking-widest text-[9px] text-stone-400">Coste Total Materias Primas</td>
-                            <td className="py-2.5 px-2 text-right text-teal-700 text-sm whitespace-nowrap">{printingRecipe.totalCost.toFixed(2)} €</td>
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px]">
+                            <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
+                              Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono text-stone-800 whitespace-nowrap font-bold">
+                              {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : (totals.grossUnits > 0 ? `${totals.grossUnits.toFixed(3)} ud` : '-')}
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono text-teal-800 font-bold whitespace-nowrap bg-teal-50/50">
+                              {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : (totals.netUnits > 0 ? `${totals.netUnits.toFixed(3)} ud` : '-')}
+                            </td>
+                            <td className="py-2 px-2 text-right uppercase tracking-wider text-[9px] text-stone-400">
+                              Total Coste
+                            </td>
+                            <td className="py-2 px-2 text-right text-teal-700 text-sm whitespace-nowrap font-bold">
+                              {printingRecipe.totalCost.toFixed(2)} €
+                            </td>
                           </tr>
                           {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
                             <tr className="border-t border-stone-100 font-sans text-[9px]">
-                              <td colSpan={5} className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">Coste por ración ({printingRecipe.portions} raciones)</td>
-                              <td className="py-1 px-2 text-right font-bold text-stone-800 whitespace-nowrap">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</td>
+                              <td colSpan={2} className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">
+                                Por ración ({printingRecipe.portions} rac.):
+                              </td>
+                              <td className="py-1 px-2 text-right font-mono text-stone-600 whitespace-nowrap">
+                                {totals.grossWeightKg > 0 ? `${((totals.grossWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(0)} g` : '-'}
+                              </td>
+                              <td className="py-1 px-2 text-right font-mono font-bold text-stone-800 whitespace-nowrap bg-teal-50/50">
+                                {totals.netWeightKg > 0 ? `${((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(1)} g` : '-'}
+                              </td>
+                              <td className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">
+                                Coste/rac:
+                              </td>
+                              <td className="py-1 px-2 text-right font-bold text-stone-800 whitespace-nowrap">
+                                {(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €
+                              </td>
                             </tr>
                           )}
                         </>
@@ -2311,6 +2450,23 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                           <span className="text-sm font-bold text-stone-800 mt-0.5 block">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</span>
                         </div>
                       )}
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Peso Bruto Total</span>
+                        <span className="text-sm font-bold text-stone-800 mt-0.5 block font-mono">
+                          {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : '-'}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <span className="text-[8.5px] uppercase tracking-wider text-teal-800 font-semibold block">Peso Neto Total</span>
+                        <span className="text-sm font-bold text-teal-800 mt-0.5 block font-mono">
+                          {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : '-'}
+                        </span>
+                        {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
+                          <span className="text-[8.5px] text-teal-700 font-mono block mt-0.5">
+                            {((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(0)} g/ración
+                          </span>
+                        )}
+                      </div>
                       {printingRecipe.yieldQuantity && (
                         <div className="bg-white p-2.5 rounded-lg border border-stone-200">
                           <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">
@@ -2591,8 +2747,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </div>
             </div>
           </div>
-          );
-        })}
+        );
+      })}
         </div>
         </div>
       )}

@@ -59,10 +59,10 @@ export default function RecipePrintModal({
       subtitle: 'Ficha técnica y escandallo con todos los datos técnicos y económicos',
       icon: <BookOpen size={24} className="text-teal-600" />,
       features: [
+        { text: 'Pesos brutos, pesos netos (3 decimales) y mermas', included: true },
         { text: 'Escandallo detallado con precios unitarios y totales', included: true },
         { text: 'Coste total y coste calculado por ración', included: true },
-        { text: 'Ficha técnica de cocina, mise en place y materiales', included: true },
-        { text: 'Elaboración paso a paso y diagrama de flujo', included: true }
+        { text: 'Ficha técnica de cocina, elaboración y diagrama de tiempos', included: true }
       ]
     },
     {
@@ -73,9 +73,9 @@ export default function RecipePrintModal({
       subtitle: 'Hoja de costes, rendimientos y materias primas',
       icon: <Calculator size={24} className="text-emerald-600" />,
       features: [
+        { text: 'Pesos brutos y netos detallados con porcentajes de merma', included: true },
         { text: 'Escandallo completo con costes por ingrediente', included: true },
-        { text: 'Coste total, coste por ración y pesos de materias primas', included: true },
-        { text: 'Mermas porcentuales y precios de coste unitarios', included: true },
+        { text: 'Coste total, coste por ración y resumen de materias primas', included: true },
         { text: 'Omite pasos de elaboración y diagrama de tiempos', included: false }
       ]
     }
@@ -204,7 +204,7 @@ export default function RecipePrintModal({
                 />
                 <div className="flex items-center gap-2 text-xs font-medium text-stone-700">
                   <Layers size={15} className="text-teal-600" />
-                  <span>Incluir fichas de los elaborados base vinculados en páginas siguientes</span>
+                  <span>Incluir fichas de los elaborados vinculados en páginas siguientes (una por página)</span>
                 </div>
               </label>
             </div>
