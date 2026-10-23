@@ -125,6 +125,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const [printModalRecipe, setPrintModalRecipe] = useState<Recipe | null>(null);
   const [currentPrintMode, setCurrentPrintMode] = useState<RecipePrintMode>('complete');
   const [includeSubRecipesInPrint, setIncludeSubRecipesInPrint] = useState<boolean>(true);
+  const [printPortions, setPrintPortions] = useState<number | null>(null);
   
   // Estado para almacenar los datos del formulario del escandallo
   const [formData, setFormData] = useState({
@@ -604,23 +605,128 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   };
 
   
-  const getPrintableRecipes = (mainRecipe: Recipe, includeSub = includeSubRecipesInPrint) => {
-    const list = [mainRecipe];
+  interface PrintableRecipeItem {
+    recipe: Recipe;
+    isSubRecipe: boolean;
+    scaleFactor: number;
+    originalPortions?: number | null;
+    originalYield?: number | null;
+    parentDishName?: string;
+    parentPortions?: number | null;
+  }
+
+  const getPrintableRecipes = (
+    mainRecipe: Recipe,
+    includeSub = includeSubRecipesInPrint,
+    targetPortions = printPortions
+  ): PrintableRecipeItem[] => {
+    const mainBasePortions = (mainRecipe.portions && Number(mainRecipe.portions) > 0)
+      ? Number(mainRecipe.portions)
+      : (mainRecipe.yieldQuantity && Number(mainRecipe.yieldQuantity) > 0 ? Number(mainRecipe.yieldQuantity) : 1);
+
+    const actualTarget = (targetPortions !== null && targetPortions !== undefined && targetPortions > 0)
+      ? targetPortions
+      : mainBasePortions;
+
+    const mainScaleFactor = mainBasePortions > 0 ? actualTarget / mainBasePortions : 1;
+
+    // Receta principal escalada proporcionalmente
+    const scaledMain: Recipe = {
+      ...mainRecipe,
+      portions: mainRecipe.type === 'elaborado'
+        ? (mainRecipe.portions ? actualTarget : null)
+        : actualTarget,
+      yieldQuantity: mainRecipe.yieldQuantity ? Number((Number(mainRecipe.yieldQuantity) * mainScaleFactor).toFixed(3)) : null,
+      totalCost: Number((mainRecipe.totalCost * mainScaleFactor).toFixed(2)),
+      ingredients: (mainRecipe.ingredients || []).map(ri => ({
+        ...ri,
+        quantity: Number((Number(ri.quantity || 0) * mainScaleFactor).toFixed(4))
+      }))
+    };
+
+    const list: PrintableRecipeItem[] = [
+      {
+        recipe: scaledMain,
+        isSubRecipe: false,
+        scaleFactor: mainScaleFactor,
+        originalPortions: mainRecipe.portions,
+        originalYield: mainRecipe.yieldQuantity
+      }
+    ];
+
     if (includeSub && mainRecipe.type !== 'elaborado') {
       const visited = new Set<string>([mainRecipe.id]);
-      const queue = [...(mainRecipe.ingredients || [])];
+      interface QueueItem {
+        recipeId: string;
+        requiredQty: number;
+        usePortions?: boolean;
+        parentName: string;
+        parentPortions: number;
+      }
+
+      const queue: QueueItem[] = [];
+      for (const ri of scaledMain.ingredients) {
+        if (ri.ingredientId && (ri.itemType === 'elaborado' || recipes.find(r => r.id === ri.ingredientId)?.type === 'elaborado')) {
+          queue.push({
+            recipeId: ri.ingredientId,
+            requiredQty: Number(ri.quantity) || 0,
+            usePortions: ri.usePortions,
+            parentName: scaledMain.nameES,
+            parentPortions: actualTarget
+          });
+        }
+      }
 
       while (queue.length > 0) {
-        const current = queue.shift();
-        if (!current) continue;
-        const subId = current.ingredientId;
-        if (subId && !visited.has(subId)) {
-          const found = recipes.find(r => r.id === subId);
-          if (found && (found.type === 'elaborado' || current.itemType === 'elaborado')) {
-            visited.add(subId);
-            list.push(found);
-            if (found.ingredients) {
-              queue.push(...found.ingredients);
+        const item = queue.shift();
+        if (!item) continue;
+        if (visited.has(item.recipeId)) continue;
+
+        const found = recipes.find(r => r.id === item.recipeId);
+        if (!found) continue;
+
+        visited.add(item.recipeId);
+
+        // El plato escalado necesita exactamente `item.requiredQty` de este elaborado
+        const baseSubYield = item.usePortions && found.portions && Number(found.portions) > 0
+          ? Number(found.portions)
+          : (found.yieldQuantity && Number(found.yieldQuantity) > 0 ? Number(found.yieldQuantity) : 1);
+
+        const subScaleFactor = baseSubYield > 0 ? item.requiredQty / baseSubYield : mainScaleFactor;
+
+        const scaledSub: Recipe = {
+          ...found,
+          portions: found.portions ? Number((Number(found.portions) * subScaleFactor).toFixed(2)) : null,
+          yieldQuantity: Number(item.requiredQty.toFixed(3)),
+          totalCost: Number((found.totalCost * subScaleFactor).toFixed(2)),
+          ingredients: (found.ingredients || []).map(sri => ({
+            ...sri,
+            quantity: Number((Number(sri.quantity || 0) * subScaleFactor).toFixed(4))
+          }))
+        };
+
+        list.push({
+          recipe: scaledSub,
+          isSubRecipe: true,
+          scaleFactor: subScaleFactor,
+          originalPortions: found.portions,
+          originalYield: found.yieldQuantity,
+          parentDishName: item.parentName,
+          parentPortions: item.parentPortions
+        });
+
+        // Si este elaborado contiene sub-elaborados vinculados
+        for (const sri of scaledSub.ingredients) {
+          if (sri.ingredientId && !visited.has(sri.ingredientId)) {
+            const nested = recipes.find(r => r.id === sri.ingredientId);
+            if (nested && (nested.type === 'elaborado' || sri.itemType === 'elaborado')) {
+              queue.push({
+                recipeId: sri.ingredientId,
+                requiredQty: Number(sri.quantity) || 0,
+                usePortions: sri.usePortions,
+                parentName: scaledSub.nameES,
+                parentPortions: actualTarget
+              });
             }
           }
         }
@@ -632,13 +738,15 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const exportPDF = async (
     recipe: Recipe,
     mode: RecipePrintMode = 'complete',
-    includeSub: boolean = true
+    includeSub: boolean = true,
+    targetPortions?: number
   ) => {
     if (isPrinting) return;
     setIsPrinting(true);
     setPrintingRecipe(recipe);
     setCurrentPrintMode(mode);
     setIncludeSubRecipesInPrint(includeSub);
+    setPrintPortions(targetPortions !== undefined ? targetPortions : null);
     setPrintModalRecipe(null);
     showToast('Generando PDF...', 'info');
     
@@ -678,9 +786,13 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               ? 'Escandallo'
               : 'Ficha_Completa';
 
+          const portionsSuffix = targetPortions 
+            ? `_${targetPortions}rac` 
+            : (recipe.portions ? `_${recipe.portions}rac` : '');
+
           const opt = {
-            margin: [12, 10, 12, 10], // mm: Top, Left, Bottom, Right
-            filename: `${modePrefix}_${recipe.nameES.replace(/\s+/g, '_')}.pdf`,
+            margin: [10, 10, 10, 10], // mm: Top, Left, Bottom, Right
+            filename: `${modePrefix}_${recipe.nameES.replace(/\s+/g, '_')}${portionsSuffix}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { 
               scale: 2, 
@@ -694,7 +806,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
               mode: ['css', 'legacy'], 
-              avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot'] 
+              avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.recipe-page-sheet'] 
             }
           };
           
@@ -2106,13 +2218,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
       {/* Hidden Print Layout */}
       {printingRecipe && (
         <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000, width: '794px' }}>
-          <div ref={printRef} className="print-container w-[794px] flex flex-col relative bg-white">
+          <div ref={printRef} className="print-container w-[794px] block relative bg-white">
             <style>{`
               .print-container { 
                 background-color: #ffffff !important; 
                 color: #1c1917 !important; 
                 width: 794px !important; 
                 box-sizing: border-box !important;
+                display: block !important;
               }
               .print-container .text-stone-900 { color: #1c1917 !important; }
               .print-container .text-stone-800 { color: #292524 !important; }
@@ -2133,16 +2246,38 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
               .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
             
-              .page-break { page-break-before: always !important; break-before: page !important; }
-              .recipe-page-sheet { width: 794px !important; box-sizing: border-box !important; }
+              .html2pdf__page-break { 
+                height: 0px !important; 
+                min-height: 0px !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                page-break-before: always !important; 
+                break-before: page !important; 
+                display: block !important; 
+                clear: both !important; 
+              }
+              .page-break { 
+                page-break-before: always !important; 
+                break-before: page !important; 
+                clear: both !important; 
+              }
+              .recipe-page-sheet { 
+                width: 794px !important; 
+                box-sizing: border-box !important; 
+                display: block !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
               .print-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
               tr { page-break-inside: avoid !important; break-inside: avoid !important; }
               thead { display: table-header-group !important; }
               tfoot { display: table-row-group !important; }
             `}</style>
-            {getPrintableRecipes(printingRecipe, includeSubRecipesInPrint).map((pRecipe, index, allList) => {
-              const printingRecipe = pRecipe;
-              const isSubRecipe = index > 0;
+            {getPrintableRecipes(printingRecipe, includeSubRecipesInPrint, printPortions).map((item, index, allList) => {
+              const printingRecipe = item.recipe;
+              const isSubRecipe = item.isSubRecipe;
+              const scaleFactor = item.scaleFactor;
+              const isScaled = Math.abs(scaleFactor - 1) > 0.001;
 
               const totals = printingRecipe.ingredients.reduce(
                 (acc, ri) => {
@@ -2167,115 +2302,137 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               );
 
               return (
-                <div 
-                  key={printingRecipe.id + '_' + index} 
-                  className={`recipe-page-sheet px-2 py-1 relative text-stone-900 font-serif w-[794px] bg-white ${isSubRecipe ? 'page-break pt-2' : ''}`}
-                  style={isSubRecipe ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}
-                >
-                  <div className="z-10 w-full">
-              <div className="border-b border-orange-200 pb-2.5 mb-2.5 flex justify-between items-start">
-                <div>
-                  <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
-                    {isSubRecipe && (
-                      <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal">
-                        Elaborado Base (Pág. {index + 1})
+                <React.Fragment key={printingRecipe.id + '_' + index}>
+                  {isSubRecipe && <div className="html2pdf__page-break" />}
+                  <div 
+                    className={`recipe-page-sheet px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white print-avoid-break ${isSubRecipe ? 'page-break' : ''}`}
+                    style={isSubRecipe ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}
+                  >
+                    <div className="z-10 w-full">
+                <div className="border-b border-orange-200 pb-2.5 mb-2.5 flex justify-between items-start">
+                  <div>
+                    <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
+                      {isSubRecipe && (
+                        <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal">
+                          Elaborado Base (Pág. {index + 1})
+                        </span>
+                      )}
+                      <span>
+                        {currentPrintMode === 'technical'
+                          ? 'Ficha Técnica de Cocina · Sin Datos Económicos'
+                          : currentPrintMode === 'costing'
+                            ? 'Escandallo Detallado · Control de Costes y Rendimientos'
+                            : 'Ficha Técnica de Producción y Escandallo Completo'}
                       </span>
-                    )}
-                    <span>
-                      {currentPrintMode === 'technical'
-                        ? 'Ficha Técnica de Cocina · Sin Datos Económicos'
-                        : currentPrintMode === 'costing'
-                          ? 'Escandallo Detallado · Control de Costes y Rendimientos'
-                          : 'Ficha Técnica de Producción y Escandallo Completo'}
-                    </span>
-                    {isSubRecipe && allList[0]?.nameES && (
-                      <span className="text-stone-400 font-normal">
-                        · Plato: {allList[0].nameES}
-                      </span>
-                    )}
-                  </div>
-                  <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
-                  {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
-                  {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-1.5 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
-                </div>
-                <img 
-                  src={settings?.logoUrl || '/logo.png'} 
-                  alt="Logo" 
-                  className="logo-print max-h-14 max-w-[120px] object-contain" 
-                  crossOrigin="anonymous" 
-                />
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-3 pb-2 border-b border-stone-100">
-                  {currentPrintMode !== 'technical' && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
-                      <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
-                    </div>
-                  )}
-                  {currentPrintMode !== 'technical' && printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Coste/Ración:</span>
-                      <span className="text-teal-700 font-bold text-[10px]">
-                        {(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €
-                      </span>
-                    </div>
-                  )}
-                  {printingRecipe.portions && printingRecipe.type !== 'elaborado' && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
-                      <span className="text-orange-900 font-bold">{printingRecipe.portions}</span>
-                    </div>
-                  )}
-                  {(totals.grossWeightKg > 0 || totals.grossUnits > 0) && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Peso Bruto Total:</span>
-                      <span className="text-stone-800 font-bold font-mono">
-                        {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : `${totals.grossUnits.toFixed(3)} ud`}
-                      </span>
-                    </div>
-                  )}
-                  {(totals.netWeightKg > 0 || totals.netUnits > 0) && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-teal-800 uppercase tracking-widest">Peso Neto Total:</span>
-                      <span className="text-teal-800 font-bold font-mono">
-                        {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : `${totals.netUnits.toFixed(3)} ud`}
-                      </span>
-                      {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
-                        <span className="text-teal-600 text-[8px] font-mono">
-                          ({((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(0)} g/rac)
+                      {isScaled && (
+                        <span className="bg-teal-100 text-teal-800 border border-teal-300 font-bold px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal">
+                          {printingRecipe.type === 'elaborado' 
+                            ? `Cantidad escalada: ${printingRecipe.yieldQuantity} ${printingRecipe.yieldUnit || 'kg'}` 
+                            : `Escalado: ${printingRecipe.portions} raciones`} (x{scaleFactor.toFixed(2)})
+                        </span>
+                      )}
+                      {isSubRecipe && item.parentDishName && (
+                        <span className="text-stone-500 font-medium tracking-normal text-[8.5px]">
+                          · Para plato: <strong className="text-stone-700">{item.parentDishName}</strong> ({item.parentPortions} rac.)
                         </span>
                       )}
                     </div>
-                  )}
-                  {totals.grossUnits > 0 && totals.grossWeightKg > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">Unidades:</span>
-                      <span className="text-stone-700 font-bold font-mono">{totals.grossUnits} ud</span>
-                    </div>
-                  )}
-                  {printingRecipe.type === 'elaborado' && printingRecipe.yieldUnit === 'ud' && (() => {
-                    const unitWeightText = getRecipeUnitWeightDisplay(printingRecipe, ingredients, recipes);
-                    return unitWeightText ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-stone-400 uppercase tracking-widest">Peso por unidad:</span>
-                        <span className="text-orange-900 font-bold">{unitWeightText}</span>
-                      </div>
-                    ) : null;
-                  })()}
-                  {printingRecipe.yieldQuantity && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-stone-400 uppercase tracking-widest">
-                        {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento:' : 'Cantidad Resultante:'}
-                      </span>
-                      <span className="text-orange-900 font-bold">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
-                    <span className="text-orange-900">{printingRecipe.createdBy}</span>
+                    <h1 className="text-lg font-display font-medium text-stone-800 tracking-tight mb-1">{printingRecipe.nameES}</h1>
+                    {printingRecipe.nameEN && <h2 className="text-xs text-stone-500 italic mb-1">{printingRecipe.nameEN}</h2>}
+                    {printingRecipe.descriptionES && <p className="text-[10px] text-stone-500 italic font-sans mb-1.5 max-w-lg leading-relaxed">{printingRecipe.descriptionES}</p>}
                   </div>
-              </div>
+                  <img 
+                    src={settings?.logoUrl || '/logo.png'} 
+                    alt="Logo" 
+                    className="logo-print max-h-14 max-w-[120px] object-contain" 
+                    crossOrigin="anonymous" 
+                  />
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-3 pb-2 border-b border-stone-100">
+                    {currentPrintMode !== 'technical' && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
+                        <span className="text-teal-700 font-bold text-[10px]">{printingRecipe.totalCost.toFixed(2)} €</span>
+                      </div>
+                    )}
+                    {currentPrintMode !== 'technical' && printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Coste/Ración:</span>
+                        <span className="text-teal-700 font-bold text-[10px]">
+                          {(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €
+                        </span>
+                      </div>
+                    )}
+                    {printingRecipe.portions && printingRecipe.type !== 'elaborado' && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Raciones:</span>
+                        <span className="text-orange-900 font-bold">
+                          {printingRecipe.portions}
+                          {item.originalPortions && item.originalPortions !== printingRecipe.portions && (
+                            <span className="text-stone-400 font-normal ml-1 text-[8px]">
+                              (Base: {item.originalPortions})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {(totals.grossWeightKg > 0 || totals.grossUnits > 0) && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Peso Bruto Total:</span>
+                        <span className="text-stone-800 font-bold font-mono">
+                          {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : `${totals.grossUnits.toFixed(3)} ud`}
+                        </span>
+                      </div>
+                    )}
+                    {(totals.netWeightKg > 0 || totals.netUnits > 0) && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-teal-800 uppercase tracking-widest">Peso Neto Total:</span>
+                        <span className="text-teal-800 font-bold font-mono">
+                          {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : `${totals.netUnits.toFixed(3)} ud`}
+                        </span>
+                        {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
+                          <span className="text-teal-600 text-[8px] font-mono">
+                            ({((totals.netWeightKg / Number(printingRecipe.portions)) * 1000).toFixed(0)} g/rac)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {totals.grossUnits > 0 && totals.grossWeightKg > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">Unidades:</span>
+                        <span className="text-stone-700 font-bold font-mono">{totals.grossUnits} ud</span>
+                      </div>
+                    )}
+                    {printingRecipe.type === 'elaborado' && printingRecipe.yieldUnit === 'ud' && (() => {
+                      const unitWeightText = getRecipeUnitWeightDisplay(printingRecipe, ingredients, recipes);
+                      return unitWeightText ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-stone-400 uppercase tracking-widest">Peso por unidad:</span>
+                          <span className="text-orange-900 font-bold">{unitWeightText}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    {printingRecipe.yieldQuantity && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-400 uppercase tracking-widest">
+                          {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento:' : 'Cantidad Resultante:'}
+                        </span>
+                        <span className="text-orange-900 font-bold">
+                          {printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}
+                          {item.originalYield && item.originalYield !== printingRecipe.yieldQuantity && (
+                            <span className="text-stone-400 font-normal ml-1 text-[8px]">
+                              (Base: {item.originalYield} {printingRecipe.yieldUnit || 'kg'})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-stone-400 uppercase tracking-widest">Autor:</span>
+                      <span className="text-orange-900">{printingRecipe.createdBy}</span>
+                    </div>
+                </div>
 
               <div className="space-y-4">
                 <div>
@@ -2736,7 +2893,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 )}
               </div>
 
-              <div className="mt-auto pt-8 text-center">
+              <div className="mt-4 pt-2.5 text-center border-t border-stone-100 print-avoid-break">
                 <p className="text-[8px] text-stone-400 uppercase tracking-[0.3em] font-sans">
                   {currentPrintMode === 'technical'
                     ? 'Ficha Técnica de Cocina · Sin Datos Económicos · Proyecto Gastronómico'
@@ -2747,8 +2904,9 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               </div>
             </div>
           </div>
-        );
-      })}
+        </React.Fragment>
+      );
+    })}
         </div>
         </div>
       )}
