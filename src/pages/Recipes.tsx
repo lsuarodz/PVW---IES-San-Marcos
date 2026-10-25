@@ -791,7 +791,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             : (recipe.portions ? `_${recipe.portions}rac` : '');
 
           const opt = {
-            margin: [10, 10, 10, 10], // mm: Top, Left, Bottom, Right
+            margin: [15, 15, 15, 15], // 1.5cm (15mm) para respetar @page { margin: 1.5cm; }
             filename: `${modePrefix}_${recipe.nameES.replace(/\s+/g, '_')}${portionsSuffix}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { 
@@ -806,7 +806,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
               mode: ['css', 'legacy'], 
-              avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot', '.recipe-page-sheet'] 
+              avoid: ['tr', '.print-avoid-break', 'thead', 'tfoot'] 
             }
           };
           
@@ -2246,30 +2246,161 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               .print-container .divide-stone-50 > :not([hidden]) ~ :not([hidden]) { border-color: #fafaf9 !important; }
               .print-container .logo-print { max-width: 120px !important; max-height: 56px !important; object-fit: contain !important; }
             
-              .html2pdf__page-break { 
-                height: 0px !important; 
-                min-height: 0px !important; 
-                margin: 0 !important; 
-                padding: 0 !important; 
-                page-break-before: always !important; 
-                break-before: page !important; 
-                display: block !important; 
-                clear: both !important; 
+              /* Regla global al principio del CSS para dar margen físico a la impresora */
+              @page {
+                margin: 1.5cm;
+                size: auto;
               }
-              .page-break { 
-                page-break-before: always !important; 
-                break-before: page !important; 
-                clear: both !important; 
+
+              /* Bloque @media print para impresión directa y vista de impresión de navegador */
+              @media print {
+                html,
+                body,
+                #root,
+                .print-container {
+                  height: auto !important;
+                  min-height: 0 !important;
+                  max-height: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                  color: #1c1917 !important;
+                }
+
+                /* 1. Flujo natural del plato principal y todos sus bloques hijos (cabecera, tabla, diagrama) */
+                .recipe-page-sheet:not(.print-elaborado-page),
+                .recipe-page-sheet:not(.print-elaborado-page) *,
+                .recipe-dish-container,
+                .recipe-dish-container *,
+                .recipe-dish-header,
+                .recipe-meta-bar,
+                .recipe-table-container,
+                .recipe-flowchart-container {
+                  break-before: auto !important;
+                  page-break-before: auto !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  max-height: none !important;
+                }
+
+                /* El plato principal (primer contenedor) no debe provocar un salto de página inicial */
+                .recipe-page-sheet:first-child {
+                  break-before: auto !important;
+                  page-break-before: auto !important;
+                  margin-top: 0 !important;
+                }
+
+                /* 2. Salto de página limpio aplicado estrictamente al contenedor individual de cada elaborado */
+                .print-elaborado-page { 
+                  break-before: page !important; 
+                  page-break-before: always !important; 
+                  margin-top: 0 !important;
+                  padding-top: 0.5rem !important;
+                }
+
+                /* 3. Eliminar alturas fijas y márgenes superiores/inferiores excesivos */
+                .recipe-page-sheet {
+                  height: auto !important;
+                  min-height: 0 !important;
+                  margin-top: 0 !important;
+                  margin-bottom: 0 !important;
+                  padding-top: 0.5rem !important;
+                  padding-bottom: 0.5rem !important;
+                  box-sizing: border-box !important;
+                  break-inside: auto !important;
+                  page-break-inside: auto !important;
+                }
+
+                .recipe-dish-header {
+                  margin-bottom: 0.5rem !important;
+                  padding-bottom: 0.5rem !important;
+                }
+
+                /* 4. Tablas: la tabla fluye libremente entre páginas; solo las filas individuales evitan partirse */
+                table {
+                  break-inside: auto !important;
+                  page-break-inside: auto !important;
+                  break-before: auto !important;
+                  page-break-before: auto !important;
+                }
+
+                tr,
+                td,
+                th {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  break-before: auto !important;
+                  page-break-before: auto !important;
+                }
+
+                thead { display: table-header-group !important; }
+                tfoot { display: table-row-group !important; }
+
+                /* Elementos atómicos que evitan partirse */
+                .print-avoid-break {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                }
               }
+
+              /* Reglas para generador PDF y motor de renderizado */
+              .recipe-page-sheet:not(.print-elaborado-page),
+              .recipe-page-sheet:not(.print-elaborado-page) *,
+              .recipe-dish-container,
+              .recipe-dish-container * {
+                break-before: auto !important;
+                page-break-before: auto !important;
+              }
+
+              .print-elaborado-page { 
+                break-before: page !important; 
+                page-break-before: always !important; 
+                margin-top: 0 !important;
+                padding-top: 0.5rem !important;
+              }
+
+              .recipe-page-sheet:first-child {
+                break-before: auto !important;
+                page-break-before: auto !important;
+              }
+
+              .recipe-dish-header,
+              .recipe-meta-bar,
+              .recipe-table-container,
+              .recipe-flowchart-container {
+                break-before: auto !important;
+                page-break-before: auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+              }
+
               .recipe-page-sheet { 
                 width: 794px !important; 
+                height: auto !important;
+                min-height: 0 !important;
                 box-sizing: border-box !important; 
                 display: block !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
+                break-inside: auto !important;
+                page-break-inside: auto !important;
               }
-              .print-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
-              tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+
+              table {
+                break-inside: auto !important;
+                page-break-inside: auto !important;
+                break-before: auto !important;
+                page-break-before: auto !important;
+              }
+
+              tr { 
+                break-inside: avoid !important; 
+                page-break-inside: avoid !important; 
+              }
+
+              .print-avoid-break {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+
               thead { display: table-header-group !important; }
               tfoot { display: table-row-group !important; }
             `}</style>
@@ -2303,13 +2434,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
               return (
                 <React.Fragment key={printingRecipe.id + '_' + index}>
-                  {isSubRecipe && <div className="html2pdf__page-break" />}
                   <div 
-                    className={`recipe-page-sheet px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white print-avoid-break ${isSubRecipe ? 'page-break' : ''}`}
-                    style={isSubRecipe ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}
+                    className={`recipe-page-sheet ${isSubRecipe ? 'print-elaborado-page' : 'recipe-dish-container'} px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white`}
                   >
                     <div className="z-10 w-full">
-                <div className="border-b border-orange-200 pb-2.5 mb-2.5 flex justify-between items-start">
+                <div className="recipe-dish-header border-b border-orange-200 pb-2 mb-2 flex justify-between items-start">
                   <div>
                     <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
                       {isSubRecipe && (
@@ -2344,12 +2473,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   <img 
                     src={settings?.logoUrl || '/logo.png'} 
                     alt="Logo" 
-                    className="logo-print max-h-14 max-w-[120px] object-contain" 
+                    className="logo-print max-h-12 max-w-[120px] object-contain" 
                     crossOrigin="anonymous" 
                   />
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-3 pb-2 border-b border-stone-100">
+                <div className="recipe-meta-bar flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-2.5 pb-2 border-b border-stone-100">
                     {currentPrintMode !== 'technical' && (
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
@@ -2434,12 +2563,12 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                 </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-[10px] font-bold mb-2.5 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
+              <div className="space-y-3.5">
+                <div className="recipe-table-container">
+                  <h3 className="text-[10px] font-bold mb-2 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                     {currentPrintMode === 'technical' ? 'Ingredientes y Preelaboración' : 'Escandallo Detallado'}
                   </h3>
-                  <table className="w-full text-[10px] text-left mb-4 font-sans table-fixed border-collapse">
+                  <table className="w-full text-[10px] text-left mb-3 font-sans table-fixed border-collapse">
                     <thead>
                       <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans text-[9px]">
                         {currentPrintMode === 'technical' ? (
@@ -2522,10 +2651,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         );
                       })}
                     </tbody>
-                    <tfoot className="print-avoid-break font-sans">
+                    <tfoot className="print-avoid-split print-avoid-break font-sans">
                       {currentPrintMode === 'technical' ? (
                         <>
-                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px]">
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split">
                             <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
                               Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
                             </td>
@@ -2537,7 +2666,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </td>
                           </tr>
                           {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
-                            <tr className="border-t border-stone-100 text-[9px] text-stone-600">
+                            <tr className="border-t border-stone-100 text-[9px] text-stone-600 print-avoid-split">
                               <td colSpan={3} className="py-1 px-2 text-right uppercase tracking-wider text-stone-500">
                                 Peso neto por ración ({printingRecipe.portions} raciones):
                               </td>
@@ -2549,7 +2678,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         </>
                       ) : (
                         <>
-                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px]">
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split">
                             <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
                               Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
                             </td>
@@ -2567,7 +2696,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </td>
                           </tr>
                           {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                            <tr className="border-t border-stone-100 font-sans text-[9px]">
+                            <tr className="border-t border-stone-100 font-sans text-[9px] print-avoid-split">
                               <td colSpan={2} className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">
                                 Por ración ({printingRecipe.portions} rac.):
                               </td>
@@ -2592,28 +2721,28 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
 
                 {currentPrintMode === 'costing' && (
-                  <div className="mt-2 p-4 rounded-xl bg-stone-50 border border-orange-200 print-avoid-break font-sans">
+                  <div className="mt-2 p-4 rounded-xl bg-stone-50 border border-orange-200 print-avoid-split print-avoid-break font-sans">
                     <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-800 mb-2.5 border-b border-stone-200 pb-1">
                       Resumen Económico y Rendimientos
                     </h4>
                     <div className="grid grid-cols-3 gap-3 text-[10px]">
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Total Materias Primas</span>
                         <span className="text-sm font-bold text-teal-700 mt-0.5 block">{printingRecipe.totalCost.toFixed(2)} €</span>
                       </div>
                       {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                        <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                           <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Unitario por Ración</span>
                           <span className="text-sm font-bold text-stone-800 mt-0.5 block">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</span>
                         </div>
                       )}
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Peso Bruto Total</span>
                         <span className="text-sm font-bold text-stone-800 mt-0.5 block font-mono">
                           {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : '-'}
                         </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                         <span className="text-[8.5px] uppercase tracking-wider text-teal-800 font-semibold block">Peso Neto Total</span>
                         <span className="text-sm font-bold text-teal-800 mt-0.5 block font-mono">
                           {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : '-'}
@@ -2625,14 +2754,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         )}
                       </div>
                       {printingRecipe.yieldQuantity && (
-                        <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                           <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">
                             {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento' : 'Cantidad Resultante'}
                           </span>
                           <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
                         </div>
                       )}
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Total Ingredientes / Elaborados</span>
                         <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.ingredients.length}</span>
                       </div>
@@ -2643,36 +2772,36 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 {currentPrintMode !== 'costing' && (
                   <>
                     {printingRecipe.type !== 'elaborado' ? (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-break">
-                    <div>
+                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break">
+                    <div className="print-avoid-split">
                       {printingRecipe.miseEnPlace && (
-                        <div className="print-avoid-break">
+                        <div className="print-avoid-split print-avoid-break">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
                           <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 print-avoid-split">
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                        <div className="print-avoid-break">
+                        <div className="print-avoid-split print-avoid-break">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-orange-200 pb-1 font-sans">Material</h3>
-                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans">
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans print-avoid-split">
                             {printingRecipe.equipment.map((eq, idx) => (
-                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split">{eq}</li>
                             ))}
                           </ul>
                         </div>
                       )}
 
                       {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-break">
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split print-avoid-break">
                           <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                             <span>🌱</span> Sostenibilidad
                           </h3>
-                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans print-avoid-split">
                             {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                              <li key={idx} className="leading-relaxed print-avoid-split">• {tip}</li>
                             ))}
                           </ul>
                         </div>
@@ -2680,18 +2809,18 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-break">
-                    <div>
+                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break">
+                    <div className="print-avoid-split">
                       <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                         Elaboración
                       </h3>
                       {printingRecipe.steps && printingRecipe.steps.length > 0 ? (
-                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-orange-900 font-sans">
+                        <ol className="space-y-2 list-decimal pl-4 text-[10px] text-orange-900 font-sans print-avoid-split">
                           {printingRecipe.steps.map((step, idx) => {
                             const parsed = parseStepStr(step);
                             const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
                             return (
-                              <li key={idx} className="leading-relaxed pl-1 font-sans print-avoid-break">
+                              <li key={idx} className="leading-relaxed pl-1 font-sans print-avoid-split print-avoid-break">
                                 <span className="font-semibold text-stone-800">{parsed.text}</span>
                                 {hasDuration && (
                                   <span className="ml-1.5 inline-block text-[8px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded font-mono font-bold leading-none select-none">
@@ -2707,33 +2836,33 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       )}
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 print-avoid-split">
                       {printingRecipe.miseEnPlace && (
-                        <div>
+                        <div className="print-avoid-split">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
                           <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
 
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                        <div>
+                        <div className="print-avoid-split">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Material</h3>
-                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans">
+                          <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans print-avoid-split">
                             {printingRecipe.equipment.map((eq, idx) => (
-                              <li key={idx} className="leading-relaxed pl-1">{eq}</li>
+                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split">{eq}</li>
                             ))}
                           </ul>
                         </div>
                       )}
 
                       {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split">
                           <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                             <span>🌱</span> Sostenibilidad
                           </h3>
-                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans">
+                          <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans print-avoid-split">
                             {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                              <li key={idx} className="leading-relaxed">• {tip}</li>
+                              <li key={idx} className="leading-relaxed print-avoid-split">• {tip}</li>
                             ))}
                           </ul>
                         </div>
@@ -2771,7 +2900,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   }
 
                   return (
-                    <div className="mt-6 border-t border-stone-250 pt-5 print-avoid-break font-sans">
+                    <div className="recipe-flowchart-container mt-4 border-t border-stone-200 pt-3 font-sans print-avoid-break">
                       <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-orange-200 pb-1 flex justify-between items-center">
                         <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
                         {maxDurationSec > 0 && (
@@ -2893,7 +3022,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 )}
               </div>
 
-              <div className="mt-4 pt-2.5 text-center border-t border-stone-100 print-avoid-break">
+              <div className="mt-4 pt-2.5 text-center border-t border-stone-100 print-avoid-split print-avoid-break">
                 <p className="text-[8px] text-stone-400 uppercase tracking-[0.3em] font-sans">
                   {currentPrintMode === 'technical'
                     ? 'Ficha Técnica de Cocina · Sin Datos Económicos · Proyecto Gastronómico'

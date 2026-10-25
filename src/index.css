@@ -100,3 +100,155 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of
 div#root:nth-of-type(1) > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) {
   border-radius: 6px !important;
 }
+
+/* ==========================================================================
+   Configuración Global de Impresión para Fichas Técnicas, Escandallos y Elaborados
+   ========================================================================== */
+@page {
+  margin: 1.5cm;
+  size: auto;
+}
+
+@media print {
+  /* Eliminar alturas completas o fijas en el árbol para evitar hojas vacías y saltos indeseados */
+  html,
+  body,
+  #root,
+  .print-container {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #1c1917 !important;
+  }
+
+  /* 1. Flujo natural del plato principal y de todos sus elementos hijos (cabecera, tabla, diagrama) */
+  .recipe-page-sheet:not(.print-elaborado-page),
+  .recipe-page-sheet:not(.print-elaborado-page) *,
+  .recipe-dish-container,
+  .recipe-dish-container *,
+  .recipe-dish-header,
+  .recipe-meta-bar,
+  .recipe-table-container,
+  .recipe-flowchart-container {
+    break-before: auto !important;
+    page-break-before: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  /* El plato principal (primer contenedor) nunca debe saltar de página al inicio */
+  .recipe-page-sheet:first-child {
+    break-before: auto !important;
+    page-break-before: auto !important;
+    margin-top: 0 !important;
+  }
+
+  /* 2. Forzar salto de página limpio EXCLUSIVAMENTE en el contenedor individual de cada elaborado */
+  .print-elaborado-page {
+    break-before: page !important;
+    page-break-before: always !important;
+    margin-top: 0 !important;
+    padding-top: 0.5rem !important;
+  }
+
+  /* 3. Espaciado interno controlado: sin alturas fijas ni márgenes excesivos */
+  .recipe-page-sheet {
+    height: auto !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    box-sizing: border-box !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .recipe-dish-header {
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  /* 4. Tablas: la tabla fluye de forma continua entre páginas; solo las filas individuales evitan partirse */
+  table {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  tr,
+  td,
+  th {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  thead { display: table-header-group !important; }
+  tfoot { display: table-row-group !important; }
+
+  /* Elementos atómicos que evitan partirse */
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* Soporte transversal para generador de PDF (html2canvas / html2pdf) y previsualización DOM */
+.recipe-page-sheet:not(.print-elaborado-page),
+.recipe-page-sheet:not(.print-elaborado-page) *,
+.recipe-dish-container,
+.recipe-dish-container * {
+  break-before: auto !important;
+  page-break-before: auto !important;
+}
+
+.print-elaborado-page {
+  break-before: page !important;
+  page-break-before: always !important;
+  margin-top: 0 !important;
+  padding-top: 0.5rem !important;
+}
+
+.recipe-page-sheet {
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 0 !important;
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+}
+
+.recipe-dish-header,
+.recipe-meta-bar,
+.recipe-table-container,
+.recipe-flowchart-container {
+  break-before: auto !important;
+  page-break-before: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+table {
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+  break-before: auto !important;
+  page-break-before: auto !important;
+}
+
+tr {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+.print-avoid-break {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+
