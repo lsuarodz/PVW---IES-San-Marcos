@@ -2435,10 +2435,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               return (
                 <React.Fragment key={printingRecipe.id + '_' + index}>
                   <div 
-                    className={`recipe-page-sheet ${isSubRecipe ? 'print-elaborado-page' : 'recipe-dish-container'} px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white`}
+                    className={`recipe-page-sheet ${isSubRecipe ? 'print:break-before-page print-elaborado-page print:mt-0 print:pt-2' : 'recipe-dish-container print:break-before-auto print:mt-0'} px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white print:h-auto print:min-h-0 print:box-border print:text-stone-900`}
                   >
                     <div className="z-10 w-full">
-                <div className="recipe-dish-header border-b border-orange-200 pb-2 mb-2 flex justify-between items-start">
+                <div className="recipe-dish-header border-b border-orange-200 pb-2 mb-2 flex justify-between items-start print:break-before-auto print:h-auto print:min-h-0 print:mb-2 print:pb-2">
                   <div>
                     <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
                       {isSubRecipe && (
@@ -2478,7 +2478,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   />
                 </div>
                 
-                <div className="recipe-meta-bar flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-2.5 pb-2 border-b border-stone-100">
+                <div className="recipe-meta-bar flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-2.5 pb-2 border-b border-stone-100 print:break-before-auto print:h-auto print:min-h-0">
                     {currentPrintMode !== 'technical' && (
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
@@ -2563,14 +2563,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                 </div>
 
-              <div className="space-y-3.5">
-                <div className="recipe-table-container">
+              <div className="space-y-3.5 print:break-before-auto">
+                <div className="recipe-table-container print:break-inside-avoid print:break-before-auto">
                   <h3 className="text-[10px] font-bold mb-2 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                     {currentPrintMode === 'technical' ? 'Ingredientes y Preelaboración' : 'Escandallo Detallado'}
                   </h3>
-                  <table className="w-full text-[10px] text-left mb-3 font-sans table-fixed border-collapse">
+                  <table className="w-full text-[10px] text-left mb-3 font-sans table-fixed border-collapse print:break-inside-avoid print:break-before-auto">
                     <thead>
-                      <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans text-[9px]">
+                      <tr className="text-stone-400 uppercase tracking-wider border-b border-orange-200 font-sans text-[9px] print:break-inside-avoid">
                         {currentPrintMode === 'technical' ? (
                           <>
                             <th className="py-2.5 px-2 font-medium w-[36%]">Ingrediente / Elaborado</th>
@@ -2625,7 +2625,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         const itemTotalCost = realCostPerUnit * gross;
 
                         return (
-                          <tr key={idx} className="hover:bg-stone-50 print-avoid-break">
+                          <tr key={idx} className="hover:bg-stone-50 print-avoid-break print:break-inside-avoid">
                             <td className="py-2.5 px-2 font-medium text-stone-800 break-words">{name}</td>
                             {currentPrintMode === 'costing' ? (
                               <td className="py-2.5 px-2 text-center text-stone-500 font-mono text-[9.5px]">
@@ -2651,10 +2651,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         );
                       })}
                     </tbody>
-                    <tfoot className="print-avoid-split print-avoid-break font-sans">
+                    <tfoot className="print-avoid-split print-avoid-break font-sans print:break-inside-avoid">
                       {currentPrintMode === 'technical' ? (
                         <>
-                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split">
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split print:break-inside-avoid">
                             <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
                               Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
                             </td>
@@ -2666,7 +2666,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </td>
                           </tr>
                           {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && totals.netWeightKg > 0 && (
-                            <tr className="border-t border-stone-100 text-[9px] text-stone-600 print-avoid-split">
+                            <tr className="border-t border-stone-100 text-[9px] text-stone-600 print-avoid-split print:break-inside-avoid">
                               <td colSpan={3} className="py-1 px-2 text-right uppercase tracking-wider text-stone-500">
                                 Peso neto por ración ({printingRecipe.portions} raciones):
                               </td>
@@ -2678,7 +2678,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         </>
                       ) : (
                         <>
-                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split">
+                          <tr className="border-t-2 border-stone-300 font-bold text-stone-900 text-[10px] print-avoid-split print:break-inside-avoid">
                             <td colSpan={2} className="py-2 px-2 uppercase tracking-wider text-[9px] text-stone-600">
                               Totales ({printingRecipe.ingredients.length} elementos{totals.grossUnits > 0 ? ` · ${totals.grossUnits.toFixed(3)} ud` : ''})
                             </td>
@@ -2696,7 +2696,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </td>
                           </tr>
                           {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                            <tr className="border-t border-stone-100 font-sans text-[9px] print-avoid-split">
+                            <tr className="border-t border-stone-100 font-sans text-[9px] print-avoid-split print:break-inside-avoid">
                               <td colSpan={2} className="py-1 px-2 text-right text-stone-500 uppercase tracking-wider">
                                 Por ración ({printingRecipe.portions} rac.):
                               </td>
@@ -2721,28 +2721,28 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 </div>
 
                 {currentPrintMode === 'costing' && (
-                  <div className="mt-2 p-4 rounded-xl bg-stone-50 border border-orange-200 print-avoid-split print-avoid-break font-sans">
+                  <div className="mt-2 p-4 rounded-xl bg-stone-50 border border-orange-200 print-avoid-split print-avoid-break font-sans print:break-inside-avoid print:break-before-auto">
                     <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-800 mb-2.5 border-b border-stone-200 pb-1">
                       Resumen Económico y Rendimientos
                     </h4>
                     <div className="grid grid-cols-3 gap-3 text-[10px]">
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Total Materias Primas</span>
                         <span className="text-sm font-bold text-teal-700 mt-0.5 block">{printingRecipe.totalCost.toFixed(2)} €</span>
                       </div>
                       {printingRecipe.portions && printingRecipe.type !== 'elaborado' && Number(printingRecipe.portions) > 0 && (
-                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                           <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Coste Unitario por Ración</span>
                           <span className="text-sm font-bold text-stone-800 mt-0.5 block">{(printingRecipe.totalCost / Number(printingRecipe.portions)).toFixed(2)} €</span>
                         </div>
                       )}
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Peso Bruto Total</span>
                         <span className="text-sm font-bold text-stone-800 mt-0.5 block font-mono">
                           {totals.grossWeightKg > 0 ? `${totals.grossWeightKg.toFixed(3)} kg` : '-'}
                         </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                         <span className="text-[8.5px] uppercase tracking-wider text-teal-800 font-semibold block">Peso Neto Total</span>
                         <span className="text-sm font-bold text-teal-800 mt-0.5 block font-mono">
                           {totals.netWeightKg > 0 ? `${totals.netWeightKg.toFixed(3)} kg` : '-'}
@@ -2754,14 +2754,14 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         )}
                       </div>
                       {printingRecipe.yieldQuantity && (
-                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                        <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                           <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">
                             {printingRecipe.yieldUnit === 'ud' ? 'Rendimiento' : 'Cantidad Resultante'}
                           </span>
                           <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.yieldQuantity} {printingRecipe.yieldUnit || 'kg'}</span>
                         </div>
                       )}
-                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split">
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 print-avoid-split print:break-inside-avoid">
                         <span className="text-[8.5px] uppercase tracking-wider text-stone-400 font-semibold block">Total Ingredientes / Elaborados</span>
                         <span className="text-sm font-bold text-stone-800 mt-0.5 block">{printingRecipe.ingredients.length}</span>
                       </div>
@@ -2772,36 +2772,36 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 {currentPrintMode !== 'costing' && (
                   <>
                     {printingRecipe.type !== 'elaborado' ? (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break">
-                    <div className="print-avoid-split">
+                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
+                    <div className="print-avoid-split print:break-inside-avoid">
                       {printingRecipe.miseEnPlace && (
-                        <div className="print-avoid-split print-avoid-break">
+                        <div className="print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-850 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
                           <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-6 print-avoid-split">
+                    <div className="space-y-6 print-avoid-split print:break-inside-avoid">
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                        <div className="print-avoid-split print-avoid-break">
+                        <div className="print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-855 border-b border-orange-200 pb-1 font-sans">Material</h3>
                           <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans print-avoid-split">
                             {printingRecipe.equipment.map((eq, idx) => (
-                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split">{eq}</li>
+                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split print:break-inside-avoid">{eq}</li>
                             ))}
                           </ul>
                         </div>
                       )}
 
                       {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split print-avoid-break">
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                             <span>🌱</span> Sostenibilidad
                           </h3>
                           <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans print-avoid-split">
                             {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                              <li key={idx} className="leading-relaxed print-avoid-split">• {tip}</li>
+                              <li key={idx} className="leading-relaxed print-avoid-split print:break-inside-avoid">• {tip}</li>
                             ))}
                           </ul>
                         </div>
@@ -2809,8 +2809,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break">
-                    <div className="print-avoid-split">
+                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
+                    <div className="print-avoid-split print:break-inside-avoid">
                       <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                         Elaboración
                       </h3>
@@ -2820,7 +2820,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             const parsed = parseStepStr(step);
                             const hasDuration = parsed.minutes > 0 || parsed.seconds > 0;
                             return (
-                              <li key={idx} className="leading-relaxed pl-1 font-sans print-avoid-split print-avoid-break">
+                              <li key={idx} className="leading-relaxed pl-1 font-sans print-avoid-split print-avoid-break print:break-inside-avoid">
                                 <span className="font-semibold text-stone-800">{parsed.text}</span>
                                 {hasDuration && (
                                   <span className="ml-1.5 inline-block text-[8px] bg-teal-50 text-teal-700 px-1 py-0.5 rounded font-mono font-bold leading-none select-none">
@@ -2836,33 +2836,33 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                       )}
                     </div>
 
-                    <div className="space-y-6 print-avoid-split">
+                    <div className="space-y-6 print-avoid-split print:break-inside-avoid">
                       {printingRecipe.miseEnPlace && (
-                        <div className="print-avoid-split">
+                        <div className="print-avoid-split print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Mise en Place</h3>
                           <p className="text-[10px] text-orange-900 leading-relaxed font-sans whitespace-pre-wrap">{printingRecipe.miseEnPlace}</p>
                         </div>
                       )}
 
                       {printingRecipe.equipment && printingRecipe.equipment.length > 0 && (
-                        <div className="print-avoid-split">
+                        <div className="print-avoid-split print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">Material</h3>
                           <ul className="space-y-1.5 list-disc pl-4 text-[10px] text-orange-900 font-sans print-avoid-split">
                             {printingRecipe.equipment.map((eq, idx) => (
-                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split">{eq}</li>
+                              <li key={idx} className="leading-relaxed pl-1 print-avoid-split print:break-inside-avoid">{eq}</li>
                             ))}
                           </ul>
                         </div>
                       )}
 
                       {printingRecipe.sustainabilityTips && printingRecipe.sustainabilityTips.length > 0 && (
-                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split">
+                        <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 print-avoid-split print:break-inside-avoid print:break-before-auto">
                           <h3 className="text-[9px] font-bold mb-2 uppercase tracking-[0.2em] text-teal-800 font-sans flex items-center gap-2">
                             <span>🌱</span> Sostenibilidad
                           </h3>
                           <ul className="space-y-1.5 text-[9px] text-teal-900 font-sans print-avoid-split">
                             {printingRecipe.sustainabilityTips.map((tip, idx) => (
-                              <li key={idx} className="leading-relaxed print-avoid-split">• {tip}</li>
+                              <li key={idx} className="leading-relaxed print-avoid-split print:break-inside-avoid">• {tip}</li>
                             ))}
                           </ul>
                         </div>
@@ -2900,7 +2900,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   }
 
                   return (
-                    <div className="recipe-flowchart-container mt-4 border-t border-stone-200 pt-3 font-sans print-avoid-break">
+                    <div className="recipe-flowchart-container mt-4 border-t border-stone-200 pt-3 font-sans print-avoid-break print:break-inside-avoid print:break-before-auto">
                       <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-orange-200 pb-1 flex justify-between items-center">
                         <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
                         {maxDurationSec > 0 && (
@@ -2913,7 +2913,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         * Planificación con margen de culminación unificada: todos los procesos finalizan juntos en el mismo instante (T-0) para el montaje del plato en caliente.
                       </p>
 
-                      <div className="bg-stone-50 rounded-2xl border border-orange-200 p-4">
+                      <div className="bg-stone-50 rounded-2xl border border-orange-200 p-4 print:break-inside-avoid">
                         {maxDurationSec > 0 ? (
                           <div className="space-y-4">
                             {/* Eje de tiempos (Timeline ticks) */}
@@ -2938,7 +2938,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                                 const startTimeSec = maxDurationSec - step.durationSec;
 
                                 return (
-                                  <div key={idx} className="grid grid-cols-12 gap-3 items-center">
+                                  <div key={idx} className="grid grid-cols-12 gap-3 items-center print:break-inside-avoid">
                                     {/* Información del Paso (Columna izquierda) */}
                                     <div className="col-span-5 min-w-0 pr-1">
                                       <div className="flex items-start gap-1.5">
@@ -2994,7 +2994,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                             </div>
 
                             {/* Culminación Emplatado (Hito Final) */}
-                            <div className="mt-4 pt-4 border-t border-dashed border-orange-200/60 flex items-center justify-between bg-orange-50 border border-amber-200/40 rounded-xl p-3">
+                            <div className="mt-4 pt-4 border-t border-dashed border-orange-200/60 flex items-center justify-between bg-orange-50 border border-amber-200/40 rounded-xl p-3 print:break-inside-avoid">
                               <div className="flex items-center gap-2">
                                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-xs select-none">
                                   ✨
