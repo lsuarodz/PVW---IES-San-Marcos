@@ -188,7 +188,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-stone-100 print:h-auto print:bg-white text-stone-900">
+    <div className="flex print:block h-screen print:h-auto bg-stone-100 print:bg-white text-stone-900 print:overflow-visible print:m-0 print:p-0">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 z-50 print:hidden">
         <button 
@@ -436,7 +436,7 @@ export default function Layout() {
       </aside>
 
       {/* Contenido principal (aquí se renderizan las páginas hijas según la ruta) */}
-      <main className="flex-1 overflow-y-auto print:overflow-visible pt-16 lg:pt-0 pb-24 relative">
+      <main className="flex-1 print:flex-none print:block overflow-y-auto print:overflow-visible print:h-auto pt-16 lg:pt-0 pb-24 print:pt-0 print:pb-0 print:m-0 print:p-0 relative print:static">
         {quotaExceeded && (
           <div className="bg-red-600 text-white px-4 py-2.5 text-xs sm:text-sm font-medium flex flex-wrap items-center justify-between gap-3 shadow-md sticky top-0 z-40 print:hidden">
             <span>

@@ -880,8 +880,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   return (
-    <div className="min-h-full p-3 sm:p-8">
-      <div className="max-w-6xl">
+    <div className="min-h-full print:min-h-0 print:h-auto print:block print:overflow-visible p-3 sm:p-8 print:p-0 print:m-0">
+      <div className={`max-w-6xl print:max-w-none print:w-full print:block print:overflow-visible print:h-auto print:m-0 print:p-0 ${printingRecipe ? 'print:hidden' : ''}`}>
         <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -2217,8 +2217,11 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
 
       {/* Hidden Print Layout */}
       {printingRecipe && (
-        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000, width: '794px' }}>
-          <div ref={printRef} className="print-container w-[794px] block relative bg-white">
+        <div 
+          style={{ position: 'absolute', left: 0, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1000, width: '794px' }}
+          className="print:static print:block print:w-full print:h-auto print:overflow-visible print:opacity-100 print:z-auto print:m-0 print:p-0"
+        >
+          <div ref={printRef} className="print-container w-[794px] block relative bg-white print:w-full print:block print:h-auto print:overflow-visible print:static print:m-0 print:p-0">
             <style>{`
               .print-container { 
                 background-color: #ffffff !important; 
@@ -2435,10 +2438,10 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
               return (
                 <React.Fragment key={printingRecipe.id + '_' + index}>
                   <div 
-                    className={`recipe-page-sheet ${isSubRecipe ? 'print:break-before-page print-elaborado-page print:mt-0 print:pt-2' : 'recipe-dish-container print:break-before-auto print:mt-0'} px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white print:h-auto print:min-h-0 print:box-border print:text-stone-900`}
+                    className={`recipe-page-sheet ${isSubRecipe ? 'print:break-before-page print-elaborado-page print:mt-0 print:pt-2' : 'recipe-dish-container print:break-before-auto print:mt-0'} px-3 py-2 relative text-stone-900 font-serif w-[794px] bg-white print:w-full print:block print:h-auto print:min-h-0 print:overflow-visible print:box-border print:text-stone-900 print:static`}
                   >
-                    <div className="z-10 w-full">
-                <div className="recipe-dish-header border-b border-orange-200 pb-2 mb-2 flex justify-between items-start print:break-before-auto print:h-auto print:min-h-0 print:mb-2 print:pb-2">
+                    <div className="z-10 w-full print:block print:h-auto print:overflow-visible">
+                <div className="recipe-dish-header border-b border-orange-200 pb-2 mb-2 flex justify-between items-start print:block print:break-before-auto print:h-auto print:min-h-0 print:overflow-visible print:mb-2 print:pb-2">
                   <div>
                     <div className="text-stone-400 text-[8px] tracking-[0.25em] uppercase mb-1 font-sans font-medium flex items-center gap-1.5 flex-wrap">
                       {isSubRecipe && (
@@ -2478,7 +2481,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   />
                 </div>
                 
-                <div className="recipe-meta-bar flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-2.5 pb-2 border-b border-stone-100 print:break-before-auto print:h-auto print:min-h-0">
+                <div className="recipe-meta-bar flex flex-wrap items-center gap-x-5 gap-y-1 text-stone-500 text-[9px] font-sans mb-2.5 pb-2 border-b border-stone-100 print:block print:break-before-auto print:h-auto print:min-h-0 print:overflow-visible">
                     {currentPrintMode !== 'technical' && (
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-stone-400 uppercase tracking-widest">Coste Total:</span>
@@ -2563,8 +2566,8 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                 </div>
 
-              <div className="space-y-3.5 print:break-before-auto">
-                <div className="recipe-table-container print:break-inside-avoid print:break-before-auto">
+              <div className="space-y-3.5 print:space-y-2 print:block print:w-full print:h-auto print:overflow-visible print:break-before-auto">
+                <div className="recipe-table-container print:block print:w-full print:h-auto print:overflow-visible print:break-inside-avoid print:break-before-auto">
                   <h3 className="text-[10px] font-bold mb-2 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                     {currentPrintMode === 'technical' ? 'Ingredientes y Preelaboración' : 'Escandallo Detallado'}
                   </h3>
@@ -2772,7 +2775,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                 {currentPrintMode !== 'costing' && (
                   <>
                     {printingRecipe.type !== 'elaborado' ? (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
+                  <div className="grid grid-cols-2 gap-8 print:block print:space-y-3 print:w-full print:h-auto print:overflow-visible print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
                     <div className="print-avoid-split print:break-inside-avoid">
                       {printingRecipe.miseEnPlace && (
                         <div className="print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
@@ -2809,7 +2812,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-8 print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
+                  <div className="grid grid-cols-2 gap-8 print:block print:space-y-3 print:w-full print:h-auto print:overflow-visible print-avoid-split print-avoid-break print:break-inside-avoid print:break-before-auto">
                     <div className="print-avoid-split print:break-inside-avoid">
                       <h3 className="text-xs font-bold mb-3 uppercase tracking-[0.2em] text-stone-800 border-b border-orange-200 pb-1 font-sans">
                         Elaboración
@@ -2900,7 +2903,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                   }
 
                   return (
-                    <div className="recipe-flowchart-container mt-4 border-t border-stone-200 pt-3 font-sans print-avoid-break print:break-inside-avoid print:break-before-auto">
+                    <div className="recipe-flowchart-container mt-4 border-t border-stone-200 pt-3 font-sans print-avoid-break print:break-inside-avoid print:break-before-auto print:block print:w-full print:h-auto print:overflow-visible">
                       <h3 className="text-[10px] font-bold mb-1.5 uppercase tracking-[0.25em] text-stone-850 border-b border-orange-200 pb-1 flex justify-between items-center">
                         <span>Diagrama de Flujo y Sincronización de Procesos (Sincronización Inversa)</span>
                         {maxDurationSec > 0 && (
@@ -2913,7 +2916,7 @@ export default function Recipes({ type = 'plato' }: { type?: 'elaborado' | 'plat
                         * Planificación con margen de culminación unificada: todos los procesos finalizan juntos en el mismo instante (T-0) para el montaje del plato en caliente.
                       </p>
 
-                      <div className="bg-stone-50 rounded-2xl border border-orange-200 p-4 print:break-inside-avoid">
+                      <div className="bg-stone-50 rounded-2xl border border-orange-200 p-4 print:break-inside-avoid print:block print:w-full print:h-auto print:overflow-visible">
                         {maxDurationSec > 0 ? (
                           <div className="space-y-4">
                             {/* Eje de tiempos (Timeline ticks) */}
